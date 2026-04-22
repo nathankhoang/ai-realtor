@@ -30,7 +30,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
   }) as { required: string[]; niceToHave: string[]; dontCare: string[]; dealBreakers: string[] }
 
-  const nextPage = Math.floor(analyzedCount / 10) + 1
+  // API returns 200 results/page; use page + in-page offset to continue where we left off
+  const pageNumber = Math.floor(analyzedCount / 200) + 1
+  const pageOffset = analyzedCount % 200
   const nextBatchNumber = Math.floor(analyzedCount / 10) + 1
 
   let zillowListings
@@ -41,13 +43,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
       priceMax: search.priceMax ?? undefined,
       bedsMin: search.bedsMin ?? undefined,
       bathsMin: search.bathsMin ?? undefined,
-      page: nextPage,
+      page: pageNumber,
     })
   } catch {
     return NextResponse.json({ error: 'Zillow search failed' }, { status: 500 })
   }
 
-  const batch = zillowListings.slice(0, 10)
+  const batch = zillowListings.slice(pageOffset, pageOffset + 10)
   let processed = 0
 
   for (const zl of batch) {

@@ -4,11 +4,10 @@ export interface ZillowListing {
   city: string
   state: string
   zipcode: string
-  price: number
-  bedrooms: number
-  bathrooms: number
-  livingArea: number
-  imgSrc: string
+  price: number | null
+  bedrooms: number | null
+  bathrooms: number | null
+  livingArea: number | null
   photos: string[]
 }
 
@@ -23,21 +22,34 @@ export async function searchZillow(params: {
   const apiKey = process.env.RAPIDAPI_KEY
   if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
 
+  const bathsEnum = (n?: number) => {
+    if (!n) return 'Any'
+    if (n >= 4) return 'FourPlus'
+    if (n >= 3) return 'ThreePlus'
+    if (n >= 2) return 'TwoPlus'
+    if (n >= 1.5) return 'OneHalfPlus'
+    return 'OnePlus'
+  }
+
+  const priceRange = [
+    params.priceMin ? `min:${params.priceMin}` : '',
+    params.priceMax ? `max:${params.priceMax}` : '',
+  ].filter(Boolean).join(', ')
+
   const query = new URLSearchParams({
     location: params.location,
-    ...(params.priceMin && { minPrice: String(params.priceMin) }),
-    ...(params.priceMax && { maxPrice: String(params.priceMax) }),
-    ...(params.bedsMin && { bedsMin: String(params.bedsMin) }),
-    ...(params.bathsMin && { bathsMin: String(params.bathsMin) }),
-    ...(params.page && { page: String(params.page) }),
-    status_type: 'ForSale',
-    home_type: 'Houses',
+    page: String(params.page ?? 1),
+    listingStatus: 'For_Sale',
+    homeType: 'Houses, Townhomes, Multi-family, Condos/Co-ops, Lots-Land, Apartments, Manufactured',
+    bed_min: params.bedsMin ? String(params.bedsMin) : 'No_Min',
+    bathrooms: bathsEnum(params.bathsMin),
+    ...(priceRange && { listPriceRange: priceRange }),
   })
 
-  const res = await fetch(`https://zillow-com1.p.rapidapi.com/propertyExtendedSearch?${query}`, {
+  const res = await fetch(`https://private-zillow.p.rapidapi.com/search/byaddress?${query}`, {
     headers: {
       'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'zillow-com1.p.rapidapi.com',
+      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
     },
   })
 
@@ -47,36 +59,31 @@ export async function searchZillow(params: {
   }
 
   const data = await res.json()
-  const rawListings = data.props ?? []
+  const rawResults: Record<string, unknown>[] = data.searchResults ?? []
 
-  return rawListings.map((p: Record<string, unknown>) => ({
-    zpid: String(p.zpid ?? ''),
-    address: String(p.address ?? ''),
-    city: String(p.city ?? ''),
-    state: String(p.state ?? ''),
-    zipcode: String(p.zipcode ?? ''),
-    price: Number(p.price ?? 0),
-    bedrooms: Number(p.bedrooms ?? 0),
-    bathrooms: Number(p.bathrooms ?? 0),
-    livingArea: Number(p.livingArea ?? 0),
-    imgSrc: String(p.imgSrc ?? ''),
-    photos: p.imgSrc ? [String(p.imgSrc)] : [],
-  }))
+  return rawResults.map((r: Record<string, unknown>) => {
+    const p = r.property as Record<string, unknown>
+    const addr = p.address as Record<string, unknown> | undefined
+    const price = p.price as Record<string, unknown> | undefined
+    const media = p.media as Record<string, unknown> | undefined
+    const allPhotos = media?.allPropertyPhotos as Record<string, unknown> | undefined
+    return {
+      zpid: String(p.zpid ?? ''),
+      address: String(addr?.streetAddress ?? ''),
+      city: String(addr?.city ?? ''),
+      state: String(addr?.state ?? ''),
+      zipcode: String(addr?.zipcode ?? ''),
+      price: price?.value != null ? Number(price.value) : null,
+      bedrooms: p.bedrooms != null ? Number(p.bedrooms) : null,
+      bathrooms: p.bathrooms != null ? Number(p.bathrooms) : null,
+      livingArea: p.livingArea != null ? Number(p.livingArea) : null,
+      photos: (allPhotos?.highResolution as string[] | undefined) ?? [],
+    }
+  })
 }
 
-export async function getListingPhotos(zpid: string): Promise<string[]> {
-  const apiKey = process.env.RAPIDAPI_KEY
-  if (!apiKey) return []
-
-  const res = await fetch(`https://zillow-com1.p.rapidapi.com/images?zpid=${zpid}`, {
-    headers: {
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'zillow-com1.p.rapidapi.com',
-    },
-  })
-
-  if (!res.ok) return []
-
-  const data = await res.json()
-  return (data.images ?? []).slice(0, 10) as string[]
+// Photos are already included in searchZillow results via allPropertyPhotos.highResolution.
+// Throwing here causes callers that do `.catch(() => zl.photos)` to use the search-result photos.
+export async function getListingPhotos(_zpid: string): Promise<string[]> {
+  throw new Error('use photos from search results')
 }
