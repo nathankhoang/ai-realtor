@@ -8,6 +8,7 @@ import { eq, and } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures, FeatureEvidence } from '@/types'
 import NextBatchButton from './NextBatchButton'
+import AnalysisPoller from './AnalysisPoller'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -76,8 +77,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
         {rows.length === 0 ? (
           <Card>
-            <CardContent className="py-16 text-center text-muted-foreground">
-              No results yet. Analysis may still be in progress.
+            <CardContent className="py-16 text-center space-y-3">
+              <p className="text-muted-foreground">Analyzing listings — this takes about 30 seconds…</p>
+              <div className="flex justify-center gap-1.5">
+                {[0,1,2].map(i => (
+                  <span key={i} className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
+                ))}
+              </div>
+              <AnalysisPoller />
             </CardContent>
           </Card>
         ) : (

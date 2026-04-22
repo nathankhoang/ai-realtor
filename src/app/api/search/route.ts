@@ -1,11 +1,13 @@
 import { auth } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
 import { analyzeListingPhotos, parseRequirements, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
+
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   try {
@@ -74,89 +76,94 @@ async function handleSearch(req: Request) {
     .set({ totalCandidates: zillowListings.length })
     .where(eq(searches.id, search.id))
 
-  // Pre-screen all results with Haiku (text-only, cheap) to pick the best 10 to vision-analyze
-  const rankedZpids = await prescreenListings(
-    zillowListings.map(zl => ({
-      zpid: zl.zpid,
-      address: zl.address,
-      price: zl.price,
-      beds: zl.bedrooms,
-      baths: zl.bathrooms,
-      sqft: zl.livingArea,
-    })),
-    parsedRequirements,
-  )
+  // Return immediately — analysis runs in the background
+  after(async () => {
+    try {
+      const rankedZpids = await prescreenListings(
+        zillowListings.map(zl => ({
+          zpid: zl.zpid,
+          address: zl.address,
+          price: zl.price,
+          beds: zl.bedrooms,
+          baths: zl.bathrooms,
+          sqft: zl.livingArea,
+        })),
+        parsedRequirements,
+      )
 
-  const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
-  const allZpids = zillowListings.map(zl => zl.zpid)
-  const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, 10)
-  const firstBatch = firstBatchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
+      const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
+      const allZpids = zillowListings.map(zl => zl.zpid)
+      const remaining = allZpids.filter(z => !rankedZpids.includes(z))
+      const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, 10)
+      const firstBatch = firstBatchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
-  const processListing = async (zl: typeof zillowListings[number]) => {
-    let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
+      const processListing = async (zl: typeof zillowListings[number]) => {
+        let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
 
-    if (!listing) {
-      const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
-      const [newListing] = await db.insert(listings).values({
-        zillowId: zl.zpid,
-        address: zl.address,
-        city: zl.city,
-        state: zl.state,
-        zipCode: zl.zipcode,
-        price: zl.price,
-        beds: zl.bedrooms,
-        baths: zl.bathrooms,
-        sqft: zl.livingArea,
-        photoUrls: photos,
-        rawData: zl,
-      }).returning()
-      listing = newListing
+        if (!listing) {
+          const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
+          const [newListing] = await db.insert(listings).values({
+            zillowId: zl.zpid,
+            address: zl.address,
+            city: zl.city,
+            state: zl.state,
+            zipCode: zl.zipcode,
+            price: zl.price,
+            beds: zl.bedrooms,
+            baths: zl.bathrooms,
+            sqft: zl.livingArea,
+            photoUrls: photos,
+            rawData: zl,
+          }).returning()
+          listing = newListing
+        }
+
+        const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
+        const photoUrls = (listing.photoUrls ?? []) as string[]
+        const features = await analyzeListingPhotos(photoUrls, listingContext)
+
+        let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
+        if (!analysis) {
+          const [newAnalysis] = await db.insert(listingAnalyses).values({
+            listingId: listing.id,
+            featuresJson: features,
+          }).returning()
+          analysis = newAnalysis
+        }
+
+        const { score, explanation } = await scoreListingAgainstRequirements(
+          parsedRequirements,
+          features,
+          { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
+          listingContext,
+        )
+
+        await db.insert(searchResults).values({
+          searchId: search.id,
+          listingId: listing.id,
+          matchScore: score,
+          matchExplanation: explanation,
+          batchNumber: 1,
+        })
+      }
+
+      let processed = 0
+      for (let i = 0; i < firstBatch.length; i += 5) {
+        const chunk = firstBatch.slice(i, i + 5)
+        const results = await Promise.allSettled(chunk.map(zl => processListing(zl)))
+        processed += results.filter(r => r.status === 'fulfilled').length
+        results.forEach((r, j) => {
+          if (r.status === 'rejected') console.error('Error processing listing', chunk[j].zpid, r.reason)
+        })
+      }
+
+      await db.update(searches)
+        .set({ analyzedCount: processed })
+        .where(eq(searches.id, search.id))
+    } catch (err) {
+      console.error('Background analysis failed:', err)
     }
-
-    const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
-    const photoUrls = (listing.photoUrls ?? []) as string[]
-    const features = await analyzeListingPhotos(photoUrls, listingContext)
-
-    let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
-    if (!analysis) {
-      const [newAnalysis] = await db.insert(listingAnalyses).values({
-        listingId: listing.id,
-        featuresJson: features,
-      }).returning()
-      analysis = newAnalysis
-    }
-
-    const { score, explanation } = await scoreListingAgainstRequirements(
-      parsedRequirements,
-      features,
-      { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
-      listingContext,
-    )
-
-    await db.insert(searchResults).values({
-      searchId: search.id,
-      listingId: listing.id,
-      matchScore: score,
-      matchExplanation: explanation,
-      batchNumber: 1,
-    })
-  }
-
-  // Process up to 5 listings concurrently
-  let processed = 0
-  for (let i = 0; i < firstBatch.length; i += 5) {
-    const chunk = firstBatch.slice(i, i + 5)
-    const results = await Promise.allSettled(chunk.map(zl => processListing(zl)))
-    processed += results.filter(r => r.status === 'fulfilled').length
-    results.forEach((r, j) => {
-      if (r.status === 'rejected') console.error('Error processing listing', chunk[j].zpid, r.reason)
-    })
-  }
-
-  await db.update(searches)
-    .set({ analyzedCount: processed })
-    .where(eq(searches.id, search.id))
+  })
 
   return NextResponse.json({ searchId: search.id })
 }
