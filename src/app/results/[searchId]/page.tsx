@@ -224,7 +224,7 @@ const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
 function FeatureGrid({ features }: { features: ListingFeatures }) {
   const visible = FEATURE_ROWS
     .map(({ label, key }) => ({ label, ev: features[key] as AnyEvidence | undefined }))
-    .filter(r => r.ev?.condition && r.ev.condition !== 'unknown')
+    .filter((r): r is { label: string; ev: AnyEvidence } => !!r.ev?.condition && r.ev.condition !== 'unknown')
 
   if (visible.length === 0) return null
 
