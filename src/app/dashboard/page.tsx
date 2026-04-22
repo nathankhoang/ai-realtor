@@ -5,17 +5,16 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { db } from '@/lib/db'
-import { users, searches } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { users, searches, clients, savedListings } from '@/lib/db/schema'
+import { eq, desc, count } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
+import NewClientButton from './NewClientButton'
 
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect('/')
 
-  let dbUser = await db.query.users.findFirst({
-    where: eq(users.clerkId, userId),
-  })
+  let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
 
   if (!dbUser) {
     const { currentUser } = await import('@clerk/nextjs/server')
@@ -27,11 +26,20 @@ export default async function DashboardPage() {
     dbUser = newUser
   }
 
-  const recentSearches = await db.query.searches.findMany({
-    where: eq(searches.userId, dbUser.id),
-    orderBy: [desc(searches.createdAt)],
-    limit: 10,
-  })
+  const [recentSearches, clientRows] = await Promise.all([
+    db.query.searches.findMany({
+      where: eq(searches.userId, dbUser.id),
+      orderBy: [desc(searches.createdAt)],
+      limit: 8,
+    }),
+    db
+      .select({ client: clients, savedCount: count(savedListings.id) })
+      .from(clients)
+      .leftJoin(savedListings, eq(savedListings.clientId, clients.id))
+      .where(eq(clients.userId, dbUser.id))
+      .groupBy(clients.id)
+      .orderBy(clients.createdAt),
+  ])
 
   const tier = dbUser.tier as Tier
   const limit = TIER_LIMITS[tier]
@@ -45,7 +53,7 @@ export default async function DashboardPage() {
         <UserButton />
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-8">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-10">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -59,41 +67,78 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {recentSearches.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-4">
-              <p className="text-muted-foreground">No searches yet.</p>
-              <Link href="/search">
-                <Button>Run your first search</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Recent Searches</h2>
-            {recentSearches.map((search) => (
-              <Link key={search.id} href={`/results/${search.id}`}>
-                <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
-                  <CardHeader className="py-4">
-                    <CardTitle className="text-base">{search.location}</CardTitle>
-                    <CardDescription className="line-clamp-1">
-                      {search.requirementsText ?? 'No requirements text'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 pb-4">
-                    <div className="flex gap-4 text-sm text-muted-foreground">
-                      {search.priceMax && <span>Up to ${search.priceMax.toLocaleString()}</span>}
-                      {search.bedsMin && <span>{search.bedsMin}+ beds</span>}
-                      {search.bathsMin && <span>{search.bathsMin}+ baths</span>}
-                      <span>{search.analyzedCount ?? 0} analyzed</span>
-                      <span className="ml-auto">{new Date(search.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+        {/* Clients */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Clients</h2>
+            <NewClientButton />
           </div>
-        )}
+          {clientRows.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                No clients yet. Create a client to start saving homes for them.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {clientRows.map(({ client, savedCount }) => (
+                <Link key={client.id} href={`/dashboard/clients/${client.id}`}>
+                  <Card className="hover:border-foreground/30 transition-colors cursor-pointer h-full">
+                    <CardHeader className="pb-2 pt-4">
+                      <CardTitle className="text-base">{client.name}</CardTitle>
+                      {client.notes && (
+                        <CardDescription className="line-clamp-2">{client.notes}</CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                      <div className="flex gap-4 text-xs text-muted-foreground">
+                        {client.email && <span>{client.email}</span>}
+                        {client.phone && <span>{client.phone}</span>}
+                        <span className="ml-auto">{Number(savedCount)} saved {Number(savedCount) === 1 ? 'home' : 'homes'}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Searches */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Recent Searches</h2>
+          {recentSearches.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-4">
+                <p className="text-muted-foreground">No searches yet.</p>
+                <Link href="/search"><Button>Run your first search</Button></Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {recentSearches.map((search) => (
+                <Link key={search.id} href={`/results/${search.id}`}>
+                  <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">{search.location}</CardTitle>
+                      <CardDescription className="line-clamp-1 text-xs">
+                        {search.requirementsText ?? 'No requirements'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-3">
+                      <div className="flex gap-4 text-xs text-muted-foreground">
+                        {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
+                        {search.bedsMin && <span>{search.bedsMin}+ bd</span>}
+                        <span>{search.analyzedCount ?? 0} analyzed</span>
+                        <span className="ml-auto">{new Date(search.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   )

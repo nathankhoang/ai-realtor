@@ -3,12 +3,13 @@ import { redirect, notFound } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { searches, searchResults, listings, listingAnalyses, users } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures, FeatureEvidence } from '@/types'
 import NextBatchButton from './NextBatchButton'
 import AnalysisPoller from './AnalysisPoller'
+import SaveButton from './SaveButton'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -35,6 +36,24 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
     .where(eq(searchResults.searchId, searchId))
 
   rows.sort((a, b) => b.result.matchScore - a.result.matchScore)
+
+  // Fetch saved state for all listings in this result set
+  const userClients = await db.query.clients.findMany({ where: eq(clients.userId, dbUser.id) })
+  const clientIds = userClients.map(c => c.id)
+  const savedRows = clientIds.length > 0
+    ? await db.select().from(savedListings)
+        .where(and(
+          inArray(savedListings.clientId, clientIds),
+          inArray(savedListings.listingId, rows.map(r => r.listing.id)),
+        ))
+    : []
+  // Map listingId -> clientIds it's saved to
+  const savedByListing = new Map<string, string[]>()
+  for (const s of savedRows) {
+    const existing = savedByListing.get(s.listingId) ?? []
+    existing.push(s.clientId)
+    savedByListing.set(s.listingId, existing)
+  }
 
   const analyzed = search.analyzedCount ?? 0
   const total = search.totalCandidates ?? 0
@@ -120,6 +139,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
                     explanation={result.matchExplanation ?? ''}
                     features={features}
                     zillowId={listing.zillowId}
+                    listingId={listing.id}
+                    savedClientIds={savedByListing.get(listing.id) ?? []}
                   />
                 )
               })}
@@ -139,7 +160,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
 function ListingCard({
   rank, score, address, city, state, price, beds, baths, sqft,
-  photos, explanation, features, zillowId,
+  photos, explanation, features, zillowId, listingId, savedClientIds,
 }: {
   rank: number
   score: number
@@ -154,6 +175,8 @@ function ListingCard({
   explanation: string
   features: ListingFeatures | null
   zillowId: string
+  listingId: string
+  savedClientIds: string[]
 }) {
   const scoreColor =
     score >= 80 ? 'text-green-400' :
@@ -197,6 +220,7 @@ function ListingCard({
             >
               Zillow →
             </a>
+            <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
           </div>
         </div>
       </div>

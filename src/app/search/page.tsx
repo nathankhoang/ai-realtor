@@ -20,6 +20,8 @@ const FEATURE_GROUPS = [
       { id: 'granite_countertops', label: 'Granite / quartz countertops' },
       { id: 'stainless_appliances', label: 'Stainless steel appliances' },
       { id: 'kitchen_island', label: 'Kitchen island' },
+      { id: 'pantry', label: 'Pantry' },
+      { id: 'gas_stove', label: 'Gas stove' },
     ],
   },
   {
@@ -28,6 +30,8 @@ const FEATURE_GROUPS = [
       { id: 'hardwood_floors', label: 'Hardwood floors' },
       { id: 'no_carpet', label: 'No carpet' },
       { id: 'tile_floors', label: 'Tile floors' },
+      { id: 'luxury_vinyl', label: 'Luxury vinyl plank' },
+      { id: 'updated_finishes', label: 'Modern / updated finishes' },
     ],
   },
   {
@@ -36,6 +40,8 @@ const FEATURE_GROUPS = [
       { id: 'natural_light', label: 'Lots of natural light' },
       { id: 'high_ceilings', label: 'High ceilings' },
       { id: 'open_floor_plan', label: 'Open floor plan' },
+      { id: 'large_windows', label: 'Large windows' },
+      { id: 'bonus_room', label: 'Bonus room / loft' },
     ],
   },
   {
@@ -44,6 +50,8 @@ const FEATURE_GROUPS = [
       { id: 'updated_bathrooms', label: 'Updated bathrooms' },
       { id: 'double_vanity', label: 'Double vanity' },
       { id: 'walk_in_shower', label: 'Walk-in shower' },
+      { id: 'soaking_tub', label: 'Soaking tub' },
+      { id: 'primary_suite', label: 'Large primary suite' },
     ],
   },
   {
@@ -51,7 +59,39 @@ const FEATURE_GROUPS = [
     features: [
       { id: 'large_backyard', label: 'Large backyard' },
       { id: 'pool', label: 'Pool' },
+      { id: 'covered_patio', label: 'Covered patio / deck' },
+      { id: 'fenced_yard', label: 'Fenced yard' },
+      { id: 'outdoor_kitchen', label: 'Outdoor kitchen / grill area' },
+    ],
+  },
+  {
+    label: 'Parking & Storage',
+    features: [
       { id: 'garage', label: 'Garage' },
+      { id: 'two_car_garage', label: '2-car garage' },
+      { id: 'three_car_garage', label: '3-car garage' },
+      { id: 'rv_parking', label: 'RV / boat parking' },
+      { id: 'walk_in_closet', label: 'Walk-in closet' },
+    ],
+  },
+  {
+    label: 'Home Features',
+    features: [
+      { id: 'fireplace', label: 'Fireplace' },
+      { id: 'basement', label: 'Basement' },
+      { id: 'laundry_room', label: 'Dedicated laundry room' },
+      { id: 'home_office', label: 'Home office' },
+      { id: 'formal_dining', label: 'Formal dining room' },
+    ],
+  },
+  {
+    label: 'Condition & Community',
+    features: [
+      { id: 'move_in_ready', label: 'Move-in ready' },
+      { id: 'new_construction', label: 'New construction' },
+      { id: 'recently_renovated', label: 'Recently renovated' },
+      { id: 'no_hoa', label: 'No HOA' },
+      { id: 'waterfront', label: 'Waterfront / water view' },
     ],
   },
 ]

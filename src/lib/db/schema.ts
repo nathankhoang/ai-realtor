@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, real, uuid } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -61,8 +61,28 @@ export const searchResults = pgTable('search_results', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+export const clients = pgTable('clients', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const savedListings = pgTable('saved_listings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  clientId: uuid('client_id').references(() => clients.id).notNull(),
+  listingId: uuid('listing_id').references(() => listings.id).notNull(),
+  notes: text('notes'),
+  savedAt: timestamp('saved_at').notNull().defaultNow(),
+}, (t) => [unique().on(t.clientId, t.listingId)])
+
 export type User = typeof users.$inferSelect
 export type Search = typeof searches.$inferSelect
 export type Listing = typeof listings.$inferSelect
 export type ListingAnalysis = typeof listingAnalyses.$inferSelect
 export type SearchResult = typeof searchResults.$inferSelect
+export type Client = typeof clients.$inferSelect
+export type SavedListing = typeof savedListings.$inferSelect
