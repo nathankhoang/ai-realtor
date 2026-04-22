@@ -1,0 +1,100 @@
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
+import { UserButton } from '@clerk/nextjs'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { db } from '@/lib/db'
+import { users, searches } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
+import { TIER_LIMITS, type Tier } from '@/types'
+
+export default async function DashboardPage() {
+  const { userId } = await auth()
+  if (!userId) redirect('/')
+
+  let dbUser = await db.query.users.findFirst({
+    where: eq(users.clerkId, userId),
+  })
+
+  if (!dbUser) {
+    const { currentUser } = await import('@clerk/nextjs/server')
+    const clerkUser = await currentUser()
+    const [newUser] = await db.insert(users).values({
+      clerkId: userId,
+      email: clerkUser?.emailAddresses[0]?.emailAddress ?? '',
+    }).returning()
+    dbUser = newUser
+  }
+
+  const recentSearches = await db.query.searches.findMany({
+    where: eq(searches.userId, dbUser.id),
+    orderBy: [desc(searches.createdAt)],
+    limit: 10,
+  })
+
+  const tier = dbUser.tier as Tier
+  const limit = TIER_LIMITS[tier]
+  const used = dbUser.searchesUsedThisMonth
+  const remaining = limit === Infinity ? null : Math.max(0, limit - used)
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+        <Link href="/dashboard" className="text-xl font-semibold tracking-tight">Eifara</Link>
+        <UserButton />
+      </header>
+
+      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {tier.charAt(0).toUpperCase() + tier.slice(1)} plan
+              {remaining !== null ? ` · ${remaining} searches remaining this month` : ' · Unlimited searches'}
+            </p>
+          </div>
+          <Link href="/search">
+            <Button>New Search</Button>
+          </Link>
+        </div>
+
+        {recentSearches.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-4">
+              <p className="text-muted-foreground">No searches yet.</p>
+              <Link href="/search">
+                <Button>Run your first search</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Recent Searches</h2>
+            {recentSearches.map((search) => (
+              <Link key={search.id} href={`/results/${search.id}`}>
+                <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
+                  <CardHeader className="py-4">
+                    <CardTitle className="text-base">{search.location}</CardTitle>
+                    <CardDescription className="line-clamp-1">
+                      {search.requirementsText ?? 'No requirements text'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-4">
+                    <div className="flex gap-4 text-sm text-muted-foreground">
+                      {search.priceMax && <span>Up to ${search.priceMax.toLocaleString()}</span>}
+                      {search.bedsMin && <span>{search.bedsMin}+ beds</span>}
+                      {search.bathsMin && <span>{search.bathsMin}+ baths</span>}
+                      <span>{search.analyzedCount ?? 0} analyzed</span>
+                      <span className="ml-auto">{new Date(search.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

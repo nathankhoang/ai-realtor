@@ -1,65 +1,72 @@
-import Image from "next/image";
+import { auth } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
+import { SignInButton, SignUpButton } from '@clerk/nextjs'
+import { Button } from '@/components/ui/button'
 
-export default function Home() {
+export default async function Home() {
+  const { userId } = await auth()
+  if (userId) redirect('/dashboard')
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col min-h-screen">
+      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+        <span className="text-xl font-semibold tracking-tight">Eifara</span>
+        <div className="flex items-center gap-3">
+          <SignInButton mode="modal">
+            <Button variant="ghost" size="sm">Sign in</Button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <Button size="sm">Get started</Button>
+          </SignUpButton>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center">
+        <div className="max-w-2xl space-y-6">
+          <h1 className="text-5xl font-bold tracking-tight leading-tight">
+            Find homes your clients<br />will actually love
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-lg mx-auto">
+            Describe what your client wants in plain English. Eifara scans Zillow listings and analyzes every photo to rank homes by how well they match.
+          </p>
+          <div className="flex gap-3 justify-center pt-2">
+            <SignUpButton mode="modal">
+              <Button size="lg">Start free</Button>
+            </SignUpButton>
+            <SignInButton mode="modal">
+              <Button size="lg" variant="outline">Sign in</Button>
+            </SignInButton>
+          </div>
+        </div>
+
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl w-full text-left">
+          <div className="space-y-2">
+            <div className="text-2xl">🔍</div>
+            <h3 className="font-semibold">Plain-English Requirements</h3>
+            <p className="text-sm text-muted-foreground">
+              Paste your client&apos;s wishlist or check off features. Eifara understands &quot;updated kitchen but doesn&apos;t care about carpet&quot;.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <div className="text-2xl">📸</div>
+            <h3 className="font-semibold">Photo-Level Analysis</h3>
+            <p className="text-sm text-muted-foreground">
+              AI scans every listing photo and identifies hardwood floors, granite countertops, natural light, and more — even when the listing description misses it.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <div className="text-2xl">📊</div>
+            <h3 className="font-semibold">Ranked with Explanations</h3>
+            <p className="text-sm text-muted-foreground">
+              Every result comes with a match score and specific callouts like &quot;Kitchen updated — photo 2: quartz countertops&quot; to show your clients exactly why.
+            </p>
+          </div>
         </div>
       </main>
+
+      <footer className="border-t border-border/40 px-6 py-4 text-center text-sm text-muted-foreground">
+        © 2026 Eifara. All rights reserved.
+      </footer>
     </div>
-  );
+  )
 }
