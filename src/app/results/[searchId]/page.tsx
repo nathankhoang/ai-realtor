@@ -39,26 +39,27 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   const total = search.totalCandidates ?? 0
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
         <Link href="/dashboard" className="text-xl font-semibold tracking-tight">Eifara</Link>
         <UserButton />
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-6">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5">
+        {/* Search summary bar */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">← Dashboard</Link>
-            <h1 className="text-2xl font-bold mt-2">{search.location}</h1>
+            <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground">← Dashboard</Link>
+            <h1 className="text-xl font-bold mt-1">{search.location}</h1>
             {search.requirementsText && (
-              <p className="text-sm text-muted-foreground mt-1 max-w-xl line-clamp-2">{search.requirementsText}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-lg line-clamp-1">{search.requirementsText}</p>
             )}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-muted-foreground">
-              {search.priceMax && <span>Up to ${search.priceMax.toLocaleString()}</span>}
-              {search.bedsMin && <span>{search.bedsMin}+ beds</span>}
-              {search.bathsMin && <span>{search.bathsMin}+ baths</span>}
+            <div className="flex flex-wrap gap-x-3 mt-1.5 text-xs text-muted-foreground">
+              {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
+              {search.bedsMin && <span>{search.bedsMin}+ bd</span>}
+              {search.bathsMin && <span>{search.bathsMin}+ ba</span>}
               <span className="text-foreground font-medium">{rows.length} analyzed</span>
-              {total > analyzed && <span>{total - analyzed} more available</span>}
+              {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
             </div>
           </div>
           <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
@@ -71,7 +72,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {rows.map(({ result, listing, analysis }, index) => {
               const features = analysis?.featuresJson as ListingFeatures | null
               const photos = (listing.photoUrls ?? []) as string[]
@@ -126,126 +127,173 @@ function ListingCard({
   features: ListingFeatures | null
   zillowId: string
 }) {
-  const scoreColor = score >= 80 ? 'text-green-400' : score >= 60 ? 'text-amber-400' : 'text-red-400'
-  const scoreBorder = score >= 80 ? 'border-green-900/60 bg-green-950/30' : score >= 60 ? 'border-amber-900/60 bg-amber-950/30' : 'border-red-900/60 bg-red-950/30'
+  const scoreColor =
+    score >= 80 ? 'text-green-400' :
+    score >= 60 ? 'text-amber-400' :
+    'text-rose-400'
+  const scoreBg =
+    score >= 80 ? 'bg-green-950/40 border-green-800/50' :
+    score >= 60 ? 'bg-amber-950/40 border-amber-800/50' :
+    'bg-rose-950/40 border-rose-800/50'
 
   return (
-    <Card className="overflow-hidden">
-      {/* Header */}
-      <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 min-w-0">
-          <span className="text-sm text-muted-foreground font-mono mt-0.5 shrink-0">#{rank}</span>
-          <div className="min-w-0">
-            <p className="font-semibold text-base leading-snug truncate">{address}</p>
-            <p className="text-sm text-muted-foreground">{[city, state].filter(Boolean).join(', ')}</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-sm">
-              {price && <span className="font-semibold text-foreground">${price.toLocaleString()}</span>}
-              {beds && <span className="text-muted-foreground">{beds} bd</span>}
-              {baths && <span className="text-muted-foreground">{baths} ba</span>}
-              {sqft && <span className="text-muted-foreground">{sqft.toLocaleString()} sqft</span>}
+    <Card className="overflow-hidden border-border/50">
+      {/* ── Top row: rank / address / score ── */}
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
+        <span className="text-xs text-muted-foreground font-mono pt-0.5 w-5 shrink-0">#{rank}</span>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm leading-snug truncate">{address}</p>
+              <p className="text-xs text-muted-foreground">{[city, state].filter(Boolean).join(', ')}</p>
+            </div>
+            {/* Score badge */}
+            <div className={`border rounded-md px-2.5 py-1 text-center shrink-0 ${scoreBg}`}>
+              <span className={`text-xl font-bold leading-none ${scoreColor}`}>{score}</span>
+              <span className="text-[10px] text-muted-foreground">/100</span>
             </div>
           </div>
-        </div>
-        <div className={`border rounded-lg px-3 py-2 text-center shrink-0 ${scoreBorder}`}>
-          <div className={`text-2xl font-bold leading-none ${scoreColor}`}>{score}</div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">/ 100</div>
+
+          {/* Stats row */}
+          <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1.5 text-xs">
+            {price && <span className="font-semibold text-foreground">${price.toLocaleString()}</span>}
+            {beds && <span className="text-muted-foreground">{beds} bd</span>}
+            {baths && <span className="text-muted-foreground">{baths} ba</span>}
+            {sqft && <span className="text-muted-foreground">{sqft.toLocaleString()} sqft</span>}
+            <a
+              href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 ml-auto"
+            >
+              Zillow →
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Photo strip */}
+      {/* ── Photos ── */}
       {photos.length > 0 && (
-        <div className="flex gap-1 px-5 pb-3">
+        <div className="flex gap-0.5 px-4 pb-3">
           {photos.slice(0, 4).map((url, i) => (
             <div key={i} className="relative flex-1 min-w-0">
-              <img
-                src={url}
-                alt={`Photo ${i + 1}`}
-                className="w-full h-28 object-cover rounded"
-              />
-              <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded leading-4">
-                {i + 1}
-              </span>
+              <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 object-cover rounded-sm" />
+              <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] px-1 rounded-sm leading-4">{i + 1}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Match explanation */}
+      {/* ── Match explanation ── */}
       {explanation && (
-        <div className="px-5 pb-3">
-          <p className="text-sm leading-relaxed text-muted-foreground">{explanation}</p>
+        <div className="px-4 pb-3">
+          <p className="text-xs leading-relaxed text-foreground/80">{explanation}</p>
         </div>
       )}
 
-      {/* Feature evidence */}
+      {/* ── Feature evidence 2-col grid ── */}
       {features && <FeatureGrid features={features} />}
 
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-border/30 flex items-center justify-between gap-4">
-        {features?.notes ? (
-          <p className="text-xs text-muted-foreground line-clamp-1 flex-1">{features.notes}</p>
-        ) : (
-          <span />
-        )}
-        <a
-          href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-blue-400 hover:text-blue-300 shrink-0 whitespace-nowrap"
-        >
-          View on Zillow →
-        </a>
-      </div>
+      {/* ── Notes footer ── */}
+      {features?.notes && (
+        <div className="px-4 py-2 border-t border-border/30">
+          <p className="text-[11px] text-muted-foreground line-clamp-2">
+            <span className="font-medium text-muted-foreground/70 uppercase tracking-wide text-[10px] mr-1">Notes</span>
+            <WithYears text={features.notes} />
+          </p>
+        </div>
+      )}
     </Card>
   )
 }
 
 type AnyEvidence = FeatureEvidence & { type?: string; height?: string }
 
-function FeatureGrid({ features }: { features: ListingFeatures }) {
-  const rows: { label: string; evidence: AnyEvidence }[] = [
-    { label: 'Floors', evidence: features.floors },
-    { label: 'Countertops', evidence: features.kitchenCountertops },
-    { label: 'Appliances', evidence: features.kitchenAppliances },
-    { label: 'Cabinets', evidence: features.kitchenCabinets },
-    { label: 'Bathrooms', evidence: features.bathrooms },
-    { label: 'Ceilings', evidence: features.ceilings },
-    { label: 'Windows', evidence: features.windows },
-    { label: 'Natural light', evidence: features.naturalLight },
-  ].filter(r => r.evidence?.condition && r.evidence.condition !== 'unknown')
+const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
+  { label: 'Floors', key: 'floors' },
+  { label: 'Countertops', key: 'kitchenCountertops' },
+  { label: 'Appliances', key: 'kitchenAppliances' },
+  { label: 'Cabinets', key: 'kitchenCabinets' },
+  { label: 'Bathrooms', key: 'bathrooms' },
+  { label: 'Ceilings', key: 'ceilings' },
+  { label: 'Windows', key: 'windows' },
+  { label: 'Natural light', key: 'naturalLight' },
+]
 
-  if (rows.length === 0) return null
+function FeatureGrid({ features }: { features: ListingFeatures }) {
+  const visible = FEATURE_ROWS
+    .map(({ label, key }) => ({ label, ev: features[key] as AnyEvidence | undefined }))
+    .filter(r => r.ev?.condition && r.ev.condition !== 'unknown')
+
+  if (visible.length === 0) return null
+
+  // Split into 2 columns
+  const mid = Math.ceil(visible.length / 2)
+  const left = visible.slice(0, mid)
+  const right = visible.slice(mid)
 
   return (
-    <div className="mx-5 mb-3 rounded-lg border border-border/40 overflow-hidden text-sm">
-      <div className="px-3 py-1.5 bg-muted/20 border-b border-border/40">
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Feature evidence</span>
+    <div className="mx-4 mb-3 rounded border border-border/40 overflow-hidden text-xs">
+      <div className="px-3 py-1 bg-muted/20 border-b border-border/30">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feature evidence</span>
       </div>
-      <div className="divide-y divide-border/20">
-        {rows.map(({ label, evidence }) => {
-          const condColor =
-            evidence.condition === 'updated' ? 'text-green-400' :
-            evidence.condition === 'poor' ? 'text-red-400' :
-            'text-muted-foreground'
-          const qualifier = evidence.type || evidence.height
-          const photoRef = evidence.photoIndex != null ? `photo ${evidence.photoIndex + 1}` : null
-
-          return (
-            <div key={label} className="flex items-baseline gap-2 px-3 py-1.5">
-              <span className="w-24 shrink-0 text-muted-foreground">{label}</span>
-              <span className={`capitalize font-medium ${condColor}`}>
-                {qualifier ? `${qualifier}, ` : ''}{evidence.condition}
-              </span>
-              {evidence.detail && (
-                <span className="text-muted-foreground text-xs flex-1 min-w-0 truncate">{evidence.detail}</span>
-              )}
-              {photoRef && (
-                <span className="text-xs text-blue-400 shrink-0 ml-auto pl-2">· {photoRef}</span>
-              )}
-            </div>
-          )
-        })}
+      <div className="grid grid-cols-2 divide-x divide-border/30">
+        <FeatureCol rows={left} />
+        <FeatureCol rows={right} />
       </div>
     </div>
+  )
+}
+
+function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
+  return (
+    <div className="divide-y divide-border/20">
+      {rows.map(({ label, ev }) => {
+        const icon =
+          ev.condition === 'updated' ? '✓' :
+          ev.condition === 'poor' ? '✗' : '·'
+        const iconColor =
+          ev.condition === 'updated' ? 'text-green-400' :
+          ev.condition === 'poor' ? 'text-rose-400' :
+          'text-muted-foreground'
+        const qualifier = ev.type || ev.height
+        const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
+
+        return (
+          <div key={label} className="px-3 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className={`shrink-0 font-bold ${iconColor}`}>{icon}</span>
+              <span className="text-muted-foreground w-20 shrink-0">{label}</span>
+              <span className="font-medium capitalize text-foreground/90 truncate">
+                {qualifier ? `${qualifier}` : ev.condition}
+              </span>
+              {photoRef && (
+                <span className="text-blue-400 shrink-0 ml-auto pl-1">·{photoRef}</span>
+              )}
+            </div>
+            {ev.detail && (
+              <p className="text-[11px] text-muted-foreground pl-5 mt-0.5 line-clamp-2">
+                <WithYears text={ev.detail} />
+              </p>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Highlights 4-digit years (e.g. 2022) in amber
+function WithYears({ text }: { text: string }) {
+  const parts = text.split(/(\b(?:19|20)\d{2}\b)/)
+  return (
+    <>
+      {parts.map((part, i) =>
+        /^\d{4}$/.test(part)
+          ? <span key={i} className="text-amber-400 font-semibold">{part}</span>
+          : part
+      )}
+    </>
   )
 }

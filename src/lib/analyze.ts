@@ -49,7 +49,7 @@ Analyze these ${photoUrls.length} listing photos and respond with a JSON object 
 
 For each feature, provide:
 - condition: "updated" | "original" | "poor" | "unknown"
-- detail: a brief description of what you see — if listing data confirms or contradicts what the photo shows, note it (e.g. "quartz countertops visible, listing says 'renovated kitchen 2021'")
+- detail: describe what you see AND embed any renovation year from the listing data directly in this field (e.g. "quartz countertops, renovated 2022 per listing" or "hardwood floors, installed 2019 per MLS"). Always include the year when available.
 - photoIndex: which photo index (0-based) shows this most clearly, or null if not visible
 
 Additional fields:
@@ -141,6 +141,20 @@ export async function scoreListingAgainstRequirements(
 
   const prompt = `You are a real estate AI assistant scoring how well a home matches client requirements.
 
+SCORING SCALE — use the full range:
+- 0.85–1.0: All or nearly all required features clearly present; no deal breakers
+- 0.65–0.85: Most required features present; 1 minor gap or uncertainty
+- 0.45–0.65: Several required features present; 2+ gaps but no deal breakers
+- 0.25–0.45: Few required features confirmed; significant gaps
+- 0.0–0.25: Deal breakers present OR almost nothing from requirements is met
+
+CRITICAL RULES:
+- "unknown" means the feature wasn't visible in photos — do NOT penalize for unknown. Treat as neutral.
+- Only penalize features that are clearly absent or visibly poor quality.
+- Nice-to-haves never lower the score — only raise it when present.
+- If requirements are minimal (1–3 items) and most are met, score should be 0.65+.
+- If the listing description or MLS data confirms a requirement, that counts even if photos are unclear.
+
 Client requirements:
 - Must have: ${requirements.required.join(', ') || 'none specified'}
 - Nice to have: ${requirements.niceToHave.join(', ') || 'none'}
@@ -159,7 +173,7 @@ Home at ${listing.address}:
 - Overall age/condition: ${features.overallAge ?? 'unknown'}
 - Notes: ${features.notes ?? ''}
 ${contextSection}
-Score from 0.0 to 1.0 and provide a 1-2 sentence explanation. For each key requirement matched or missed, cite the source: "per listing description", "per MLS data", or "photo [N]". If the listing mentions renovation dates, include them.
+Write a 2-sentence explanation. Sentence 1: state the score rationale and which key requirements are met or missing. Sentence 2: cite renovation dates if any (e.g. "Kitchen remodeled 2022 per listing") and the source for each claim ("per listing description", "per MLS data", or "photo [N]").
 
 Respond ONLY with valid JSON:
 {"score": 0.85, "explanation": "..."}`
