@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
-import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
+import { analyzeListingPhotos, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
 
 export async function POST(req: Request, { params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -49,64 +49,85 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
     return NextResponse.json({ error: 'Zillow search failed' }, { status: 500 })
   }
 
-  const batch = zillowListings.slice(pageOffset, pageOffset + 10)
-  let processed = 0
+  const pageCandidates = zillowListings.slice(pageOffset)
 
-  for (const zl of batch) {
-    try {
-      let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
+  // Pre-screen remaining candidates with Haiku to pick the best 10 to vision-analyze
+  const rankedZpids = await prescreenListings(
+    pageCandidates.map(zl => ({
+      zpid: zl.zpid,
+      address: zl.address,
+      price: zl.price,
+      beds: zl.bedrooms,
+      baths: zl.bathrooms,
+      sqft: zl.livingArea,
+    })),
+    parsedRequirements,
+  )
 
-      if (!listing) {
-        const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
-        const [newListing] = await db.insert(listings).values({
-          zillowId: zl.zpid,
-          address: zl.address,
-          city: zl.city,
-          state: zl.state,
-          zipCode: zl.zipcode,
-          price: zl.price,
-          beds: zl.bedrooms,
-          baths: zl.bathrooms,
-          sqft: zl.livingArea,
-          photoUrls: photos,
-          rawData: zl,
-        }).returning()
-        listing = newListing
-      }
+  const zpidToListing = new Map(pageCandidates.map(zl => [zl.zpid, zl]))
+  const allZpids = pageCandidates.map(zl => zl.zpid)
+  const remaining = allZpids.filter(z => !rankedZpids.includes(z))
+  const batchZpids = [...rankedZpids, ...remaining].slice(0, 10)
+  const batch = batchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
-      const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
+  const processListing = async (zl: typeof zillowListings[number]) => {
+    let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
 
-      const photoUrls = (listing.photoUrls ?? []) as string[]
-      const features = await analyzeListingPhotos(photoUrls, listingContext)
-
-      let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
-      if (!analysis) {
-        const [newAnalysis] = await db.insert(listingAnalyses).values({
-          listingId: listing.id,
-          featuresJson: features,
-        }).returning()
-        analysis = newAnalysis
-      }
-
-      const { score, explanation } = await scoreListingAgainstRequirements(
-        parsedRequirements,
-        features,
-        { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
-        listingContext,
-      )
-
-      await db.insert(searchResults).values({
-        searchId: search.id,
-        listingId: listing.id,
-        matchScore: score,
-        matchExplanation: explanation,
-        batchNumber: nextBatchNumber,
-      })
-
-      processed++
-    } catch (err) {
-      console.error('Error processing listing', zl.zpid, err)
+    if (!listing) {
+      const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
+      const [newListing] = await db.insert(listings).values({
+        zillowId: zl.zpid,
+        address: zl.address,
+        city: zl.city,
+        state: zl.state,
+        zipCode: zl.zipcode,
+        price: zl.price,
+        beds: zl.bedrooms,
+        baths: zl.bathrooms,
+        sqft: zl.livingArea,
+        photoUrls: photos,
+        rawData: zl,
+      }).returning()
+      listing = newListing
     }
+
+    const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
+    const photoUrls = (listing.photoUrls ?? []) as string[]
+    const features = await analyzeListingPhotos(photoUrls, listingContext)
+
+    let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
+    if (!analysis) {
+      const [newAnalysis] = await db.insert(listingAnalyses).values({
+        listingId: listing.id,
+        featuresJson: features,
+      }).returning()
+      analysis = newAnalysis
+    }
+
+    const { score, explanation } = await scoreListingAgainstRequirements(
+      parsedRequirements,
+      features,
+      { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
+      listingContext,
+    )
+
+    await db.insert(searchResults).values({
+      searchId: search.id,
+      listingId: listing.id,
+      matchScore: score,
+      matchExplanation: explanation,
+      batchNumber: nextBatchNumber,
+    })
+  }
+
+  let processed = 0
+  for (let i = 0; i < batch.length; i += 5) {
+    const chunk = batch.slice(i, i + 5)
+    const results = await Promise.allSettled(chunk.map(zl => processListing(zl)))
+    processed += results.filter(r => r.status === 'fulfilled').length
+    results.forEach((r, j) => {
+      if (r.status === 'rejected') console.error('Error processing listing', chunk[j].zpid, r.reason)
+    })
   }
 
   await db.update(searches)

@@ -86,6 +86,54 @@ Respond ONLY with valid JSON, no explanation:`
   }
 }
 
+export async function prescreenListings(
+  listings: Array<{
+    zpid: string
+    address: string
+    price: number | null
+    beds: number | null
+    baths: number | null
+    sqft: number | null
+  }>,
+  requirements: ParsedRequirements,
+): Promise<string[]> {
+  if (listings.length === 0) return []
+  if (listings.length <= 10) return listings.map(l => l.zpid)
+
+  const rows = listings.map(l =>
+    `${l.zpid} | ${l.address} | ${l.price ? '$' + l.price.toLocaleString() : 'N/A'} | ${l.beds ?? '?'}bd | ${l.baths ?? '?'}ba | ${l.sqft ? l.sqft.toLocaleString() + ' sqft' : 'N/A'}`
+  ).join('\n')
+
+  const prompt = `Rank these real estate listings by how well they match the buyer's requirements. Use only the data provided.
+
+Requirements:
+- Must have: ${requirements.required.join(', ') || 'none'}
+- Nice to have: ${requirements.niceToHave.join(', ') || 'none'}
+- Deal breakers: ${requirements.dealBreakers.join(', ') || 'none'}
+
+Listings (zpid | address | price | beds | baths | sqft):
+${rows}
+
+Return ONLY a JSON array of the top 15 zpids ordered best to worst. No explanation:
+["zpid1", "zpid2", ...]`
+
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const text = response.content[0].type === 'text' ? response.content[0].text : '[]'
+  try {
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const ranked = JSON.parse(cleaned) as string[]
+    const validZpids = new Set(listings.map(l => l.zpid))
+    return ranked.filter(z => validZpids.has(z))
+  } catch {
+    return listings.map(l => l.zpid)
+  }
+}
+
 export async function parseRequirements(requirementsText: string): Promise<ParsedRequirements> {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
