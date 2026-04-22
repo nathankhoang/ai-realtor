@@ -18,6 +18,11 @@ function buildListingContextBlock(ctx: ListingContext): string {
   if (appliances.length) parts.push(`Appliances (MLS): ${appliances.join(', ')}`)
   if (interiorFeatures.length) parts.push(`Interior features (MLS): ${interiorFeatures.join(', ')}`)
   if (isNewConstruction) parts.push('New construction')
+  if (ctx.resoFacts.hasHoa) {
+    parts.push(`HOA: Yes${ctx.resoFacts.hoaFee != null ? ` ($${ctx.resoFacts.hoaFee}/month)` : ' (fee unknown)'}`)
+  } else {
+    parts.push('HOA: None')
+  }
   const sales = ctx.priceHistory.filter(h => h.event.toLowerCase().includes('sold'))
   if (sales.length) {
     parts.push(`Last sold: ${sales[0].date}${sales[0].price ? ' at $' + sales[0].price.toLocaleString() : ''}`)
@@ -182,6 +187,11 @@ export async function scoreListingAgainstRequirements(
   if (rf?.interiorFeatures.length) contextLines.push(`- MLS interior features: ${rf.interiorFeatures.join(', ')}`)
   if (rf?.flooring.length) contextLines.push(`- MLS flooring: ${rf.flooring.join(', ')}`)
   if (rf?.appliances.length) contextLines.push(`- MLS appliances: ${rf.appliances.join(', ')}`)
+  if (rf != null) {
+    contextLines.push(rf.hasHoa
+      ? `- HOA: Yes${rf.hoaFee != null ? ` ($${rf.hoaFee}/month)` : ' (fee unknown)'}`
+      : '- HOA: None')
+  }
 
   const contextSection = contextLines.length
     ? `\nListing data from MLS:\n${contextLines.join('\n')}\n`
@@ -219,6 +229,7 @@ Home at ${listing.address}:
 - Ceilings: ${features.ceilings?.height ?? 'unknown'} height
 - Natural light: ${features.naturalLight?.condition ?? 'unknown'} — ${features.naturalLight?.detail ?? ''}
 - Overall age/condition: ${features.overallAge ?? 'unknown'}
+- HOA: ${listingContext?.resoFacts?.hasHoa ? `Yes${listingContext.resoFacts.hoaFee != null ? ` ($${listingContext.resoFacts.hoaFee}/month)` : ' (fee unknown)'}` : listingContext ? 'None' : 'unknown (no MLS data)'}
 - Notes: ${features.notes ?? ''}
 ${contextSection}
 Write a 2-sentence explanation. Sentence 1: state the score rationale and which key requirements are met or missing. Sentence 2: cite renovation dates if any (e.g. "Kitchen remodeled 2022 per listing") and the source for each claim ("per listing description", "per MLS data", or "photo [N]").

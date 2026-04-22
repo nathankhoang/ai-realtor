@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, clients, savedListings } from '@/lib/db/schema'
+import { users, clients, savedListings, listings } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 
 async function verifyClientOwnership(userId: string, clientId: string) {
@@ -24,7 +24,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ clientI
   const { listingId } = await req.json()
   if (!listingId) return NextResponse.json({ error: 'listingId required' }, { status: 400 })
 
-  const [saved] = await db.insert(savedListings).values({ clientId, listingId })
+  const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) })
+
+  const [saved] = await db.insert(savedListings).values({
+    clientId,
+    listingId,
+    lastKnownPrice: listing?.price ?? null,
+  })
     .onConflictDoNothing()
     .returning()
 

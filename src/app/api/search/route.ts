@@ -1,11 +1,12 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse, after } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { users, searches, listings, listingAnalyses, searchResults, clients } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
 import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
 import { analyzeListingPhotos, parseRequirements, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
+import { sendAnalysisComplete } from '@/lib/email'
 
 export const maxDuration = 60
 
@@ -33,10 +34,18 @@ async function handleSearch(req: Request) {
   }
 
   const body = await req.json()
-  const { location, requirementsText, priceMin, priceMax, bedsMin, bathsMin } = body
+  const { location, requirementsText, priceMin, priceMax, bedsMin, bathsMin, clientId } = body
 
   if (!location) return NextResponse.json({ error: 'Location is required' }, { status: 400 })
   if (!requirementsText) return NextResponse.json({ error: 'Requirements are required' }, { status: 400 })
+
+  let resolvedClientId: string | null = null
+  if (clientId) {
+    const client = await db.query.clients.findFirst({
+      where: and(eq(clients.id, clientId), eq(clients.userId, dbUser.id)),
+    })
+    if (client) resolvedClientId = clientId
+  }
 
   let parsedRequirements
   try {
@@ -48,6 +57,7 @@ async function handleSearch(req: Request) {
 
   const [search] = await db.insert(searches).values({
     userId: dbUser.id,
+    clientId: resolvedClientId,
     requirementsText,
     requirementsJson: parsedRequirements,
     location,
@@ -160,6 +170,12 @@ async function handleSearch(req: Request) {
       await db.update(searches)
         .set({ analyzedCount: processed })
         .where(eq(searches.id, search.id))
+
+      try {
+        await sendAnalysisComplete(dbUser.email, search.location, processed, search.id)
+      } catch (emailErr) {
+        console.error('Failed to send analysis complete email:', emailErr)
+      }
     } catch (err) {
       console.error('Background analysis failed:', err)
     }

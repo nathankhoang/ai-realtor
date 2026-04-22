@@ -96,8 +96,31 @@ export interface ListingContext {
     appliances: string[]
     interiorFeatures: string[]
     isNewConstruction: boolean
+    hasHoa: boolean
+    hoaFee: number | null
   }
   priceHistory: Array<{ date: string; event: string; price?: number }>
+}
+
+export async function getListingPrice(zpid: string): Promise<number | null> {
+  const apiKey = process.env.RAPIDAPI_KEY
+  if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
+
+  const res = await fetch(`https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`, {
+    headers: {
+      'x-rapidapi-key': apiKey,
+      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+    },
+  })
+
+  if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
+
+  const data = await res.json()
+  const d = (data.propertyDetails ?? {}) as Record<string, unknown>
+  const price = d.price as Record<string, unknown> | undefined
+  if (price?.value != null) return Number(price.value)
+  if (d.listPrice != null) return Number(d.listPrice)
+  return null
 }
 
 export async function getListingDetails(zpid: string): Promise<ListingContext> {
@@ -126,6 +149,8 @@ export async function getListingDetails(zpid: string): Promise<ListingContext> {
       appliances: (resoFacts.appliances as string[] | undefined) ?? [],
       interiorFeatures: (resoFacts.interiorFeatures as string[] | undefined) ?? [],
       isNewConstruction: Boolean(resoFacts.isNewConstruction),
+      hasHoa: Boolean(resoFacts.hasHoa ?? resoFacts.hoaFee),
+      hoaFee: resoFacts.hoaFee != null ? Number(resoFacts.hoaFee) : null,
     },
     priceHistory: priceHistory.map(h => ({
       date: String(h.date ?? ''),

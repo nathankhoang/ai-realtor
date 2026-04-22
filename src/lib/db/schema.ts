@@ -14,6 +14,7 @@ export const users = pgTable('users', {
 export const searches = pgTable('searches', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id).notNull(),
+  clientId: uuid('client_id').references(() => clients.id),
   requirementsText: text('requirements_text'),
   requirementsJson: jsonb('requirements_json'),
   location: text('location').notNull(),
@@ -68,6 +69,7 @@ export const clients = pgTable('clients', {
   email: text('email'),
   phone: text('phone'),
   notes: text('notes'),
+  shareToken: text('share_token').unique(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -76,6 +78,7 @@ export const savedListings = pgTable('saved_listings', {
   clientId: uuid('client_id').references(() => clients.id).notNull(),
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
   notes: text('notes'),
+  lastKnownPrice: integer('last_known_price'),
   savedAt: timestamp('saved_at').notNull().defaultNow(),
 }, (t) => [unique().on(t.clientId, t.listingId)])
 

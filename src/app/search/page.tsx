@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 const FEATURE_GROUPS = [
@@ -96,8 +97,11 @@ const FEATURE_GROUPS = [
   },
 ]
 
+interface SimpleClient { id: string; name: string }
+
 export default function SearchPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [requirements, setRequirements] = useState('')
   const [location, setLocation] = useState('')
@@ -106,6 +110,15 @@ export default function SearchPage() {
   const [bedsMin, setBedsMin] = useState('')
   const [bathsMin, setBathsMin] = useState('')
   const [checkedFeatures, setCheckedFeatures] = useState<Set<string>>(new Set())
+  const [clientId, setClientId] = useState(searchParams.get('clientId') ?? '')
+  const [clientList, setClientList] = useState<SimpleClient[]>([])
+
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(d => setClientList(d.clients ?? []))
+      .catch(() => {})
+  }, [])
 
   function toggleFeature(id: string) {
     setCheckedFeatures(prev => {
@@ -149,6 +162,7 @@ export default function SearchPage() {
           priceMax: priceMax ? parseInt(priceMax) : undefined,
           bedsMin: bedsMin ? parseFloat(bedsMin) : undefined,
           bathsMin: bathsMin ? parseFloat(bathsMin) : undefined,
+          clientId: clientId || undefined,
         }),
       })
 
@@ -189,6 +203,23 @@ export default function SearchPage() {
               required
             />
           </div>
+
+          {clientList.length > 0 && (
+            <div className="space-y-2">
+              <Label>Client (optional)</Label>
+              <Select value={clientId} onValueChange={v => setClientId(v ?? '')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a client…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No client</SelectItem>
+                  {clientList.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="requirements">Client requirements</Label>

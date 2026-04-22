@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { db } from '@/lib/db'
@@ -9,6 +10,8 @@ import { users, searches, clients, savedListings } from '@/lib/db/schema'
 import { eq, desc, count } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
 import NewClientButton from './NewClientButton'
+import ManageBillingButton from './ManageBillingButton'
+import UpgradeSuccessToast from './UpgradeSuccessToast'
 
 export default async function DashboardPage() {
   const { userId } = await auth()
@@ -61,11 +64,24 @@ export default async function DashboardPage() {
               {tier.charAt(0).toUpperCase() + tier.slice(1)} plan
               {remaining !== null ? ` · ${remaining} searches remaining this month` : ' · Unlimited searches'}
             </p>
+            <div className="flex items-center gap-3 mt-2">
+              {tier === 'free' && (
+                <Link href="/pricing" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors">
+                  Upgrade plan
+                </Link>
+              )}
+              {tier !== 'free' && (
+                <ManageBillingButton />
+              )}
+            </div>
           </div>
           <Link href="/search">
             <Button>New Search</Button>
           </Link>
         </div>
+        <Suspense fallback={null}>
+          <UpgradeSuccessToast />
+        </Suspense>
 
         {/* Clients */}
         <div className="space-y-3">

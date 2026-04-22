@@ -3,11 +3,13 @@ import { redirect, notFound } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { users, clients, savedListings, listings, listingAnalyses } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { users, clients, savedListings, listings, listingAnalyses, searches } from '@/lib/db/schema'
+import { eq, and, desc } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures } from '@/types'
 import RemoveSavedButton from './RemoveSavedButton'
+import ShareButton from './ShareButton'
+import ListingNoteEditor from './ListingNoteEditor'
 
 export default async function ClientProfilePage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params
@@ -22,13 +24,20 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   })
   if (!client) notFound()
 
-  const saved = await db
-    .select({ saved: savedListings, listing: listings, analysis: listingAnalyses })
-    .from(savedListings)
-    .innerJoin(listings, eq(savedListings.listingId, listings.id))
-    .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
-    .where(eq(savedListings.clientId, clientId))
-    .orderBy(savedListings.savedAt)
+  const [saved, linkedSearches] = await Promise.all([
+    db
+      .select({ saved: savedListings, listing: listings, analysis: listingAnalyses })
+      .from(savedListings)
+      .innerJoin(listings, eq(savedListings.listingId, listings.id))
+      .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
+      .where(eq(savedListings.clientId, clientId))
+      .orderBy(savedListings.savedAt),
+    db.query.searches.findMany({
+      where: and(eq(searches.userId, dbUser.id), eq(searches.clientId, clientId)),
+      orderBy: [desc(searches.createdAt)],
+      limit: 10,
+    }),
+  ])
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -40,7 +49,10 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-6">
         <div>
           <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground">← Dashboard</Link>
-          <h1 className="text-2xl font-bold mt-1">{client.name}</h1>
+          <div className="flex items-start justify-between gap-3 mt-1">
+            <h1 className="text-2xl font-bold">{client.name}</h1>
+            <ShareButton clientId={clientId} />
+          </div>
           <div className="flex flex-wrap gap-x-4 mt-1 text-sm text-muted-foreground">
             {client.email && <span>{client.email}</span>}
             {client.phone && <span>{client.phone}</span>}
@@ -54,7 +66,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
             Saved Listings ({saved.length})
           </h2>
-          <Link href="/search" className="text-xs text-blue-400 hover:text-blue-300">
+          <Link href={`/search?clientId=${clientId}`} className="text-xs text-blue-400 hover:text-blue-300">
             + New Search
           </Link>
         </div>
@@ -101,11 +113,39 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                       {features?.notes && (
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{features.notes}</p>
                       )}
+                      <ListingNoteEditor savedId={s.id} initialNotes={s.notes ?? null} />
                     </div>
                   </div>
                 </Card>
               )
             })}
+          </div>
+        )}
+
+        {linkedSearches.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Linked Searches ({linkedSearches.length})
+            </h2>
+            <div className="space-y-2">
+              {linkedSearches.map(search => (
+                <Link key={search.id} href={`/results/${search.id}`}>
+                  <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
+                    <CardContent className="py-3 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{search.location}</p>
+                        {search.requirementsText && (
+                          <p className="text-xs text-muted-foreground truncate">{search.requirementsText}</p>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground shrink-0">
+                        {search.analyzedCount ?? 0} results · {new Date(search.createdAt).toLocaleDateString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </main>
