@@ -1,9 +1,37 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ListingFeatures, ParsedRequirements } from '@/types'
+import type { ListingContext } from '@/lib/zillow'
 
 const client = new Anthropic()
 
-export async function analyzeListingPhotos(photoUrls: string[]): Promise<ListingFeatures> {
+function buildListingContextBlock(ctx: ListingContext): string {
+  const parts: string[] = []
+
+  if (ctx.description) {
+    parts.push(`Listing description: "${ctx.description.slice(0, 800)}"`)
+  }
+  if (ctx.yearBuilt) {
+    parts.push(`Year built: ${ctx.yearBuilt}`)
+  }
+  const { flooring, appliances, interiorFeatures, isNewConstruction } = ctx.resoFacts
+  if (flooring.length) parts.push(`Flooring (MLS): ${flooring.join(', ')}`)
+  if (appliances.length) parts.push(`Appliances (MLS): ${appliances.join(', ')}`)
+  if (interiorFeatures.length) parts.push(`Interior features (MLS): ${interiorFeatures.join(', ')}`)
+  if (isNewConstruction) parts.push('New construction')
+  const sales = ctx.priceHistory.filter(h => h.event.toLowerCase().includes('sold'))
+  if (sales.length) {
+    parts.push(`Last sold: ${sales[0].date}${sales[0].price ? ' at $' + sales[0].price.toLocaleString() : ''}`)
+  }
+
+  return parts.length
+    ? `\nLISTING DATA (MLS/Zillow):\n${parts.join('\n')}\n\nCross-reference this listing data with the photos. When the description or MLS fields mention renovations, upgrades, or specific features, note whether the photos confirm or contradict them and cite which photo shows it.\n`
+    : ''
+}
+
+export async function analyzeListingPhotos(
+  photoUrls: string[],
+  listingContext?: ListingContext,
+): Promise<ListingFeatures> {
   if (photoUrls.length === 0) {
     return getUnknownFeatures()
   }
@@ -13,13 +41,15 @@ export async function analyzeListingPhotos(photoUrls: string[]): Promise<Listing
     source: { type: 'url', url },
   }))
 
-  const prompt = `You are analyzing real estate listing photos to extract specific features.
+  const contextBlock = listingContext ? buildListingContextBlock(listingContext) : ''
 
+  const prompt = `You are analyzing real estate listing photos to extract specific features.
+${contextBlock}
 Analyze these ${photoUrls.length} listing photos and respond with a JSON object (no markdown, just raw JSON).
 
 For each feature, provide:
 - condition: "updated" | "original" | "poor" | "unknown"
-- detail: a brief description of what you see
+- detail: a brief description of what you see — if listing data confirms or contradicts what the photo shows, note it (e.g. "quartz countertops visible, listing says 'renovated kitchen 2021'")
 - photoIndex: which photo index (0-based) shows this most clearly, or null if not visible
 
 Additional fields:
@@ -28,7 +58,7 @@ Additional fields:
 - kitchenAppliances.type: e.g. "stainless steel", "black", "white", "mixed", "unknown"
 - ceilings.height: "high" | "standard" | "low" | "unknown"
 - overallAge: "new" | "updated" | "dated" | "unknown"
-- notes: any notable features or observations (max 2 sentences)
+- notes: any notable features or observations including renovation evidence with dates if mentioned in listing data (max 2 sentences)
 
 Respond ONLY with valid JSON, no explanation:`
 
@@ -90,8 +120,25 @@ Respond with:
 export async function scoreListingAgainstRequirements(
   requirements: ParsedRequirements,
   features: ListingFeatures,
-  listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null }
+  listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null },
+  listingContext?: ListingContext,
 ): Promise<{ score: number; explanation: string }> {
+  const contextLines: string[] = []
+  if (listingContext?.description) {
+    contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
+  }
+  if (listingContext?.yearBuilt) {
+    contextLines.push(`- Year built: ${listingContext.yearBuilt}`)
+  }
+  const rf = listingContext?.resoFacts
+  if (rf?.interiorFeatures.length) contextLines.push(`- MLS interior features: ${rf.interiorFeatures.join(', ')}`)
+  if (rf?.flooring.length) contextLines.push(`- MLS flooring: ${rf.flooring.join(', ')}`)
+  if (rf?.appliances.length) contextLines.push(`- MLS appliances: ${rf.appliances.join(', ')}`)
+
+  const contextSection = contextLines.length
+    ? `\nListing data from MLS:\n${contextLines.join('\n')}\n`
+    : ''
+
   const prompt = `You are a real estate AI assistant scoring how well a home matches client requirements.
 
 Client requirements:
@@ -103,16 +150,16 @@ Client requirements:
 Home at ${listing.address}:
 - Price: ${listing.price ? '$' + listing.price.toLocaleString() : 'unknown'}
 - Beds: ${listing.beds ?? 'unknown'}, Baths: ${listing.baths ?? 'unknown'}
-- Floors: ${features.floors?.type ?? 'unknown'} (${features.floors?.condition ?? 'unknown'})
-- Kitchen countertops: ${features.kitchenCountertops?.type ?? 'unknown'} (${features.kitchenCountertops?.condition ?? 'unknown'})
-- Kitchen appliances: ${features.kitchenAppliances?.type ?? 'unknown'}
-- Bathrooms: ${features.bathrooms?.condition ?? 'unknown'} - ${features.bathrooms?.detail ?? ''}
+- Floors: ${features.floors?.type ?? 'unknown'} (${features.floors?.condition ?? 'unknown'}) — ${features.floors?.detail ?? ''}
+- Kitchen countertops: ${features.kitchenCountertops?.type ?? 'unknown'} (${features.kitchenCountertops?.condition ?? 'unknown'}) — ${features.kitchenCountertops?.detail ?? ''}
+- Kitchen appliances: ${features.kitchenAppliances?.type ?? 'unknown'} — ${features.kitchenAppliances?.detail ?? ''}
+- Bathrooms: ${features.bathrooms?.condition ?? 'unknown'} — ${features.bathrooms?.detail ?? ''}
 - Ceilings: ${features.ceilings?.height ?? 'unknown'} height
-- Natural light: ${features.naturalLight?.condition ?? 'unknown'} - ${features.naturalLight?.detail ?? ''}
+- Natural light: ${features.naturalLight?.condition ?? 'unknown'} — ${features.naturalLight?.detail ?? ''}
 - Overall age/condition: ${features.overallAge ?? 'unknown'}
 - Notes: ${features.notes ?? ''}
-
-Score from 0.0 to 1.0 and provide a 1-2 sentence explanation highlighting specific matches or mismatches. Reference specific features with photo evidence when available.
+${contextSection}
+Score from 0.0 to 1.0 and provide a 1-2 sentence explanation. For each key requirement matched or missed, cite the source: "per listing description", "per MLS data", or "photo [N]". If the listing mentions renovation dates, include them.
 
 Respond ONLY with valid JSON:
 {"score": 0.85, "explanation": "..."}`

@@ -87,3 +87,50 @@ export async function searchZillow(params: {
 export async function getListingPhotos(_zpid: string): Promise<string[]> {
   throw new Error('use photos from search results')
 }
+
+export interface ListingContext {
+  description: string
+  yearBuilt: number | null
+  resoFacts: {
+    flooring: string[]
+    appliances: string[]
+    interiorFeatures: string[]
+    isNewConstruction: boolean
+  }
+  priceHistory: Array<{ date: string; event: string; price?: number }>
+}
+
+export async function getListingDetails(zpid: string): Promise<ListingContext> {
+  const apiKey = process.env.RAPIDAPI_KEY
+  if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
+
+  const res = await fetch(`https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`, {
+    headers: {
+      'x-rapidapi-key': apiKey,
+      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+    },
+  })
+
+  if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
+
+  const data = await res.json()
+  const d = (data.propertyDetails ?? {}) as Record<string, unknown>
+  const resoFacts = (d.resoFacts ?? {}) as Record<string, unknown>
+  const priceHistory = (d.priceHistory ?? []) as Array<Record<string, unknown>>
+
+  return {
+    description: String(d.description ?? ''),
+    yearBuilt: d.yearBuilt != null ? Number(d.yearBuilt) : null,
+    resoFacts: {
+      flooring: (resoFacts.flooring as string[] | undefined) ?? [],
+      appliances: (resoFacts.appliances as string[] | undefined) ?? [],
+      interiorFeatures: (resoFacts.interiorFeatures as string[] | undefined) ?? [],
+      isNewConstruction: Boolean(resoFacts.isNewConstruction),
+    },
+    priceHistory: priceHistory.map(h => ({
+      date: String(h.date ?? ''),
+      event: String(h.event ?? ''),
+      ...(h.price != null ? { price: Number(h.price) } : {}),
+    })),
+  }
+}

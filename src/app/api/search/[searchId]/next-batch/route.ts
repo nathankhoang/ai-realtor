@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { searchZillow, getListingPhotos } from '@/lib/zillow'
-import { analyzeListingPhotos, parseRequirements, scoreListingAgainstRequirements } from '@/lib/analyze'
+import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
+import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
 
 export async function POST(req: Request, { params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -74,8 +74,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
         listing = newListing
       }
 
+      const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
+
       const photoUrls = (listing.photoUrls ?? []) as string[]
-      const features = await analyzeListingPhotos(photoUrls)
+      const features = await analyzeListingPhotos(photoUrls, listingContext)
 
       let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
       if (!analysis) {
@@ -89,7 +91,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
       const { score, explanation } = await scoreListingAgainstRequirements(
         parsedRequirements,
         features,
-        { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths }
+        { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
+        listingContext,
       )
 
       await db.insert(searchResults).values({

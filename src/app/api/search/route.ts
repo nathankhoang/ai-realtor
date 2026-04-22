@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import { searchZillow, getListingPhotos } from '@/lib/zillow'
+import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
 import { analyzeListingPhotos, parseRequirements, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 
@@ -26,7 +26,13 @@ export async function POST(req: Request) {
   if (!location) return NextResponse.json({ error: 'Location is required' }, { status: 400 })
   if (!requirementsText) return NextResponse.json({ error: 'Requirements are required' }, { status: 400 })
 
-  const parsedRequirements = await parseRequirements(requirementsText)
+  let parsedRequirements
+  try {
+    parsedRequirements = await parseRequirements(requirementsText)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: `AI service error: ${msg.slice(0, 200)}` }, { status: 502 })
+  }
 
   const [search] = await db.insert(searches).values({
     userId: dbUser.id,
@@ -84,8 +90,10 @@ export async function POST(req: Request) {
         listing = newListing
       }
 
+      const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
+
       const photoUrls = (listing.photoUrls ?? []) as string[]
-      const features = await analyzeListingPhotos(photoUrls)
+      const features = await analyzeListingPhotos(photoUrls, listingContext)
 
       let analysis = await db.query.listingAnalyses.findFirst({
         where: eq(listingAnalyses.listingId, listing.id),
@@ -101,7 +109,8 @@ export async function POST(req: Request) {
       const { score, explanation } = await scoreListingAgainstRequirements(
         parsedRequirements,
         features,
-        { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths }
+        { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
+        listingContext,
       )
 
       await db.insert(searchResults).values({
