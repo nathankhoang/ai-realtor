@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
@@ -99,7 +99,7 @@ const FEATURE_GROUPS = [
 
 interface SimpleClient { id: string; name: string }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -289,5 +289,13 @@ export default function SearchPage() {
         </form>
       </main>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchPageContent />
+    </Suspense>
   )
 }
