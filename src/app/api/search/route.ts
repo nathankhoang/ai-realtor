@@ -8,6 +8,16 @@ import { analyzeListingPhotos, parseRequirements, scoreListingAgainstRequirement
 import { TIER_LIMITS, type Tier } from '@/types'
 
 export async function POST(req: Request) {
+  try {
+    return await handleSearch(req)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('SEARCH_UNHANDLED:', msg, err instanceof Error ? err.stack : '')
+    return NextResponse.json({ error: `Internal error: ${msg}` }, { status: 500 })
+  }
+}
+
+async function handleSearch(req: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
