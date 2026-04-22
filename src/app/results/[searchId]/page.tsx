@@ -38,6 +38,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   const analyzed = search.analyzedCount ?? 0
   const total = search.totalCandidates ?? 0
 
+  // Only show listings that are a reasonable match; always show at least top 3
+  const SCORE_THRESHOLD = 0.55
+  const goodMatches = rows.filter(r => r.result.matchScore >= SCORE_THRESHOLD)
+  const displayed = goodMatches.length >= 3 ? goodMatches : rows.slice(0, 3)
+  const hiddenCount = rows.length - displayed.length
+  const needsMoreBatches = displayed.length < 5 && total > analyzed
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
@@ -58,7 +65,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
               {search.bedsMin && <span>{search.bedsMin}+ bd</span>}
               {search.bathsMin && <span>{search.bathsMin}+ ba</span>}
-              <span className="text-foreground font-medium">{rows.length} analyzed</span>
+              <span className="text-foreground font-medium">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
+              <span className="text-muted-foreground">{analyzed} analyzed</span>
+              {hiddenCount > 0 && <span className="text-muted-foreground">{hiddenCount} poor match{hiddenCount !== 1 ? 'es' : ''} hidden</span>}
               {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
             </div>
           </div>
@@ -72,31 +81,43 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {rows.map(({ result, listing, analysis }, index) => {
-              const features = analysis?.featuresJson as ListingFeatures | null
-              const photos = (listing.photoUrls ?? []) as string[]
-              const score = Math.round(result.matchScore * 100)
-              return (
-                <ListingCard
-                  key={result.id}
-                  rank={index + 1}
-                  score={score}
-                  address={listing.address}
-                  city={listing.city ?? ''}
-                  state={listing.state ?? ''}
-                  price={listing.price}
-                  beds={listing.beds}
-                  baths={listing.baths}
-                  sqft={listing.sqft}
-                  photos={photos}
-                  explanation={result.matchExplanation ?? ''}
-                  features={features}
-                  zillowId={listing.zillowId}
-                />
-              )
-            })}
-          </div>
+          <>
+            {needsMoreBatches && (
+              <Card className="border-amber-800/40 bg-amber-950/20">
+                <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+                  <p className="text-xs text-amber-300">
+                    Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} found so far — load more listings to find better options.
+                  </p>
+                  <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
+                </CardContent>
+              </Card>
+            )}
+            <div className="space-y-4">
+              {displayed.map(({ result, listing, analysis }, index) => {
+                const features = analysis?.featuresJson as ListingFeatures | null
+                const photos = (listing.photoUrls ?? []) as string[]
+                const score = Math.round(result.matchScore * 100)
+                return (
+                  <ListingCard
+                    key={result.id}
+                    rank={index + 1}
+                    score={score}
+                    address={listing.address}
+                    city={listing.city ?? ''}
+                    state={listing.state ?? ''}
+                    price={listing.price}
+                    beds={listing.beds}
+                    baths={listing.baths}
+                    sqft={listing.sqft}
+                    photos={photos}
+                    explanation={result.matchExplanation ?? ''}
+                    features={features}
+                    zillowId={listing.zillowId}
+                  />
+                )
+              })}
+            </div>
+          </>
         )}
 
         {total > analyzed && (
