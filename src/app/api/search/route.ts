@@ -171,10 +171,12 @@ async function handleSearch(req: Request) {
         .set({ analyzedCount: processed })
         .where(eq(searches.id, search.id))
 
-      try {
-        await sendAnalysisComplete(dbUser.email, search.location, processed, search.id)
-      } catch (emailErr) {
-        console.error('Failed to send analysis complete email:', emailErr)
+      if (dbUser.emailAnalysisDone) {
+        try {
+          await sendAnalysisComplete(dbUser.email, search.location, processed, search.id)
+        } catch (emailErr) {
+          console.error('Failed to send analysis complete email:', emailErr)
+        }
       }
     } catch (err) {
       console.error('Background analysis failed:', err)

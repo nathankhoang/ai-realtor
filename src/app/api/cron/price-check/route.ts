@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, clients, savedListings, listings } from '@/lib/db/schema'
-import { eq, isNotNull } from 'drizzle-orm'
+import { eq, isNotNull, and } from 'drizzle-orm'
 import { getListingPrice } from '@/lib/zillow'
 import { sendPriceChangeAlert } from '@/lib/email'
 
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     .innerJoin(listings, eq(savedListings.listingId, listings.id))
     .innerJoin(clients, eq(savedListings.clientId, clients.id))
     .innerJoin(users, eq(clients.userId, users.id))
-    .where(isNotNull(savedListings.lastKnownPrice))
+    .where(and(isNotNull(savedListings.lastKnownPrice), eq(users.emailPriceAlerts, true)))
 
   let checked = 0
   let changed = 0

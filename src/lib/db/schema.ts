@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,6 +8,8 @@ export const users = pgTable('users', {
   tier: text('tier').notNull().default('free'),
   searchesUsedThisMonth: integer('searches_used_this_month').notNull().default(0),
   searchesResetAt: timestamp('searches_reset_at').notNull().defaultNow(),
+  emailAnalysisDone: boolean('email_analysis_done').notNull().default(true),
+  emailPriceAlerts: boolean('email_price_alerts').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 

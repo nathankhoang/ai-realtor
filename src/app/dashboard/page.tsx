@@ -53,7 +53,10 @@ export default async function DashboardPage() {
     <div className="flex flex-col min-h-screen">
       <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
         <Link href="/dashboard" className="text-xl font-semibold tracking-tight">Eifara</Link>
-        <UserButton />
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/settings" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Settings</Link>
+          <UserButton />
+        </div>
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-10 space-y-10">
