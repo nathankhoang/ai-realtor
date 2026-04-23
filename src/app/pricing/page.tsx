@@ -30,7 +30,7 @@ const plans: {
   {
     name: 'Starter',
     tier: 'starter',
-    price: '$29',
+    price: '$50',
     description: 'For growing agents',
     searches: '20 searches / month',
     features: [
@@ -44,7 +44,7 @@ const plans: {
   {
     name: 'Pro',
     tier: 'pro',
-    price: '$79',
+    price: '$150',
     description: 'For power users',
     searches: 'Unlimited searches',
     features: [
