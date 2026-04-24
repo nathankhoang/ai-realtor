@@ -11,6 +11,7 @@ import type { ListingFeatures } from '@/types'
 import RemoveSavedButton from './RemoveSavedButton'
 import ShareButton from './ShareButton'
 import ListingNoteEditor from './ListingNoteEditor'
+import ClientNotesEditor from './ClientNotesEditor'
 
 export default async function ClientProfilePage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params
@@ -67,15 +68,22 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-3">
                 <h1 className="text-xl font-semibold">{client.name}</h1>
-                <ShareButton clientId={clientId} />
+                <div className="flex items-center gap-2 shrink-0">
+                  {client.shareToken && (
+                    <Link href={`/report/${client.shareToken}`} target="_blank">
+                      <Button size="sm" variant="outline" className="text-xs">Preview report</Button>
+                    </Link>
+                  )}
+                  <ShareButton clientId={clientId} />
+                </div>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
                 {client.email && <span>{client.email}</span>}
                 {client.phone && <span>{client.phone}</span>}
               </div>
-              {client.notes && (
-                <p className="mt-2 text-sm text-muted-foreground">{client.notes}</p>
-              )}
+              <div className="mt-3">
+                <ClientNotesEditor clientId={clientId} initialNotes={client.notes ?? null} />
+              </div>
             </div>
           </div>
         </div>
@@ -113,7 +121,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                   <Card key={s.id} className="overflow-hidden border-border/50">
                     <div className="flex gap-4 p-4">
                       {photos[0] && (
-                        <img src={photos[0]} alt="" className="w-28 h-22 object-cover rounded-md shrink-0 self-start" style={{ height: '88px' }} />
+                        <img src={photos[0]} alt="" className="w-28 object-cover rounded-md shrink-0 self-start" style={{ height: '88px' }} />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">

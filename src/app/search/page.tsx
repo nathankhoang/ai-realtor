@@ -102,7 +102,10 @@ interface SimpleClient { id: string; name: string }
 function SearchPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const fromSearchId = searchParams.get('from')
+
   const [loading, setLoading] = useState(false)
+  const [prefilling, setPrefilling] = useState(!!fromSearchId)
   const [requirements, setRequirements] = useState('')
   const [location, setLocation] = useState('')
   const [priceMax, setPriceMax] = useState('')
@@ -112,6 +115,7 @@ function SearchPageContent() {
   const [checkedFeatures, setCheckedFeatures] = useState<Set<string>>(new Set())
   const [clientId, setClientId] = useState(searchParams.get('clientId') ?? '')
   const [clientList, setClientList] = useState<SimpleClient[]>([])
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(FEATURE_GROUPS.map(g => g.label)))
 
   useEffect(() => {
     fetch('/api/clients')
@@ -120,11 +124,38 @@ function SearchPageContent() {
       .catch(() => {})
   }, [])
 
+  // Pre-fill from an existing search
+  useEffect(() => {
+    if (!fromSearchId) return
+    fetch(`/api/search/${fromSearchId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.location) setLocation(data.location)
+        if (data.requirementsText) setRequirements(data.requirementsText)
+        if (data.priceMin) setPriceMin(String(data.priceMin))
+        if (data.priceMax) setPriceMax(String(data.priceMax))
+        if (data.bedsMin) setBedsMin(String(data.bedsMin))
+        if (data.bathsMin) setBathsMin(String(data.bathsMin))
+        if (data.clientId) setClientId(data.clientId)
+      })
+      .catch(() => {})
+      .finally(() => setPrefilling(false))
+  }, [fromSearchId])
+
   function toggleFeature(id: string) {
     setCheckedFeatures(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+  }
+
+  function toggleGroup(label: string) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
       return next
     })
   }
@@ -168,6 +199,16 @@ function SearchPageContent() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Unknown error' }))
+        if (res.status === 403) {
+          toast.error(err.error, {
+            action: {
+              label: err.tier === 'starter' ? 'Upgrade to Pro' : 'Upgrade',
+              onClick: () => router.push('/pricing'),
+            },
+            duration: 8000,
+          })
+          return
+        }
         throw new Error(err.error ?? 'Search failed')
       }
 
@@ -181,13 +222,19 @@ function SearchPageContent() {
 
   const checkedCount = checkedFeatures.size
 
+  if (prefilling) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading search…</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
-          </div>
+          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
@@ -195,8 +242,8 @@ function SearchPageContent() {
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8">
         <div className="mb-6">
           <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
-          <h1 className="text-xl font-semibold mt-1">New Search</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Describe what your client is looking for and we'll find and analyze matching homes.</p>
+          <h1 className="text-xl font-semibold mt-1">{fromSearchId ? 'Edit Search' : 'New Search'}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Describe what your client is looking for and we&apos;ll find and analyze matching homes.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -269,7 +316,7 @@ function SearchPageContent() {
             </div>
           </div>
 
-          {/* Feature checklist */}
+          {/* Feature checklist with accordion groups */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
@@ -284,24 +331,47 @@ function SearchPageContent() {
             </div>
 
             <Card className="border-border/40">
-              <CardContent className="p-4 space-y-5">
-                {FEATURE_GROUPS.map(group => (
-                  <div key={group.label}>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{group.label}</p>
-                    <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-                      {group.features.map(feature => (
-                        <div key={feature.id} className="flex items-center gap-2">
-                          <Checkbox
-                            id={feature.id}
-                            checked={checkedFeatures.has(feature.id)}
-                            onCheckedChange={() => toggleFeature(feature.id)}
-                          />
-                          <Label htmlFor={feature.id} className="text-sm font-normal cursor-pointer leading-tight">{feature.label}</Label>
+              <CardContent className="p-0 divide-y divide-border/40">
+                {FEATURE_GROUPS.map(group => {
+                  const groupChecked = group.features.filter(f => checkedFeatures.has(f.id)).length
+                  const isOpen = expandedGroups.has(group.label)
+                  return (
+                    <div key={group.label}>
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.label)}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+                      >
+                        <span className="text-sm font-medium">{group.label}</span>
+                        <div className="flex items-center gap-2">
+                          {groupChecked > 0 && (
+                            <span className="text-xs font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{groupChecked}</span>
+                          )}
+                          <svg
+                            className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </div>
-                      ))}
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 gap-y-2 gap-x-4">
+                          {group.features.map(feature => (
+                            <div key={feature.id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={feature.id}
+                                checked={checkedFeatures.has(feature.id)}
+                                onCheckedChange={() => toggleFeature(feature.id)}
+                              />
+                              <Label htmlFor={feature.id} className="text-sm font-normal cursor-pointer leading-tight">{feature.label}</Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </CardContent>
             </Card>
           </div>
@@ -317,7 +387,7 @@ function SearchPageContent() {
                   </svg>
                   Searching & analyzing…
                 </span>
-              ) : 'Search & Analyze'}
+              ) : fromSearchId ? 'Run New Search' : 'Search & Analyze'}
             </Button>
             <Link href="/dashboard">
               <Button type="button" variant="outline">Cancel</Button>

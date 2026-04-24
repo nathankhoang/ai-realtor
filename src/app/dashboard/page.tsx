@@ -6,8 +6,8 @@ import { Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { db } from '@/lib/db'
-import { users, searches, clients, savedListings } from '@/lib/db/schema'
-import { eq, desc, count } from 'drizzle-orm'
+import { users, searches, clients, savedListings, searchResults } from '@/lib/db/schema'
+import { eq, desc, count, max, inArray } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
 import NewClientButton from './NewClientButton'
 import ManageBillingButton from './ManageBillingButton'
@@ -29,6 +29,17 @@ export default async function DashboardPage() {
     dbUser = newUser
   }
 
+  // Monthly reset check
+  const now = new Date()
+  const resetDate = new Date(dbUser.searchesResetAt)
+  if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+    const [updated] = await db.update(users)
+      .set({ searchesUsedThisMonth: 0, searchesResetAt: now })
+      .where(eq(users.id, dbUser.id))
+      .returning()
+    dbUser = updated
+  }
+
   const [recentSearches, clientRows] = await Promise.all([
     db.query.searches.findMany({
       where: eq(searches.userId, dbUser.id),
@@ -44,12 +55,35 @@ export default async function DashboardPage() {
       .orderBy(clients.createdAt),
   ])
 
+  // Fetch top match score per search for quality indicators
+  const searchIds = recentSearches.map(s => s.id)
+  const topScores = searchIds.length > 0
+    ? await db
+        .select({ searchId: searchResults.searchId, topScore: max(searchResults.matchScore) })
+        .from(searchResults)
+        .where(inArray(searchResults.searchId, searchIds))
+        .groupBy(searchResults.searchId)
+    : []
+  const topScoreMap = new Map(topScores.map(r => [r.searchId, r.topScore ?? 0]))
+
+  // Build clientId → name map for search rows
+  const clientMap = new Map(clientRows.map(r => [r.client.id, r.client.name]))
+
   const tier = dbUser.tier as Tier
   const limit = TIER_LIMITS[tier]
   const used = dbUser.searchesUsedThisMonth
   const remaining = limit === Infinity ? null : Math.max(0, limit - used)
   const usagePercent = limit === Infinity ? 0 : Math.min(100, Math.round((used / limit) * 100))
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1)
+
+  // Days until next monthly reset
+  const nextReset = new Date(dbUser.searchesResetAt)
+  nextReset.setMonth(nextReset.getMonth() + 1)
+  nextReset.setDate(1)
+  nextReset.setHours(0, 0, 0, 0)
+  const daysUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+
+  const isNewUser = recentSearches.length === 0 && clientRows.length === 0
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -92,6 +126,39 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
+        {/* Onboarding checklist — only shown to new users */}
+        {isNewUser && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="px-5 py-5">
+              <p className="text-sm font-semibold mb-4">Get started in 3 steps</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">1</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Create a client</p>
+                    <p className="text-xs text-muted-foreground">Add a buyer you&apos;re working with to organize their searches and saved homes.</p>
+                  </div>
+                  <NewClientButton />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">2</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Run a search</p>
+                    <p className="text-xs text-muted-foreground">Describe what your client is looking for. We&apos;ll find and analyze matching listings from Zillow.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0">3</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Review & save top matches</p>
+                    <p className="text-xs text-muted-foreground">Each result includes a match score and photo-level evidence. Save the best ones to share with your client.</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4">
           <Card className="border-border/40">
@@ -104,12 +171,17 @@ export default async function DashboardPage() {
                 )}
               </div>
               {limit !== Infinity && (
-                <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${usagePercent}%` }}
-                  />
-                </div>
+                <>
+                  <div className="mt-2 h-1.5 rounded-full bg-border overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Resets in {daysUntilReset} day{daysUntilReset !== 1 ? 's' : ''}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>
@@ -190,27 +262,44 @@ export default async function DashboardPage() {
             </Card>
           ) : (
             <div className="divide-y divide-border/40 border border-border/40 rounded-lg overflow-hidden">
-              {recentSearches.map((search) => (
-                <Link key={search.id} href={`/results/${search.id}`} className="block">
-                  <div className="flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{search.location}</p>
-                      {search.requirementsText && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{search.requirementsText}</p>
-                      )}
+              {recentSearches.map((search) => {
+                const clientName = search.clientId ? clientMap.get(search.clientId) : null
+                const topScore = topScoreMap.get(search.id)
+                const scoreLabel = topScore != null ? Math.round(topScore * 100) : null
+                const scoreColor = scoreLabel != null
+                  ? scoreLabel >= 80 ? 'text-emerald-500' : scoreLabel >= 60 ? 'text-amber-500' : 'text-rose-500'
+                  : 'text-muted-foreground'
+
+                return (
+                  <Link key={search.id} href={`/results/${search.id}`} className="block">
+                    <div className="flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{search.location}</p>
+                          {clientName && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{clientName}</span>
+                          )}
+                        </div>
+                        {search.requirementsText && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{search.requirementsText}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                        {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
+                        {search.bedsMin && <span className="hidden sm:block">{search.bedsMin}+ bd</span>}
+                        <span>{search.analyzedCount ?? 0} analyzed</span>
+                        {scoreLabel != null && (
+                          <span className={`font-semibold ${scoreColor}`}>Top {scoreLabel}</span>
+                        )}
+                        <span className="hidden sm:block">{new Date(search.createdAt).toLocaleDateString()}</span>
+                        <svg className="w-3.5 h-3.5 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                      {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
-                      {search.bedsMin && <span>{search.bedsMin}+ bd</span>}
-                      <span>{search.analyzedCount ?? 0} analyzed</span>
-                      <span className="hidden sm:block">{new Date(search.createdAt).toLocaleDateString()}</span>
-                      <svg className="w-3.5 h-3.5 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>

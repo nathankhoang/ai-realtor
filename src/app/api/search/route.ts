@@ -27,10 +27,24 @@ async function handleSearch(req: Request) {
   let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
+  // Monthly reset: if last reset was a different calendar month, zero the counter
+  const now = new Date()
+  const resetDate = new Date(dbUser.searchesResetAt)
+  if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+    const [updated] = await db.update(users)
+      .set({ searchesUsedThisMonth: 0, searchesResetAt: now })
+      .where(eq(users.id, dbUser.id))
+      .returning()
+    dbUser = updated
+  }
+
   const tier = dbUser.tier as Tier
   const limit = TIER_LIMITS[tier]
   if (limit !== Infinity && dbUser.searchesUsedThisMonth >= limit) {
-    return NextResponse.json({ error: 'Monthly search limit reached. Please upgrade your plan.' }, { status: 403 })
+    const msg = tier === 'starter'
+      ? "You've used all 20 searches this month. Upgrade to Pro for unlimited searches."
+      : "You've used all 3 free searches this month. Upgrade to Starter or Pro to continue."
+    return NextResponse.json({ error: msg, tier }, { status: 403 })
   }
 
   const body = await req.json()

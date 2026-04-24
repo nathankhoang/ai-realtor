@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { clients, savedListings, listings, listingAnalyses } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
-import type { ListingFeatures } from '@/types'
+import type { ListingFeatures, FeatureEvidence } from '@/types'
 
 export default async function ReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -20,85 +20,211 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
     .where(eq(savedListings.clientId, client.id))
     .orderBy(savedListings.savedAt)
 
+  const initials = client.name
+    .split(' ')
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4">
-        <span className="text-xl font-semibold tracking-tight">Eifara</span>
+      <header className="border-b border-border/40 bg-background/95 backdrop-blur sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+          <span className="text-base font-semibold tracking-tight">Eifara</span>
+          <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">Client Report</span>
+        </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Client Report</p>
-          <h1 className="text-2xl font-bold mt-1">{client.name}</h1>
-          <div className="flex flex-wrap gap-x-4 mt-1 text-sm text-muted-foreground">
-            {client.email && <span>{client.email}</span>}
-            {client.phone && <span>{client.phone}</span>}
+      <main className="max-w-3xl mx-auto px-4 py-10 space-y-10">
+        {/* Client header */}
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-full bg-primary/10 text-primary text-xl font-bold flex items-center justify-center shrink-0">
+            {initials}
           </div>
-          {client.notes && (
-            <p className="mt-2 text-sm text-muted-foreground max-w-lg">{client.notes}</p>
-          )}
+          <div>
+            <h1 className="text-2xl font-bold">{client.name}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+              {client.email && <span>{client.email}</span>}
+              {client.phone && <span>{client.phone}</span>}
+            </div>
+            {client.notes && (
+              <p className="mt-2 text-sm text-muted-foreground max-w-lg">{client.notes}</p>
+            )}
+          </div>
         </div>
 
-        <div>
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">
-            Saved Homes ({saved.length})
-          </h2>
+        {/* Summary */}
+        <div className="flex items-center gap-3 text-sm text-muted-foreground border-b border-border/40 pb-6">
+          <span className="font-bold text-foreground text-xl">{saved.length}</span>
+          <span>home{saved.length !== 1 ? 's' : ''} selected by your agent</span>
+        </div>
 
-          {saved.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">No saved homes yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {saved.map(({ saved: s, listing, analysis }) => {
-                const photos = (listing.photoUrls ?? []) as string[]
-                const features = analysis?.featuresJson as ListingFeatures | null
-                return (
-                  <div key={s.id} className="border border-border/40 rounded-lg overflow-hidden">
-                    {photos[0] && (
-                      <img src={photos[0]} alt="" className="w-full h-52 object-cover" />
-                    )}
-                    <div className="p-4 space-y-2">
-                      <div>
-                        <p className="font-semibold">{listing.address}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {[listing.city, listing.state].filter(Boolean).join(', ')}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
-                        {listing.price && (
-                          <span className="font-semibold text-foreground">${listing.price.toLocaleString()}</span>
-                        )}
-                        {listing.beds && <span>{listing.beds} bd</span>}
-                        {listing.baths && <span>{listing.baths} ba</span>}
-                        {listing.sqft && <span>{listing.sqft.toLocaleString()} sqft</span>}
-                      </div>
-                      {features?.notes && (
-                        <p className="text-sm text-muted-foreground">{features.notes}</p>
-                      )}
-                      {s.notes && (
-                        <p className="text-sm border-l-2 border-border pl-3 text-muted-foreground italic">
-                          {s.notes}
-                        </p>
-                      )}
-                      <a
-                        href={`https://www.zillow.com/homedetails/${listing.zillowId}_zpid/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        View on Zillow →
-                      </a>
-                    </div>
-                  </div>
-                )
-              })}
+        {/* Listings */}
+        {saved.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">No saved homes yet — check back soon.</p>
+        ) : (
+          <div className="space-y-8">
+            {saved.map(({ saved: s, listing, analysis }, index) => {
+              const photos = (listing.photoUrls ?? []) as string[]
+              const features = analysis?.featuresJson as ListingFeatures | null
+              return (
+                <ReportListingCard
+                  key={s.id}
+                  rank={index + 1}
+                  photos={photos}
+                  address={listing.address}
+                  city={listing.city ?? ''}
+                  state={listing.state ?? ''}
+                  price={listing.price}
+                  beds={listing.beds}
+                  baths={listing.baths}
+                  sqft={listing.sqft}
+                  zillowId={listing.zillowId}
+                  features={features}
+                  agentNote={s.notes ?? null}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="border-t border-border/40 pt-8 text-center space-y-1">
+          <p className="text-xs text-muted-foreground">Prepared by your agent using Eifara</p>
+          <p className="text-xs text-muted-foreground">AI-powered home search · Photo-level match analysis</p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function ReportListingCard({
+  rank, photos, address, city, state, price, beds, baths, sqft,
+  zillowId, features, agentNote,
+}: {
+  rank: number
+  photos: string[]
+  address: string
+  city: string
+  state: string
+  price: number | null
+  beds: number | null
+  baths: number | null
+  sqft: number | null
+  zillowId: string
+  features: ListingFeatures | null
+  agentNote: string | null
+}) {
+  return (
+    <div className="border border-border/50 rounded-xl overflow-hidden">
+      {/* Hero photo */}
+      {photos[0] && (
+        <div className="relative">
+          <img src={photos[0]} alt="" className="w-full h-56 sm:h-72 object-cover" />
+          <div className="absolute top-3 left-3 bg-black/60 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+            #{rank}
+          </div>
+        </div>
+      )}
+
+      {/* Secondary photos */}
+      {photos.length > 1 && (
+        <div className="flex gap-0.5">
+          {photos.slice(1, 5).map((url, i) => (
+            <div key={i} className="flex-1">
+              <img src={url} alt="" className="w-full h-20 object-cover" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p-5 space-y-4">
+        {/* Address + price */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-lg leading-snug">{address}</h2>
+            <p className="text-muted-foreground">{[city, state].filter(Boolean).join(', ')}</p>
+          </div>
+          {price && (
+            <div className="text-right shrink-0">
+              <p className="text-xl font-bold">${price.toLocaleString()}</p>
             </div>
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground text-center pt-4 border-t border-border/40">
-          Prepared with Eifara — AI-powered home search for realtors
-        </p>
-      </main>
+        {/* Stats */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          {beds && <span>{beds} bedrooms</span>}
+          {baths && <span>{baths} bathrooms</span>}
+          {sqft && <span>{sqft.toLocaleString()} sqft</span>}
+        </div>
+
+        {/* Agent note */}
+        {agentNote && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+            <p className="text-xs font-semibold text-primary/70 uppercase tracking-wide mb-1">Agent note</p>
+            <p className="text-sm">{agentNote}</p>
+          </div>
+        )}
+
+        {/* Feature highlights */}
+        {features && <FeatureHighlights features={features} />}
+
+        {/* AI notes */}
+        {features?.notes && (
+          <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{features.notes}</p>
+        )}
+
+        <a
+          href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+        >
+          View full listing on Zillow →
+        </a>
+      </div>
+    </div>
+  )
+}
+
+type AnyEvidence = FeatureEvidence & { type?: string; height?: string }
+
+function FeatureHighlights({ features }: { features: ListingFeatures }) {
+  const featureKeys: { label: string; key: keyof ListingFeatures }[] = [
+    { label: 'Floors', key: 'floors' },
+    { label: 'Kitchen countertops', key: 'kitchenCountertops' },
+    { label: 'Appliances', key: 'kitchenAppliances' },
+    { label: 'Bathrooms', key: 'bathrooms' },
+    { label: 'Ceilings', key: 'ceilings' },
+    { label: 'Natural light', key: 'naturalLight' },
+  ]
+
+  const items = featureKeys
+    .map(({ label, key }) => {
+      const ev = features[key] as AnyEvidence | undefined
+      if (!ev || ev.condition === 'unknown') return null
+      return { label, value: ev.type || ev.height || ev.condition, good: ev.condition === 'updated' }
+    })
+    .filter(Boolean) as { label: string; value: string; good: boolean }[]
+
+  if (items.length === 0) return null
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">What we found</p>
+      <div className="grid grid-cols-2 gap-2">
+        {items.map(item => (
+          <div key={item.label} className="flex items-center gap-2 text-sm">
+            <span className={item.good ? 'text-emerald-500' : 'text-muted-foreground'}>
+              {item.good ? '✓' : '·'}
+            </span>
+            <span className="text-muted-foreground">{item.label}:</span>
+            <span className="font-medium capitalize truncate">{item.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

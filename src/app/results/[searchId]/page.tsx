@@ -6,10 +6,10 @@ import { db } from '@/lib/db'
 import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
-import type { ListingFeatures, FeatureEvidence } from '@/types'
+import type { ListingFeatures } from '@/types'
 import NextBatchButton from './NextBatchButton'
 import AnalysisPoller from './AnalysisPoller'
-import SaveButton from './SaveButton'
+import ResultsClient from './ResultsClient'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -59,8 +59,36 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   const SCORE_THRESHOLD = 0.55
   const goodMatches = rows.filter(r => r.result.matchScore >= SCORE_THRESHOLD)
   const displayed = goodMatches.length >= 3 ? goodMatches : rows.slice(0, 3)
-  const hiddenCount = rows.length - displayed.length
+  const hiddenRows = rows.filter(r => !displayed.includes(r))
   const needsMoreBatches = displayed.length < 5 && total > analyzed
+
+  const displayedData = displayed.map((row, index) => ({
+    resultId: row.result.id,
+    listingId: row.listing.id,
+    rank: index + 1,
+    score: Math.round(row.result.matchScore * 100),
+    address: row.listing.address,
+    city: row.listing.city ?? '',
+    state: row.listing.state ?? '',
+    price: row.listing.price,
+    beds: row.listing.beds,
+    baths: row.listing.baths,
+    sqft: row.listing.sqft,
+    photos: (row.listing.photoUrls ?? []) as string[],
+    explanation: row.result.matchExplanation ?? '',
+    features: row.analysis?.featuresJson as ListingFeatures | null,
+    zillowId: row.listing.zillowId,
+    savedClientIds: savedByListing.get(row.listing.id) ?? [],
+  }))
+
+  const hiddenData = hiddenRows.map(row => ({
+    score: row.result.matchScore,
+    address: row.listing.address,
+    city: row.listing.city ?? '',
+    state: row.listing.state ?? '',
+    price: row.listing.price,
+    explanation: row.result.matchExplanation ?? '',
+  }))
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -86,23 +114,24 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               {search.bathsMin && <span className="text-muted-foreground">{search.bathsMin}+ ba</span>}
               <span className="font-medium text-foreground">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
               <span className="text-muted-foreground">{analyzed} analyzed</span>
-              {hiddenCount > 0 && <span className="text-muted-foreground">{hiddenCount} poor match{hiddenCount !== 1 ? 'es' : ''} hidden</span>}
+              {hiddenRows.length > 0 && <span className="text-muted-foreground">{hiddenRows.length} filtered out</span>}
               {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
             </div>
+            {/* Edit & re-search link */}
+            <Link
+              href={`/search?from=${searchId}`}
+              className="text-xs text-primary hover:text-primary/80 transition-colors mt-1.5 inline-block"
+            >
+              Edit & re-search →
+            </Link>
           </div>
           <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
         </div>
 
         {rows.length === 0 ? (
           <Card>
-            <CardContent className="py-16 text-center space-y-4">
-              <p className="text-muted-foreground">Analyzing listings — this takes about 30 seconds…</p>
-              <div className="flex justify-center gap-1.5">
-                {[0,1,2].map(i => (
-                  <span key={i} className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
-                ))}
-              </div>
-              <AnalysisPoller />
+            <CardContent className="py-16 text-center space-y-6">
+              <AnalysisPoller searchId={searchId} initialAnalyzed={analyzed} initialTotal={total} />
             </CardContent>
           </Card>
         ) : (
@@ -111,238 +140,27 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               <Card className="border-amber-800/40 bg-amber-950/20">
                 <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
                   <p className="text-xs text-amber-300">
-                    Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} so far — load more listings to find better options.
+                    Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} so far — load more to find better options.
                   </p>
                   <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
                 </CardContent>
               </Card>
             )}
-            <div className="space-y-4">
-              {displayed.map(({ result, listing, analysis }, index) => {
-                const features = analysis?.featuresJson as ListingFeatures | null
-                const photos = (listing.photoUrls ?? []) as string[]
-                const score = Math.round(result.matchScore * 100)
-                return (
-                  <ListingCard
-                    key={result.id}
-                    rank={index + 1}
-                    score={score}
-                    address={listing.address}
-                    city={listing.city ?? ''}
-                    state={listing.state ?? ''}
-                    price={listing.price}
-                    beds={listing.beds}
-                    baths={listing.baths}
-                    sqft={listing.sqft}
-                    photos={photos}
-                    explanation={result.matchExplanation ?? ''}
-                    features={features}
-                    zillowId={listing.zillowId}
-                    listingId={listing.id}
-                    savedClientIds={savedByListing.get(listing.id) ?? []}
-                  />
-                )
-              })}
-            </div>
+
+            <ResultsClient
+              searchId={searchId}
+              displayed={displayedData}
+              hidden={hiddenData}
+            />
           </>
         )}
 
-        {total > analyzed && (
+        {total > analyzed && rows.length > 0 && (
           <div className="flex justify-center pt-2">
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
           </div>
         )}
       </main>
     </div>
-  )
-}
-
-function ListingCard({
-  rank, score, address, city, state, price, beds, baths, sqft,
-  photos, explanation, features, zillowId, listingId, savedClientIds,
-}: {
-  rank: number
-  score: number
-  address: string
-  city: string
-  state: string
-  price: number | null
-  beds: number | null
-  baths: number | null
-  sqft: number | null
-  photos: string[]
-  explanation: string
-  features: ListingFeatures | null
-  zillowId: string
-  listingId: string
-  savedClientIds: string[]
-}) {
-  const isGreat = score >= 80
-  const isGood = score >= 60 && score < 80
-
-  const scoreBadgeClass = isGreat
-    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-    : isGood
-      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-      : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-
-  return (
-    <Card className="overflow-hidden border-border/50">
-      {/* Header row */}
-      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-        <span className="text-xs text-muted-foreground/60 font-mono pt-1 w-5 shrink-0 text-right">#{rank}</span>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-semibold text-sm leading-snug">{address}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{[city, state].filter(Boolean).join(', ')}</p>
-            </div>
-            {/* Score badge */}
-            <div className={`border rounded-lg px-3 py-1.5 text-center shrink-0 ${scoreBadgeClass}`}>
-              <div className="text-xl font-bold leading-none">{score}</div>
-              <div className="text-[10px] opacity-70 mt-0.5">/ 100</div>
-            </div>
-          </div>
-
-          {/* Stats + links */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
-            {price && <span className="font-semibold">${price.toLocaleString()}</span>}
-            {beds && <span className="text-muted-foreground">{beds} bd</span>}
-            {baths && <span className="text-muted-foreground">{baths} ba</span>}
-            {sqft && <span className="text-muted-foreground">{sqft.toLocaleString()} sqft</span>}
-            <div className="flex items-center gap-2 ml-auto">
-              <a
-                href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 transition-colors"
-              >
-                Zillow →
-              </a>
-              <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Photos */}
-      {photos.length > 0 && (
-        <div className="flex gap-0.5 px-4 pb-3">
-          {photos.slice(0, 4).map((url, i) => (
-            <div key={i} className="relative flex-1 min-w-0">
-              <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 object-cover rounded-sm" />
-              <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] px-1 rounded-sm leading-4">{i + 1}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Match explanation */}
-      {explanation && (
-        <div className="px-4 pb-3">
-          <p className="text-xs leading-relaxed text-foreground/80">{explanation}</p>
-        </div>
-      )}
-
-      {/* Feature evidence */}
-      {features && <FeatureGrid features={features} />}
-
-      {/* Notes */}
-      {features?.notes && (
-        <div className="px-4 py-2.5 border-t border-border/30 bg-muted/20">
-          <p className="text-[11px] text-muted-foreground line-clamp-2">
-            <span className="font-semibold uppercase tracking-wide text-[10px] mr-1.5">Notes</span>
-            <WithYears text={features.notes} />
-          </p>
-        </div>
-      )}
-    </Card>
-  )
-}
-
-type AnyEvidence = FeatureEvidence & { type?: string; height?: string }
-
-const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
-  { label: 'Floors', key: 'floors' },
-  { label: 'Countertops', key: 'kitchenCountertops' },
-  { label: 'Appliances', key: 'kitchenAppliances' },
-  { label: 'Cabinets', key: 'kitchenCabinets' },
-  { label: 'Bathrooms', key: 'bathrooms' },
-  { label: 'Ceilings', key: 'ceilings' },
-  { label: 'Windows', key: 'windows' },
-  { label: 'Natural light', key: 'naturalLight' },
-]
-
-function FeatureGrid({ features }: { features: ListingFeatures }) {
-  const visible = FEATURE_ROWS
-    .map(({ label, key }) => ({ label, ev: features[key] as AnyEvidence | undefined }))
-    .filter((r): r is { label: string; ev: AnyEvidence } => !!r.ev?.condition && r.ev.condition !== 'unknown')
-
-  if (visible.length === 0) return null
-
-  const mid = Math.ceil(visible.length / 2)
-  const left = visible.slice(0, mid)
-  const right = visible.slice(mid)
-
-  return (
-    <div className="mx-4 mb-3 rounded-md border border-border/40 overflow-hidden text-xs">
-      <div className="px-3 py-1.5 bg-muted/30 border-b border-border/30">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feature evidence</span>
-      </div>
-      <div className="grid grid-cols-2 divide-x divide-border/30">
-        <FeatureCol rows={left} />
-        <FeatureCol rows={right} />
-      </div>
-    </div>
-  )
-}
-
-function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
-  return (
-    <div className="divide-y divide-border/20">
-      {rows.map(({ label, ev }) => {
-        const icon = ev.condition === 'updated' ? '✓' : ev.condition === 'poor' ? '✗' : '·'
-        const iconColor =
-          ev.condition === 'updated' ? 'text-emerald-400' :
-          ev.condition === 'poor' ? 'text-rose-400' :
-          'text-muted-foreground'
-        const qualifier = (ev as { type?: string; height?: string }).type || (ev as { type?: string; height?: string }).height
-        const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
-
-        return (
-          <div key={label} className="px-3 py-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className={`shrink-0 font-bold ${iconColor}`}>{icon}</span>
-              <span className="text-muted-foreground w-20 shrink-0">{label}</span>
-              <span className="font-medium capitalize text-foreground/90 truncate">
-                {qualifier ?? ev.condition}
-              </span>
-              {photoRef && (
-                <span className="text-primary/70 shrink-0 ml-auto pl-1">· {photoRef}</span>
-              )}
-            </div>
-            {ev.detail && (
-              <p className="text-[11px] text-muted-foreground pl-5 mt-0.5 line-clamp-2">
-                <WithYears text={ev.detail} />
-              </p>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function WithYears({ text }: { text: string }) {
-  const parts = text.split(/(\b(?:19|20)\d{2}\b)/)
-  return (
-    <>
-      {parts.map((part, i) =>
-        /^\d{4}$/.test(part)
-          ? <span key={i} className="text-amber-400 font-semibold">{part}</span>
-          : part
-      )}
-    </>
   )
 }
