@@ -37,7 +37,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
   rows.sort((a, b) => b.result.matchScore - a.result.matchScore)
 
-  // Fetch saved state for all listings in this result set
   const userClients = await db.query.clients.findMany({ where: eq(clients.userId, dbUser.id) })
   const clientIds = userClients.map(c => c.id)
   const savedRows = clientIds.length > 0
@@ -47,7 +46,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
           inArray(savedListings.listingId, rows.map(r => r.listing.id)),
         ))
     : []
-  // Map listingId -> clientIds it's saved to
   const savedByListing = new Map<string, string[]>()
   for (const s of savedRows) {
     const existing = savedByListing.get(s.listingId) ?? []
@@ -58,7 +56,6 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   const analyzed = search.analyzedCount ?? 0
   const total = search.totalCandidates ?? 0
 
-  // Only show listings that are a reasonable match; always show at least top 3
   const SCORE_THRESHOLD = 0.55
   const goodMatches = rows.filter(r => r.result.matchScore >= SCORE_THRESHOLD)
   const displayed = goodMatches.length >= 3 ? goodMatches : rows.slice(0, 3)
@@ -67,25 +64,27 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
-        <Link href="/dashboard" className="text-xl font-semibold tracking-tight">Eifara</Link>
-        <UserButton />
+      <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
+          <UserButton />
+        </div>
       </header>
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5">
-        {/* Search summary bar */}
+        {/* Search summary */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground">← Dashboard</Link>
-            <h1 className="text-xl font-bold mt-1">{search.location}</h1>
+            <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
+            <h1 className="text-lg font-semibold mt-1">{search.location}</h1>
             {search.requirementsText && (
               <p className="text-xs text-muted-foreground mt-0.5 max-w-lg line-clamp-1">{search.requirementsText}</p>
             )}
-            <div className="flex flex-wrap gap-x-3 mt-1.5 text-xs text-muted-foreground">
-              {search.priceMax && <span>≤ ${search.priceMax.toLocaleString()}</span>}
-              {search.bedsMin && <span>{search.bedsMin}+ bd</span>}
-              {search.bathsMin && <span>{search.bathsMin}+ ba</span>}
-              <span className="text-foreground font-medium">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
+            <div className="flex flex-wrap gap-x-3 mt-2 text-xs">
+              {search.priceMax && <span className="text-muted-foreground">≤ ${search.priceMax.toLocaleString()}</span>}
+              {search.bedsMin && <span className="text-muted-foreground">{search.bedsMin}+ bd</span>}
+              {search.bathsMin && <span className="text-muted-foreground">{search.bathsMin}+ ba</span>}
+              <span className="font-medium text-foreground">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
               <span className="text-muted-foreground">{analyzed} analyzed</span>
               {hiddenCount > 0 && <span className="text-muted-foreground">{hiddenCount} poor match{hiddenCount !== 1 ? 'es' : ''} hidden</span>}
               {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
@@ -96,7 +95,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
         {rows.length === 0 ? (
           <Card>
-            <CardContent className="py-16 text-center space-y-3">
+            <CardContent className="py-16 text-center space-y-4">
               <p className="text-muted-foreground">Analyzing listings — this takes about 30 seconds…</p>
               <div className="flex justify-center gap-1.5">
                 {[0,1,2].map(i => (
@@ -112,7 +111,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               <Card className="border-amber-800/40 bg-amber-950/20">
                 <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
                   <p className="text-xs text-amber-300">
-                    Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} found so far — load more listings to find better options.
+                    Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} so far — load more listings to find better options.
                   </p>
                   <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
                 </CardContent>
@@ -178,54 +177,56 @@ function ListingCard({
   listingId: string
   savedClientIds: string[]
 }) {
-  const scoreColor =
-    score >= 80 ? 'text-green-400' :
-    score >= 60 ? 'text-amber-400' :
-    'text-rose-400'
-  const scoreBg =
-    score >= 80 ? 'bg-green-950/40 border-green-800/50' :
-    score >= 60 ? 'bg-amber-950/40 border-amber-800/50' :
-    'bg-rose-950/40 border-rose-800/50'
+  const isGreat = score >= 80
+  const isGood = score >= 60 && score < 80
+
+  const scoreBadgeClass = isGreat
+    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+    : isGood
+      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+      : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
 
   return (
     <Card className="overflow-hidden border-border/50">
-      {/* ── Top row: rank / address / score ── */}
+      {/* Header row */}
       <div className="flex items-start gap-3 px-4 pt-4 pb-3">
-        <span className="text-xs text-muted-foreground font-mono pt-0.5 w-5 shrink-0">#{rank}</span>
+        <span className="text-xs text-muted-foreground/60 font-mono pt-1 w-5 shrink-0 text-right">#{rank}</span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-semibold text-sm leading-snug truncate">{address}</p>
-              <p className="text-xs text-muted-foreground">{[city, state].filter(Boolean).join(', ')}</p>
+              <p className="font-semibold text-sm leading-snug">{address}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{[city, state].filter(Boolean).join(', ')}</p>
             </div>
             {/* Score badge */}
-            <div className={`border rounded-md px-2.5 py-1 text-center shrink-0 ${scoreBg}`}>
-              <span className={`text-xl font-bold leading-none ${scoreColor}`}>{score}</span>
-              <span className="text-[10px] text-muted-foreground">/100</span>
+            <div className={`border rounded-lg px-3 py-1.5 text-center shrink-0 ${scoreBadgeClass}`}>
+              <div className="text-xl font-bold leading-none">{score}</div>
+              <div className="text-[10px] opacity-70 mt-0.5">/ 100</div>
             </div>
           </div>
 
-          {/* Stats row */}
-          <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1.5 text-xs">
-            {price && <span className="font-semibold text-foreground">${price.toLocaleString()}</span>}
+          {/* Stats + links */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
+            {price && <span className="font-semibold">${price.toLocaleString()}</span>}
             {beds && <span className="text-muted-foreground">{beds} bd</span>}
             {baths && <span className="text-muted-foreground">{baths} ba</span>}
             {sqft && <span className="text-muted-foreground">{sqft.toLocaleString()} sqft</span>}
-            <a
-              href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 ml-auto"
-            >
-              Zillow →
-            </a>
-            <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
+            <div className="flex items-center gap-2 ml-auto">
+              <a
+                href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary/80 transition-colors"
+              >
+                Zillow →
+              </a>
+              <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Photos ── */}
+      {/* Photos */}
       {photos.length > 0 && (
         <div className="flex gap-0.5 px-4 pb-3">
           {photos.slice(0, 4).map((url, i) => (
@@ -237,21 +238,21 @@ function ListingCard({
         </div>
       )}
 
-      {/* ── Match explanation ── */}
+      {/* Match explanation */}
       {explanation && (
         <div className="px-4 pb-3">
           <p className="text-xs leading-relaxed text-foreground/80">{explanation}</p>
         </div>
       )}
 
-      {/* ── Feature evidence 2-col grid ── */}
+      {/* Feature evidence */}
       {features && <FeatureGrid features={features} />}
 
-      {/* ── Notes footer ── */}
+      {/* Notes */}
       {features?.notes && (
-        <div className="px-4 py-2 border-t border-border/30">
+        <div className="px-4 py-2.5 border-t border-border/30 bg-muted/20">
           <p className="text-[11px] text-muted-foreground line-clamp-2">
-            <span className="font-medium text-muted-foreground/70 uppercase tracking-wide text-[10px] mr-1">Notes</span>
+            <span className="font-semibold uppercase tracking-wide text-[10px] mr-1.5">Notes</span>
             <WithYears text={features.notes} />
           </p>
         </div>
@@ -280,14 +281,13 @@ function FeatureGrid({ features }: { features: ListingFeatures }) {
 
   if (visible.length === 0) return null
 
-  // Split into 2 columns
   const mid = Math.ceil(visible.length / 2)
   const left = visible.slice(0, mid)
   const right = visible.slice(mid)
 
   return (
-    <div className="mx-4 mb-3 rounded border border-border/40 overflow-hidden text-xs">
-      <div className="px-3 py-1 bg-muted/20 border-b border-border/30">
+    <div className="mx-4 mb-3 rounded-md border border-border/40 overflow-hidden text-xs">
+      <div className="px-3 py-1.5 bg-muted/30 border-b border-border/30">
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feature evidence</span>
       </div>
       <div className="grid grid-cols-2 divide-x divide-border/30">
@@ -302,14 +302,12 @@ function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
   return (
     <div className="divide-y divide-border/20">
       {rows.map(({ label, ev }) => {
-        const icon =
-          ev.condition === 'updated' ? '✓' :
-          ev.condition === 'poor' ? '✗' : '·'
+        const icon = ev.condition === 'updated' ? '✓' : ev.condition === 'poor' ? '✗' : '·'
         const iconColor =
-          ev.condition === 'updated' ? 'text-green-400' :
+          ev.condition === 'updated' ? 'text-emerald-400' :
           ev.condition === 'poor' ? 'text-rose-400' :
           'text-muted-foreground'
-        const qualifier = ev.type || ev.height
+        const qualifier = (ev as { type?: string; height?: string }).type || (ev as { type?: string; height?: string }).height
         const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
 
         return (
@@ -318,10 +316,10 @@ function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
               <span className={`shrink-0 font-bold ${iconColor}`}>{icon}</span>
               <span className="text-muted-foreground w-20 shrink-0">{label}</span>
               <span className="font-medium capitalize text-foreground/90 truncate">
-                {qualifier ? `${qualifier}` : ev.condition}
+                {qualifier ?? ev.condition}
               </span>
               {photoRef && (
-                <span className="text-blue-400 shrink-0 ml-auto pl-1">·{photoRef}</span>
+                <span className="text-primary/70 shrink-0 ml-auto pl-1">· {photoRef}</span>
               )}
             </div>
             {ev.detail && (
@@ -336,7 +334,6 @@ function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
   )
 }
 
-// Highlights 4-digit years (e.g. 2022) in amber
 function WithYears({ text }: { text: string }) {
   const parts = text.split(/(\b(?:19|20)\d{2}\b)/)
   return (

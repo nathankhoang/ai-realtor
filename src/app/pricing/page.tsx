@@ -67,19 +67,19 @@ export default async function PricingPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="border-b border-border/40 px-6 py-4 flex items-center justify-between">
-        <Link href="/dashboard" className="text-xl font-semibold tracking-tight">
-          Eifara
-        </Link>
-        {userId ? <UserButton /> : (
-          <Link href="/sign-in">
-            <Button variant="outline" size="sm">Sign in</Button>
-          </Link>
-        )}
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
+          {userId ? <UserButton /> : (
+            <Link href="/sign-in">
+              <Button variant="outline" size="sm">Sign in</Button>
+            </Link>
+          )}
+        </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-16 space-y-10">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-14 space-y-10">
         <div className="text-center space-y-3">
           <h1 className="text-3xl font-bold">Simple, transparent pricing</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
