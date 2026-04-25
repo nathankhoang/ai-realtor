@@ -31,11 +31,11 @@ export default function NotificationPreferences({ emailAnalysisDone, emailPriceA
   }
 
   return (
-    <div className="border border-border/40 rounded-lg divide-y divide-border/40">
+    <div className="border border-border rounded-xl divide-y divide-border bg-background">
       <div className="flex items-center justify-between px-4 py-4 gap-4">
         <div>
-          <Label className="text-sm font-medium">Analysis complete</Label>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <Label className="text-[15px] font-medium">Analysis complete</Label>
+          <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
             Email me when a search finishes analyzing listings.
           </p>
         </div>
@@ -48,9 +48,9 @@ export default function NotificationPreferences({ emailAnalysisDone, emailPriceA
 
       <div className="flex items-center justify-between px-4 py-4 gap-4">
         <div>
-          <Label className="text-sm font-medium">Price change alerts</Label>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Email me when a saved listing's price changes.
+          <Label className="text-[15px] font-medium">Price change alerts</Label>
+          <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+            Email me when a saved listing&apos;s price changes.
           </p>
         </div>
         <Switch

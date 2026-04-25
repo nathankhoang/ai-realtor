@@ -49,38 +49,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  /* Eifara palette: warm cream bg, near-black foreground, cobalt blue accent */
+  --background: oklch(0.943 0.011 85);     /* #F1EEE7 cream */
+  --foreground: oklch(0.155 0.005 80);     /* #0E0D0A warm near-black */
+  --card: oklch(1 0 0);                    /* white — cards lift above the cream */
+  --card-foreground: oklch(0.155 0.005 80);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.511 0.258 277.0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.955 0.02 277.0);
-  --accent-foreground: oklch(0.4 0.18 277.0);
+  --popover-foreground: oklch(0.155 0.005 80);
+  --primary: oklch(0.515 0.235 263);       /* #2952FF cobalt */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.972 0.009 85);      /* #FAF8F2 warm light */
+  --secondary-foreground: oklch(0.155 0.005 80);
+  --muted: oklch(0.972 0.009 85);
+  --muted-foreground: oklch(0.485 0.007 75); /* warm gray */
+  --accent: oklch(0.93 0.04 263);          /* light cobalt tint */
+  --accent-foreground: oklch(0.515 0.235 263);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.511 0.258 277.0);
-  --chart-1: oklch(0.511 0.258 277.0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.98 0.005 277.0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.511 0.258 277.0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.955 0.02 277.0);
-  --sidebar-accent-foreground: oklch(0.4 0.18 277.0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.511 0.258 277.0);
+  --border: oklch(0.155 0.005 80 / 0.10);  /* faint warm-black */
+  --input: oklch(0.155 0.005 80 / 0.10);
+  --ring: oklch(0.515 0.235 263);
+  --chart-1: oklch(0.515 0.235 263);
+  --chart-2: oklch(0.65 0.05 80);
+  --chart-3: oklch(0.485 0.007 75);
+  --chart-4: oklch(0.371 0.005 75);
+  --chart-5: oklch(0.269 0.003 75);
+  --radius: 0.65rem;
+  --sidebar: oklch(0.943 0.011 85);
+  --sidebar-foreground: oklch(0.155 0.005 80);
+  --sidebar-primary: oklch(0.515 0.235 263);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.93 0.04 263);
+  --sidebar-accent-foreground: oklch(0.515 0.235 263);
+  --sidebar-border: oklch(0.155 0.005 80 / 0.10);
+  --sidebar-ring: oklch(0.515 0.235 263);
 }
 
 .dark {
@@ -127,4 +128,62 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ────────────────  EIFARA — Marketing primary button  ──────────────── */
+
+.eifara-pill-btn {
+  background-color: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: inset 0 0 0 1px var(--btn-ring);
+  transition: color 280ms ease;
+  will-change: transform;
+}
+.eifara-pill-btn:hover {
+  color: var(--btn-fg-hover);
+}
+.eifara-pill-btn__sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: var(--btn-bg-hover);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 9999px;
+}
+.eifara-pill-btn:hover .eifara-pill-btn__sweep {
+  transform: scaleX(1);
+}
+.eifara-pill-btn__dot {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background-color: var(--btn-dot-bg);
+  color: var(--btn-dot-fg);
+  transition:
+    background-color 320ms ease,
+    color 320ms ease;
+}
+.eifara-pill-btn:hover .eifara-pill-btn__dot {
+  background-color: var(--btn-dot-bg-hover);
+  color: var(--btn-dot-fg-hover);
+}
+.eifara-pill-btn__arrow {
+  transition: transform 320ms ease;
+}
+.eifara-pill-btn__arrow--in {
+  position: absolute;
+  inset: 0;
+  transform: translate(-12px, 12px);
+}
+.eifara-pill-btn:hover .eifara-pill-btn__arrow--out {
+  transform: translate(12px, -12px);
+}
+.eifara-pill-btn:hover .eifara-pill-btn__arrow--in {
+  transform: translate(0, 0);
 }

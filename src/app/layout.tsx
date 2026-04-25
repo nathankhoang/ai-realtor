@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Eifara — AI-Powered Home Search',
-  description: 'Find homes that match your clients\' exact needs using AI photo analysis.',
+  title: "Eifara — See every home through your client's eyes",
+  description:
+    'Describe what your client wants in plain English. Eifara analyzes every Zillow listing photo with AI and ranks homes by fit — with photo-level evidence for every match.',
 }
 
 export default function RootLayout({
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      >
         <body className="min-h-full flex flex-col bg-background text-foreground">
           {children}
           <Toaster />

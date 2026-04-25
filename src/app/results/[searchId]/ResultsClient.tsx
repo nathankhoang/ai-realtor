@@ -123,18 +123,18 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
           {showHidden && (
             <div className="mt-3 space-y-2">
               {hidden.map((row, i) => (
-                <Card key={i} className="border-border/30 opacity-60">
+                <Card key={i} className="border-border opacity-65">
                   <CardContent className="py-3 px-4 flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{row.address}</p>
-                      <p className="text-xs text-muted-foreground">{[row.city, row.state].filter(Boolean).join(', ')}</p>
+                      <p className="text-[14px] font-medium">{row.address}</p>
+                      <p className="text-[13px] text-muted-foreground mt-0.5">{[row.city, row.state].filter(Boolean).join(', ')}</p>
                       {row.explanation && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{row.explanation}</p>
+                        <p className="text-[13px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{row.explanation}</p>
                       )}
                     </div>
                     <div className="shrink-0 text-center">
-                      <div className="text-lg font-bold text-rose-400">{Math.round(row.score * 100)}</div>
-                      <div className="text-[10px] text-muted-foreground">/ 100</div>
+                      <div className="text-xl font-semibold text-muted-foreground tabular-nums">{Math.round(row.score * 100)}</div>
+                      <div className="text-[11px] text-muted-foreground">/ 100</div>
                     </div>
                   </CardContent>
                 </Card>

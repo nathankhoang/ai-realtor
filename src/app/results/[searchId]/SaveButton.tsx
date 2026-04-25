@@ -56,7 +56,7 @@ export default function SaveButton({
     <>
       <button
         onClick={openDialog}
-        className={`text-xs shrink-0 transition-colors ${isSaved ? 'text-rose-400 hover:text-muted-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        className={`text-[13px] font-medium shrink-0 transition-colors ${isSaved ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
       >
         {isSaved ? '♥ Saved' : '♡ Save'}
       </button>
@@ -64,14 +64,14 @@ export default function SaveButton({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle className="text-sm">Save to client</DialogTitle>
+            <DialogTitle className="text-[15px]">Save to client</DialogTitle>
           </DialogHeader>
           {!clients ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">Loading…</p>
+            <p className="text-[13px] text-muted-foreground py-4 text-center">Loading…</p>
           ) : clients.length === 0 ? (
             <div className="py-4 text-center space-y-2">
-              <p className="text-xs text-muted-foreground">No clients yet.</p>
-              <a href="/dashboard" className="text-xs text-blue-400 hover:underline">
+              <p className="text-[13px] text-muted-foreground">No clients yet.</p>
+              <a href="/dashboard" className="text-[13px] text-primary hover:underline">
                 Create a client in the dashboard →
               </a>
             </div>
@@ -82,10 +82,10 @@ export default function SaveButton({
                   key={c.id}
                   onClick={() => toggle(c)}
                   disabled={loading}
-                  className="w-full text-left px-3 py-2 rounded hover:bg-muted text-sm flex items-center justify-between transition-colors"
+                  className="w-full text-left px-3 py-2 rounded hover:bg-muted text-[14px] flex items-center justify-between transition-colors"
                 >
                   <span>{c.name}</span>
-                  {savedIds.has(c.id) && <span className="text-rose-400 text-xs">♥</span>}
+                  {savedIds.has(c.id) && <span className="text-primary text-[13px]">♥</span>}
                 </button>
               ))}
             </div>

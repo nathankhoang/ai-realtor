@@ -92,23 +92,23 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
+          <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-6">
         {/* Search summary */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
-            <h1 className="text-lg font-semibold mt-1">{search.location}</h1>
+            <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
+            <h1 className="text-2xl font-medium tracking-tight mt-2">{search.location}</h1>
             {search.requirementsText && (
-              <p className="text-xs text-muted-foreground mt-0.5 max-w-lg line-clamp-1">{search.requirementsText}</p>
+              <p className="text-[14px] text-muted-foreground mt-1 max-w-lg line-clamp-1">{search.requirementsText}</p>
             )}
-            <div className="flex flex-wrap gap-x-3 mt-2 text-xs">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[13px]">
               {search.priceMax && <span className="text-muted-foreground">≤ ${search.priceMax.toLocaleString()}</span>}
               {search.bedsMin && <span className="text-muted-foreground">{search.bedsMin}+ bd</span>}
               {search.bathsMin && <span className="text-muted-foreground">{search.bathsMin}+ ba</span>}
@@ -120,7 +120,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             {/* Edit & re-search link */}
             <Link
               href={`/search?from=${searchId}`}
-              className="text-xs text-primary hover:text-primary/80 transition-colors mt-1.5 inline-block"
+              className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors mt-2 inline-block"
             >
               Edit & re-search →
             </Link>
@@ -137,9 +137,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
         ) : (
           <>
             {needsMoreBatches && (
-              <Card className="border-amber-800/40 bg-amber-950/20">
-                <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
-                  <p className="text-xs text-amber-300">
+              <Card className="border-primary/25 bg-primary/5">
+                <CardContent className="py-3.5 px-4 flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-[13px] text-foreground/80">
                     Only {displayed.length} strong match{displayed.length !== 1 ? 'es' : ''} so far — load more to find better options.
                   </p>
                   <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />

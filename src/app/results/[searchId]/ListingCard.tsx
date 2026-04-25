@@ -35,51 +35,51 @@ export default function ListingCard({
   const isGood = score >= 60 && score < 80
 
   const scoreBadgeClass = isGreat
-    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+    ? 'bg-primary/10 border-primary/30 text-primary'
     : isGood
-      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-      : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+      ? 'bg-foreground/5 border-foreground/15 text-foreground'
+      : 'bg-foreground/5 border-foreground/10 text-muted-foreground'
 
   return (
-    <Card className={`overflow-hidden transition-all ${isSelected ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border/50'}`}>
+    <Card className={`overflow-hidden transition-all ${isSelected ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border'}`}>
       {/* Header row */}
-      <div className="flex items-start gap-2 px-4 pt-4 pb-3">
+      <div className="flex items-start gap-2.5 px-4 pt-4 pb-3">
         {/* Bulk select checkbox */}
         <button
           onClick={onToggleSelect}
           className={`mt-1 w-4 h-4 rounded border-2 shrink-0 transition-colors flex items-center justify-center ${
-            isSelected ? 'bg-primary border-primary' : 'border-border/60 hover:border-primary/50'
+            isSelected ? 'bg-primary border-primary' : 'border-border hover:border-primary/50'
           }`}
         >
-          {isSelected && <span className="text-primary-foreground text-[10px] leading-none">✓</span>}
+          {isSelected && <span className="text-primary-foreground text-[11px] leading-none">✓</span>}
         </button>
 
-        <span className="text-xs text-muted-foreground/60 font-mono pt-1 w-5 shrink-0 text-right">#{rank}</span>
+        <span className="text-[12.5px] text-muted-foreground/70 font-mono pt-1 w-5 shrink-0 text-right">#{rank}</span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-semibold text-sm leading-snug">{address}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{[city, state].filter(Boolean).join(', ')}</p>
+              <p className="font-semibold text-[15px] leading-snug">{address}</p>
+              <p className="text-[13px] text-muted-foreground mt-1">{[city, state].filter(Boolean).join(', ')}</p>
             </div>
             <div className={`border rounded-lg px-3 py-1.5 text-center shrink-0 ${scoreBadgeClass}`}>
-              <div className="text-xl font-bold leading-none">{score}</div>
-              <div className="text-[10px] opacity-70 mt-0.5">/ 100</div>
+              <div className="text-2xl font-semibold leading-none tabular-nums">{score}</div>
+              <div className="text-[11px] opacity-70 mt-0.5">/ 100</div>
             </div>
           </div>
 
           {/* Stats + links */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
-            {price && <span className="font-semibold">${price.toLocaleString()}</span>}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[13px]">
+            {price && <span className="font-semibold tabular-nums">${price.toLocaleString()}</span>}
             {beds && <span className="text-muted-foreground">{beds} bd</span>}
             {baths && <span className="text-muted-foreground">{baths} ba</span>}
-            {sqft && <span className="text-muted-foreground">{sqft.toLocaleString()} sqft</span>}
-            <div className="flex items-center gap-2 ml-auto">
+            {sqft && <span className="text-muted-foreground tabular-nums">{sqft.toLocaleString()} sqft</span>}
+            <div className="flex items-center gap-2.5 ml-auto">
               <a
                 href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 transition-colors"
+                className="font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 Zillow →
               </a>
@@ -92,7 +92,7 @@ export default function ListingCard({
       {/* Match explanation — prominent, above photos */}
       {explanation && (
         <div className="px-4 pb-3">
-          <p className="text-sm leading-relaxed text-foreground/90 border-l-2 border-primary/40 pl-3">{explanation}</p>
+          <p className="text-[14.5px] leading-relaxed text-foreground/90 border-l-2 border-primary/45 pl-3">{explanation}</p>
         </div>
       )}
 
@@ -108,9 +108,9 @@ export default function ListingCard({
 
       {/* Notes */}
       {features?.notes && (
-        <div className="px-4 py-2.5 border-t border-border/30 bg-muted/20">
-          <p className="text-[11px] text-muted-foreground line-clamp-2">
-            <span className="font-semibold uppercase tracking-wide text-[10px] mr-1.5">Notes</span>
+        <div className="px-4 py-3 border-t border-border bg-muted/40">
+          <p className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
+            <span className="font-semibold uppercase tracking-[0.14em] text-[11px] mr-2">Notes</span>
             <WithYears text={features.notes} />
           </p>
         </div>
@@ -144,11 +144,11 @@ function FeatureGrid({ features }: { features: ListingFeatures }) {
   const right = visible.slice(mid)
 
   return (
-    <div className="mx-4 mb-3 rounded-md border border-border/40 overflow-hidden text-xs">
-      <div className="px-3 py-1.5 bg-muted/30 border-b border-border/30">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feature evidence</span>
+    <div className="mx-4 mb-3 rounded-lg border border-border overflow-hidden text-[13px]">
+      <div className="px-3 py-2 bg-muted/40 border-b border-border">
+        <span className="text-[11.5px] font-semibold text-muted-foreground uppercase tracking-[0.14em]">Feature evidence</span>
       </div>
-      <div className="grid grid-cols-2 divide-x divide-border/30">
+      <div className="grid grid-cols-2 divide-x divide-border">
         <FeatureCol rows={left} />
         <FeatureCol rows={right} />
       </div>
@@ -158,18 +158,18 @@ function FeatureGrid({ features }: { features: ListingFeatures }) {
 
 function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
   return (
-    <div className="divide-y divide-border/20">
+    <div className="divide-y divide-border">
       {rows.map(({ label, ev }) => {
         const icon = ev.condition === 'updated' ? '✓' : ev.condition === 'poor' ? '✗' : '·'
         const iconColor =
-          ev.condition === 'updated' ? 'text-emerald-400' :
-          ev.condition === 'poor' ? 'text-rose-400' :
+          ev.condition === 'updated' ? 'text-primary' :
+          ev.condition === 'poor' ? 'text-foreground/40' :
           'text-muted-foreground'
         const qualifier = ev.type || ev.height
         const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
 
         return (
-          <div key={label} className="px-3 py-1.5">
+          <div key={label} className="px-3 py-2">
             <div className="flex items-center gap-1.5">
               <span className={`shrink-0 font-bold ${iconColor}`}>{icon}</span>
               <span className="text-muted-foreground w-20 shrink-0">{label}</span>
@@ -177,11 +177,11 @@ function FeatureCol({ rows }: { rows: { label: string; ev: AnyEvidence }[] }) {
                 {qualifier ?? ev.condition}
               </span>
               {photoRef && (
-                <span className="text-primary/70 shrink-0 ml-auto pl-1">· {photoRef}</span>
+                <span className="text-primary/75 shrink-0 ml-auto pl-1 font-medium">· {photoRef}</span>
               )}
             </div>
             {ev.detail && (
-              <p className="text-[11px] text-muted-foreground pl-5 mt-0.5 line-clamp-2">
+              <p className="text-[12.5px] text-muted-foreground pl-5 mt-1 line-clamp-2 leading-relaxed">
                 <WithYears text={ev.detail} />
               </p>
             )}
@@ -198,7 +198,7 @@ function WithYears({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         /^\d{4}$/.test(part)
-          ? <span key={i} className="text-amber-400 font-semibold">{part}</span>
+          ? <span key={i} className="text-primary font-semibold">{part}</span>
           : part
       )}
     </>

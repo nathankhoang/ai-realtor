@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'motion/react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,78 +31,101 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
   const [annual, setAnnual] = useState(false)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
+      {/* Sliding pill toggle — matches the landing */}
       <div className="flex items-center justify-center gap-3">
-        <button
-          onClick={() => setAnnual(false)}
-          className={`text-sm font-medium transition-colors ${!annual ? 'text-foreground' : 'text-muted-foreground'}`}
+        <div
+          role="tablist"
+          aria-label="Billing interval"
+          className="relative inline-flex items-center rounded-full border border-border bg-card p-1 shadow-[0_1px_0_rgba(15,14,10,0.04)]"
         >
-          Monthly
-        </button>
-        <button
-          onClick={() => setAnnual(v => !v)}
-          className={`relative w-11 h-6 rounded-full transition-colors ${annual ? 'bg-foreground' : 'bg-input'}`}
+          <ToggleSegment active={!annual} onClick={() => setAnnual(false)} layoutId="pricing-page-pill">
+            Monthly
+          </ToggleSegment>
+          <ToggleSegment active={annual} onClick={() => setAnnual(true)} layoutId="pricing-page-pill">
+            Annual
+          </ToggleSegment>
+        </div>
+        <motion.span
+          initial={false}
+          animate={{
+            opacity: annual ? 1 : 0,
+            x: annual ? 0 : -6,
+            scale: annual ? 1 : 0.95,
+          }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="rounded-full bg-primary/10 text-primary font-medium px-3 py-1 text-[13px]"
+          style={annual ? {} : { pointerEvents: 'none' }}
         >
-          <span className={`absolute top-1 w-4 h-4 rounded-full bg-background shadow transition-transform ${annual ? 'translate-x-6' : 'translate-x-1'}`} />
-        </button>
-        <button
-          onClick={() => setAnnual(true)}
-          className={`text-sm font-medium transition-colors ${annual ? 'text-foreground' : 'text-muted-foreground'}`}
-        >
-          Annual
-        </button>
-        {annual && (
-          <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-2 py-0.5 rounded-full">
-            Save 2 months
-          </span>
-        )}
+          Save 20%
+        </motion.span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {plans.map((plan) => {
           const isCurrent = currentTier === plan.tier
           const isHighlighted = plan.tier === 'starter'
           const priceId = annual ? plan.annualPriceId : plan.monthlyPriceId
+          const showAnnual = annual && plan.tier !== 'free'
 
           return (
             <Card
               key={plan.tier}
-              className={`relative flex flex-col ${isHighlighted ? 'border-foreground/40 shadow-md' : 'border-border/40'}`}
+              className={`relative flex flex-col rounded-3xl ${
+                isHighlighted
+                  ? 'border-border shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
+                  : 'border-border'
+              }`}
             >
               {isHighlighted && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-foreground text-background text-xs font-medium px-3 py-1 rounded-full">
+                  <span className="bg-primary text-primary-foreground text-[12.5px] font-medium px-3 py-0.5 rounded-full">
                     Most popular
                   </span>
                 </div>
               )}
-              <CardHeader className="pb-4 pt-6">
-                <CardTitle className="text-lg">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-                <div className="pt-2">
-                  {annual && plan.tier !== 'free' ? (
-                    <>
-                      <span className="text-3xl font-bold">{plan.annualPrice}</span>
-                      <span className="text-muted-foreground text-sm"> / year</span>
-                      <p className="text-xs text-muted-foreground mt-0.5">{plan.annualMonthly}/mo equivalent</p>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-3xl font-bold">{plan.monthlyPrice}</span>
-                      {plan.tier !== 'free' && (
-                        <span className="text-muted-foreground text-sm"> / month</span>
-                      )}
-                    </>
+              <CardHeader className="pb-4 pt-7 gap-2">
+                <CardTitle className="text-[15px] font-medium">{plan.name}</CardTitle>
+                <CardDescription className="text-[14px]">{plan.description}</CardDescription>
+                <div className="pt-2 flex items-baseline gap-1.5">
+                  <motion.span
+                    key={`${plan.tier}-${annual}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-5xl font-medium tracking-[-0.025em] tabular-nums"
+                  >
+                    {showAnnual ? plan.annualMonthly : plan.monthlyPrice}
+                  </motion.span>
+                  {plan.tier !== 'free' && (
+                    <span className="text-muted-foreground text-[15px]">/ month</span>
+                  )}
+                  {plan.tier === 'free' && (
+                    <span className="text-muted-foreground text-[15px]">forever</span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">{plan.searches}</p>
+                <div className="h-5 text-[13px]">
+                  {showAnnual && (
+                    <motion.p
+                      key={`${plan.tier}-annual-note`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.25, delay: 0.05 }}
+                      className="text-muted-foreground"
+                    >
+                      <span className="font-medium text-foreground/80 tabular-nums">{plan.annualPrice}</span>{' '}
+                      billed annually
+                    </motion.p>
+                  )}
+                </div>
+                <p className="text-[13px] text-primary font-medium mt-1">{plan.searches}</p>
               </CardHeader>
 
-              <CardContent className="flex flex-col flex-1 gap-6 pb-6">
-                <ul className="space-y-2 flex-1">
+              <CardContent className="flex flex-col flex-1 gap-6 pb-7">
+                <ul className="space-y-3 flex-1">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <span className="text-foreground mt-0.5">✓</span>
+                    <li key={f} className="flex items-start gap-2.5 text-[15px] text-foreground/85 leading-snug">
+                      <span className="text-primary mt-[3px]">✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -130,5 +154,38 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
         })}
       </div>
     </div>
+  )
+}
+
+function ToggleSegment({
+  active,
+  onClick,
+  layoutId,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  layoutId: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`relative z-10 rounded-full px-5 py-2 text-[14px] font-medium transition-colors duration-200 ${
+        active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {active && (
+        <motion.span
+          layoutId={layoutId}
+          className="absolute inset-0 -z-10 rounded-full bg-foreground"
+          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        />
+      )}
+      {children}
+    </button>
   )
 }

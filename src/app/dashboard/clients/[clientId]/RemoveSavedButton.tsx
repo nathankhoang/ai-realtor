@@ -22,7 +22,7 @@ export default function RemoveSavedButton({ savedId }: { savedId: string }) {
   }
 
   return (
-    <button onClick={remove} disabled={loading} className="text-xs text-muted-foreground hover:text-rose-400 shrink-0 transition-colors">
+    <button onClick={remove} disabled={loading} className="text-[13px] text-muted-foreground hover:text-destructive shrink-0 transition-colors">
       Remove
     </button>
   )

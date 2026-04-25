@@ -1,337 +1,288 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { SignInButton, SignUpButton } from '@clerk/nextjs'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { PhotoScanDemo } from '@/components/landing/PhotoScanDemo'
+import { StatCounter } from '@/components/landing/StatCounter'
+import { HowItWorks } from '@/components/landing/HowItWorks'
+import { BentoGrid } from '@/components/landing/BentoGrid'
+import { Comparison } from '@/components/landing/Comparison'
+import { Manifesto } from '@/components/landing/Testimonial'
+import { FAQ } from '@/components/landing/FAQ'
+import { PricingTeaser } from '@/components/landing/PricingTeaser'
+import { SignInTrigger, SignUpTrigger } from '@/components/landing/AuthButtons'
+import { SecondaryButton } from '@/components/landing/PrimaryButton'
 
 export default async function Home() {
   const { userId } = await auth()
   if (userId) redirect('/dashboard')
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-
-      {/* ── HEADER ── */}
-      <header className="sticky top-0 z-50 border-b border-neutral-100 bg-white/95 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="text-lg font-bold tracking-tight text-neutral-900">Eifara</span>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/pricing" className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors">Pricing</Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            <SignInButton mode="modal">
-              <button className="text-sm text-neutral-600 hover:text-neutral-900 px-3 py-1.5 transition-colors rounded-md hover:bg-neutral-100">
-                Sign in
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <Button size="sm" className="h-8">Get started free</Button>
-            </SignUpButton>
-          </div>
-        </div>
-      </header>
-
-      {/* ── HERO ── */}
-      <section className="relative bg-[#07071A] text-white overflow-hidden">
-        {/* subtle grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff06_1px,transparent_1px),linear-gradient(to_bottom,#ffffff06_1px,transparent_1px)] bg-[size:72px_72px]" />
-        {/* glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
-
-        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-12 text-center">
-          {/* badge */}
-          <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-3.5 py-1 text-xs text-indigo-300 font-medium mb-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-            AI-powered for real estate agents
-          </div>
-
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] mb-5">
-            Stop guessing which homes<br />
-            <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-400 bg-clip-text text-transparent">
-              your clients will love
-            </span>
-          </h1>
-
-          <p className="text-lg text-neutral-400 max-w-2xl mx-auto mb-9 leading-relaxed">
-            Describe what your client wants in plain English. Eifara searches Zillow, analyzes every listing photo with AI, and ranks homes by how well they match — with evidence like{' '}
-            <span className="text-neutral-200 italic">"quartz countertops confirmed in photo 2."</span>
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-5">
-            <SignUpButton mode="modal">
-              <Button size="lg" className="h-12 px-7 text-base">
-                Start for free →
-              </Button>
-            </SignUpButton>
-            <Link href="/pricing">
-              <Button size="lg" variant="outline" className="h-12 px-7 text-base border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white hover:border-white/20">
-                See pricing
-              </Button>
-            </Link>
-          </div>
-          <p className="text-xs text-neutral-500">3 free searches · No credit card required</p>
-        </div>
-
-        {/* ── PRODUCT MOCKUP ── */}
-        <div className="relative max-w-3xl mx-auto px-6 pb-0">
-          <div className="rounded-t-xl overflow-hidden border border-white/10 shadow-2xl shadow-indigo-900/20">
-            {/* browser bar */}
-            <div className="flex items-center gap-1.5 px-4 py-2.5 bg-neutral-900 border-b border-white/10">
-              <div className="w-3 h-3 rounded-full bg-neutral-700" />
-              <div className="w-3 h-3 rounded-full bg-neutral-700" />
-              <div className="w-3 h-3 rounded-full bg-neutral-700" />
-              <div className="flex-1 mx-3 h-5 bg-neutral-800 rounded-full text-[10px] text-neutral-500 flex items-center px-3">
-                eifara.com/results/austin-tx
-              </div>
-            </div>
-
-            {/* results UI mockup */}
-            <div className="bg-neutral-950 p-4 space-y-3">
-              {/* header bar */}
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-white">Austin TX</p>
-                  <p className="text-[11px] text-neutral-400 max-w-xs">Updated kitchen, hardwood floors, open floor plan, no HOA, natural light</p>
-                  <div className="flex gap-3 mt-1 text-[11px]">
-                    <span className="text-white font-medium">12 strong matches</span>
-                    <span className="text-neutral-500">20 analyzed</span>
-                    <span className="text-neutral-500">180 more available</span>
-                  </div>
-                </div>
-                <div className="text-[11px] text-indigo-400 border border-indigo-500/30 bg-indigo-500/10 rounded-md px-2.5 py-1.5 whitespace-nowrap cursor-default">
-                  Analyze next 10
-                </div>
-              </div>
-
-              {/* listing 1 */}
-              <div className="bg-neutral-900 rounded-lg border border-white/5 p-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-neutral-600 font-mono mt-0.5 w-4 shrink-0">#1</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-white">7909 Edmondson Bnd</p>
-                        <p className="text-[11px] text-neutral-400">Austin, TX · $474,990 · 4 bd · 4 ba · 2,508 sqft</p>
-                      </div>
-                      <div className="border rounded-md px-2 py-0.5 text-center shrink-0 bg-emerald-500/10 border-emerald-500/25">
-                        <span className="text-xl font-bold text-emerald-400 leading-none">92</span>
-                        <span className="text-[9px] text-neutral-500">/100</span>
-                      </div>
-                    </div>
-                    {/* photo strip */}
-                    <div className="flex gap-1 mt-2">
-                      {[0,1,2,3].map(i => (
-                        <div key={i} className="flex-1 h-12 bg-neutral-700/60 rounded-sm relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-neutral-600/20 to-neutral-800/20" />
-                          <span className="absolute bottom-0.5 right-0.5 text-[8px] text-neutral-400 bg-black/40 px-1 rounded">{i+1}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-1.5 space-y-0.5">
-                      <p className="text-[11px] text-neutral-300"><span className="text-emerald-400 mr-1">✓</span>Quartz countertops confirmed · <span className="text-neutral-500">photo 2</span></p>
-                      <p className="text-[11px] text-neutral-300"><span className="text-emerald-400 mr-1">✓</span>Hardwood floors throughout · <span className="text-neutral-500">photo 1</span></p>
-                      <p className="text-[11px] text-neutral-300"><span className="text-emerald-400 mr-1">✓</span>High ceilings with clerestory windows · <span className="text-neutral-500">photo 9</span></p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* listing 2 — partial */}
-              <div className="bg-neutral-900 rounded-lg border border-white/5 p-3 opacity-70">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-neutral-600 font-mono mt-0.5 w-4 shrink-0">#2</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-white">2605 Loyola Ln</p>
-                        <p className="text-[11px] text-neutral-400">Austin, TX · $620,000 · 4 bd · 3 ba · 3,178 sqft</p>
-                      </div>
-                      <div className="border rounded-md px-2 py-0.5 text-center shrink-0 bg-emerald-500/10 border-emerald-500/25">
-                        <span className="text-xl font-bold text-emerald-400 leading-none">88</span>
-                        <span className="text-[9px] text-neutral-500">/100</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SOCIAL PROOF STRIP ── */}
-      <section className="border-b border-neutral-100 bg-neutral-50 py-5">
-        <div className="max-w-4xl mx-auto px-6 flex flex-wrap justify-center gap-x-10 gap-y-2">
-          {[
-            ['40+', 'home features detected per listing'],
-            ['200+', 'listings analyzed in minutes'],
-            ['Photo-level', 'evidence for every match'],
-            ['Plain English', 'client requirements — no filters needed'],
-          ].map(([stat, label]) => (
-            <div key={stat} className="flex items-center gap-2 text-sm">
-              <span className="font-bold text-indigo-600">{stat}</span>
-              <span className="text-neutral-500">{label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">Why Eifara</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900">Built around how realtors actually work</h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: (
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.127 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                  </svg>
-                ),
-                title: 'Plain-English Requirements',
-                desc: "Paste your client's wishlist or use the checklist. Eifara understands nuance — \"updated kitchen but doesn't need a pool\" works exactly as you'd expect.",
-              },
-              {
-                icon: (
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                  </svg>
-                ),
-                title: 'Photo-Level Analysis',
-                desc: 'AI scans every listing photo and identifies hardwood floors, granite countertops, high ceilings, and more — even when the listing description misses it or gets it wrong.',
-              },
-              {
-                icon: (
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                  </svg>
-                ),
-                title: 'Ranked with Evidence',
-                desc: 'Every result has a match score and specific photo callouts — "Floors: vinyl plank · photo 8", "Countertops: quartz · photo 2". Show your clients exactly why each home was ranked.',
-              },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} className="group p-6 rounded-xl border border-neutral-200 hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-50 transition-all">
-                <div className="w-11 h-11 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition-colors">
-                  {icon}
-                </div>
-                <h3 className="font-semibold text-neutral-900 mb-2">{title}</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-20 px-6 bg-neutral-50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">The process</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-neutral-900">From client brief to ranked shortlist</h2>
-            <p className="text-neutral-500 mt-3 max-w-lg mx-auto">What used to take hours — manually browsing Zillow, filtering, checking photos — now takes minutes.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 relative">
-            {/* connector line (desktop) */}
-            <div className="hidden md:block absolute top-10 left-[calc(33%-1px)] right-[calc(33%-1px)] h-px bg-gradient-to-r from-indigo-200 via-indigo-300 to-indigo-200" />
-
-            {[
-              { step: '01', title: 'Describe your client', desc: "Type what they're looking for — or pick from the 40-feature checklist. Budget, beds, baths, and style preferences all count." },
-              { step: '02', title: 'Eifara does the work', desc: 'We pull the best Zillow matches, run AI photo analysis on every listing, and score each one against your client\'s exact requirements.' },
-              { step: '03', title: 'Review & share results', desc: "Browse ranked results with photo evidence for every feature. Save favorites to a client profile and share a link for their review." },
-            ].map(({ step, title, desc }) => (
-              <div key={step} className="bg-white rounded-xl border border-neutral-200 p-6 relative text-center">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white text-sm font-bold flex items-center justify-center mx-auto mb-4">
-                  {step}
-                </div>
-                <h3 className="font-semibold text-neutral-900 mb-2">{title}</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRICING TEASER ── */}
-      <section className="py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">Pricing</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">Start free, scale when you need to</h2>
-          <p className="text-neutral-500 mb-10">No contracts. Cancel anytime.</p>
-
-          <div className="grid md:grid-cols-3 gap-5">
-            {[
-              { name: 'Free', price: '$0', period: 'forever', searches: '3 searches / month', features: ['AI photo analysis', 'Feature evidence grid', 'Client management'], cta: 'Get started', highlight: false },
-              { name: 'Starter', price: '$50', period: 'per month', searches: '20 searches / month', features: ['Everything in Free', 'Priority analysis', 'Shareable client reports', 'Email support'], cta: 'Start Starter', highlight: true },
-              { name: 'Pro', price: '$150', period: 'per month', searches: 'Unlimited searches', features: ['Everything in Starter', 'Unlimited searches', 'Early feature access', 'Priority support'], cta: 'Go Pro', highlight: false },
-            ].map(({ name, price, period, searches, features, cta, highlight }) => (
-              <div key={name} className={`rounded-xl border p-6 text-left relative ${highlight ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-lg shadow-indigo-100' : 'border-neutral-200'}`}>
-                {highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs font-semibold px-3 py-0.5 rounded-full">Most popular</div>
-                )}
-                <div className="mb-4">
-                  <p className="font-semibold text-neutral-900">{name}</p>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-neutral-900">{price}</span>
-                    <span className="text-sm text-neutral-500">{period}</span>
-                  </div>
-                  <p className="text-xs text-indigo-600 font-medium mt-1">{searches}</p>
-                </div>
-                <ul className="space-y-1.5 mb-5">
-                  {features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-neutral-600">
-                      <span className="text-indigo-500 shrink-0">✓</span>{f}
-                    </li>
-                  ))}
-                </ul>
-                <SignUpButton mode="modal">
-                  <Button className={`w-full ${highlight ? '' : 'bg-neutral-900 hover:bg-neutral-800 text-white'}`} variant={highlight ? 'default' : 'outline'}>
-                    {cta}
-                  </Button>
-                </SignUpButton>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-6 text-sm text-neutral-400">
-            Annual plans save 2 months — <Link href="/pricing" className="text-indigo-600 hover:underline">see full pricing</Link>
-          </p>
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <section className="py-20 px-6 bg-[#07071A]">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="absolute left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 relative">
-            Ready to stop wasting hours<br />on the wrong homes?
-          </h2>
-          <p className="text-neutral-400 mb-8 relative">Start with 3 free searches. No credit card needed.</p>
-          <SignUpButton mode="modal">
-            <Button size="lg" className="h-12 px-8 text-base relative">
-              Start for free →
-            </Button>
-          </SignUpButton>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="bg-[#07071A] border-t border-white/5 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-neutral-500">
-          <span className="font-semibold text-neutral-300">Eifara</span>
-          <div className="flex gap-6">
-            <Link href="/pricing" className="hover:text-neutral-300 transition-colors">Pricing</Link>
-          </div>
-          <span>© 2026 Eifara. All rights reserved.</span>
-        </div>
-      </footer>
-
+    <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950 [font-feature-settings:'ss01','cv11']">
+      <Header />
+      <Hero />
+      <Stats />
+      <ProblemStrip />
+      <HowItWorks />
+      <BentoGrid />
+      <Comparison />
+      <Manifesto />
+      <PricingTeaser />
+      <FAQ />
+      <FinalCTA />
+      <Footer />
     </div>
+  )
+}
+
+/* ─────────────────────────────  HEADER  ───────────────────────────── */
+
+function Header() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-stone-900/8 bg-[#F1EEE7]/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+        <div className="flex items-center gap-9">
+          <Link href="/" className="flex items-center gap-2">
+            <Logo />
+            <span className="text-[17px] font-medium tracking-tight text-stone-950">Eifara</span>
+          </Link>
+          <nav className="hidden items-center gap-7 md:flex">
+            {[
+              ['How it works', '#how'],
+              ['Features', '#features'],
+              ['Pricing', '/pricing'],
+              ['FAQ', '#faq'],
+            ].map(([t, href]) => (
+              <Link
+                key={t}
+                href={href}
+                className="group relative text-[15px] text-stone-600 transition-colors hover:text-stone-950"
+              >
+                {t}
+                <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-stone-950 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-x-100" />
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="flex items-center gap-1">
+          <SignInTrigger>Sign in</SignInTrigger>
+          <SignUpTrigger size="sm" tone="dark">
+            Start free
+          </SignUpTrigger>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function Logo() {
+  return (
+    <span
+      className="flex h-7 w-7 items-center justify-center rounded-md text-white"
+      style={{ backgroundColor: '#0E0D0A' }}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+        <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
+      </svg>
+    </span>
+  )
+}
+
+/* ─────────────────────────────  HERO  ───────────────────────────── */
+
+function Hero() {
+  return (
+    <section className="relative overflow-hidden bg-[#F1EEE7]">
+      {/* Subtle grain texture across the whole hero */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.045] mix-blend-multiply pointer-events-none"
+        style={{
+          backgroundImage:
+            'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22><filter id=%22n%22><feTurbulence baseFrequency=%220.85%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>")',
+        }}
+      />
+
+      <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-20 md:pb-32 md:pt-28">
+        <div className="grid items-center gap-14 md:grid-cols-[1.15fr_1fr] md:gap-20">
+          <div>
+            {/* eyebrow */}
+            <div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-stone-900/8 bg-white/70 px-3.5 py-1.5 text-[13px] text-stone-700 backdrop-blur-sm">
+              <span className="relative flex h-1.5 w-1.5">
+                <span
+                  className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70"
+                  style={{ backgroundColor: '#2952FF' }}
+                />
+                <span
+                  className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: '#2952FF' }}
+                />
+              </span>
+              <span className="font-medium">AI photo analysis for real-estate agents</span>
+            </div>
+
+            <h1 className="text-[clamp(2.6rem,6.5vw,5.4rem)] font-medium leading-[0.98] tracking-[-0.035em] text-stone-950">
+              See every home
+              <br />
+              through your
+              <br />
+              <span className="text-stone-400">client&rsquo;s eyes.</span>
+            </h1>
+
+            <p className="mt-7 max-w-lg text-[17px] leading-[1.6] text-stone-600">
+              Describe what your client wants in plain English. Eifara reads every Zillow listing
+              photo with AI, scores each home against the wishlist, and shows you the evidence —
+              like{' '}
+              <span className="text-stone-900">"quartz countertops · photo 2."</span>
+            </p>
+
+            <div className="mt-10 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <SignUpTrigger size="lg" tone="dark">
+                Start free
+              </SignUpTrigger>
+              <SecondaryButton href="#how">See how it works</SecondaryButton>
+            </div>
+
+            <p className="mt-6 text-[13px] text-stone-500">
+              3 free searches · No credit card · Cancel anytime
+            </p>
+          </div>
+
+          <div className="relative">
+            {/* soft halo behind demo */}
+            <div
+              aria-hidden
+              className="absolute -inset-6 -z-10 rounded-[2rem] blur-2xl"
+              style={{
+                backgroundImage:
+                  'radial-gradient(60% 60% at 60% 40%, rgba(41,82,255,0.10), transparent 70%)',
+              }}
+            />
+            <PhotoScanDemo />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────  STATS  ───────────────────────────── */
+
+function Stats() {
+  const items = [
+    { value: 40, suffix: '+', label: 'Features detected per listing' },
+    { value: 200, suffix: '+', label: 'Listings scanned per search' },
+    { value: 100, suffix: '%', label: 'Photo-cited evidence' },
+    { value: 5, suffix: ' min', label: 'From brief to shortlist' },
+  ]
+  return (
+    <section className="border-y border-stone-900/8 bg-[#F1EEE7]">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 px-6 md:grid-cols-4">
+        {items.map((s, i) => (
+          <div
+            key={s.label}
+            className={`px-5 py-9 ${i > 0 ? 'border-l border-stone-900/8' : ''} ${
+              i === 2 ? 'max-md:border-l max-md:border-t' : ''
+            } ${i === 3 ? 'max-md:border-t' : ''}`}
+          >
+            <p className="text-4xl font-medium tracking-[-0.025em] text-stone-950 md:text-5xl">
+              <StatCounter value={s.value} suffix={s.suffix} />
+            </p>
+            <p className="mt-2 text-[14px] leading-snug text-stone-500">{s.label}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────  PROBLEM STRIP  ───────────────────────────── */
+
+function ProblemStrip() {
+  return (
+    <section className="bg-[#F1EEE7] py-28">
+      <div className="mx-auto max-w-3xl px-6 text-center">
+        <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-stone-500">
+          The problem
+        </p>
+        <h2 className="text-4xl font-medium leading-[1.1] tracking-[-0.025em] text-stone-950 md:text-5xl">
+          Your client wants hardwood, an updated kitchen,
+          <br />
+          and no HOA. <span className="text-stone-400">Zillow can&rsquo;t read photos.</span>
+        </h2>
+        <p className="mx-auto mt-7 max-w-xl text-[17px] leading-[1.6] text-stone-600">
+          So you do — for hours. You open dozens of listings, eyeball every kitchen, squint at the
+          floors, and try to remember which house had what. By the time the shortlist is ready,
+          your weekend is gone.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────  FINAL CTA  ───────────────────────────── */
+
+function FinalCTA() {
+  return (
+    <section className="relative isolate overflow-hidden bg-[#0E0D0A] text-white">
+      {/* Subtle blue mesh */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(45% 60% at 50% 50%, rgba(41,82,255,0.30), transparent 75%),
+            radial-gradient(30% 40% at 18% 30%, rgba(41,82,255,0.10), transparent 75%)
+          `,
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22><filter id=%22n%22><feTurbulence baseFrequency=%220.85%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>")',
+        }}
+      />
+
+      <div className="relative mx-auto max-w-4xl px-6 py-32 text-center">
+        <h2 className="text-[clamp(2.6rem,6vw,4.5rem)] font-medium leading-[1.0] tracking-[-0.035em]">
+          Get your weekends back.
+          <br />
+          <span className="text-white/45">Start with three free searches.</span>
+        </h2>
+        <p className="mx-auto mt-7 max-w-md text-[16px] leading-[1.55] text-white/60">
+          No credit card. A few minutes from sign-up to your first ranked shortlist.
+        </p>
+        <div className="mt-10 flex justify-center">
+          <SignUpTrigger size="lg" tone="accent">
+            Start free
+          </SignUpTrigger>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────────  FOOTER  ───────────────────────────── */
+
+function Footer() {
+  return (
+    <footer className="border-t border-white/5 bg-[#0E0D0A] px-6 py-10">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-[14px] text-white/45 md:flex-row">
+        <div className="flex items-center gap-2">
+          <Logo />
+          <span className="font-medium text-white/85">Eifara</span>
+        </div>
+        <nav className="flex gap-7">
+          <Link href="/pricing" className="hover:text-white/75">
+            Pricing
+          </Link>
+          <a href="#faq" className="hover:text-white/75">
+            FAQ
+          </a>
+        </nav>
+        <span>© 2026 Eifara. All rights reserved.</span>
+      </div>
+    </footer>
   )
 }

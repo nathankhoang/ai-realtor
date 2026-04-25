@@ -50,34 +50,34 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
+          <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-8">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-10">
         {/* Client header */}
         <div>
-          <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
+          <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
           <div className="flex items-start gap-4 mt-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary text-lg font-semibold flex items-center justify-center shrink-0">
+            <div className="w-13 h-13 rounded-full bg-primary/10 text-primary text-[18px] font-semibold flex items-center justify-center shrink-0" style={{ width: '52px', height: '52px' }}>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-3">
-                <h1 className="text-xl font-semibold">{client.name}</h1>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <h1 className="text-2xl font-medium tracking-tight">{client.name}</h1>
                 <div className="flex items-center gap-2 shrink-0">
                   {client.shareToken && (
                     <Link href={`/report/${client.shareToken}`} target="_blank">
-                      <Button size="sm" variant="outline" className="text-xs">Preview report</Button>
+                      <Button size="sm" variant="outline" className="text-[13px]">Preview report</Button>
                     </Link>
                   )}
                   <ShareButton clientId={clientId} />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[14px] text-muted-foreground">
                 {client.email && <span>{client.email}</span>}
                 {client.phone && <span>{client.phone}</span>}
               </div>
@@ -91,23 +91,23 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         {/* Saved listings */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
-              Saved Listings
+            <h2 className="text-lg font-medium tracking-tight">
+              Saved listings
               {saved.length > 0 && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">({saved.length})</span>
+                <span className="ml-2 text-[13px] font-normal text-muted-foreground">({saved.length})</span>
               )}
             </h2>
             <Link href={`/search?clientId=${clientId}`}>
-              <Button size="sm" variant="outline">+ New Search</Button>
+              <Button size="sm" variant="outline">+ New search</Button>
             </Link>
           </div>
 
           {saved.length === 0 ? (
-            <Card className="border-dashed border-border/60">
-              <CardContent className="py-12 text-center">
-                <p className="text-sm text-muted-foreground">No saved listings yet.</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Run a search and save homes for this client.</p>
-                <Link href={`/search?clientId=${clientId}`} className="mt-4 inline-block">
+            <Card className="border-dashed border-border">
+              <CardContent className="py-14 text-center">
+                <p className="text-[15px] text-muted-foreground">No saved listings yet.</p>
+                <p className="text-[13px] text-muted-foreground mt-1">Run a search and save homes for this client.</p>
+                <Link href={`/search?clientId=${clientId}`} className="mt-5 inline-block">
                   <Button size="sm">Run a search</Button>
                 </Link>
               </CardContent>
@@ -118,7 +118,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 const photos = (listing.photoUrls ?? []) as string[]
                 const features = analysis?.featuresJson as ListingFeatures | null
                 return (
-                  <Card key={s.id} className="overflow-hidden border-border/50">
+                  <Card key={s.id} className="overflow-hidden border-border">
                     <div className="flex gap-4 p-4">
                       {photos[0] && (
                         <img src={photos[0]} alt="" className="w-28 object-cover rounded-md shrink-0 self-start" style={{ height: '88px' }} />
@@ -126,27 +126,27 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="font-semibold text-sm leading-snug">{listing.address}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{[listing.city, listing.state].filter(Boolean).join(', ')}</p>
+                            <p className="font-semibold text-[15px] leading-snug">{listing.address}</p>
+                            <p className="text-[13px] text-muted-foreground mt-1">{[listing.city, listing.state].filter(Boolean).join(', ')}</p>
                           </div>
                           <RemoveSavedButton savedId={s.id} />
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 mt-2 text-xs">
-                          {listing.price && <span className="font-semibold">${listing.price.toLocaleString()}</span>}
+                        <div className="flex flex-wrap items-center gap-x-3 mt-2 text-[13px]">
+                          {listing.price && <span className="font-semibold tabular-nums">${listing.price.toLocaleString()}</span>}
                           {listing.beds && <span className="text-muted-foreground">{listing.beds} bd</span>}
                           {listing.baths && <span className="text-muted-foreground">{listing.baths} ba</span>}
-                          {listing.sqft && <span className="text-muted-foreground">{listing.sqft.toLocaleString()} sqft</span>}
+                          {listing.sqft && <span className="text-muted-foreground tabular-nums">{listing.sqft.toLocaleString()} sqft</span>}
                           <a
                             href={`https://www.zillow.com/homedetails/${listing.zillowId}_zpid/`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary hover:text-primary/80 transition-colors ml-auto"
+                            className="font-medium text-primary hover:text-primary/80 transition-colors ml-auto"
                           >
                             Zillow →
                           </a>
                         </div>
                         {features?.notes && (
-                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{features.notes}</p>
+                          <p className="text-[13px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{features.notes}</p>
                         )}
                         <ListingNoteEditor savedId={s.id} initialNotes={s.notes ?? null} />
                       </div>
@@ -161,24 +161,24 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
         {/* Linked searches */}
         {linkedSearches.length > 0 && (
           <div className="space-y-3">
-            <h2 className="font-semibold">
+            <h2 className="text-lg font-medium tracking-tight">
               Searches
-              <span className="ml-2 text-xs font-normal text-muted-foreground">({linkedSearches.length})</span>
+              <span className="ml-2 text-[13px] font-normal text-muted-foreground">({linkedSearches.length})</span>
             </h2>
-            <div className="divide-y divide-border/40 border border-border/40 rounded-lg overflow-hidden">
+            <div className="divide-y divide-border border border-border rounded-xl overflow-hidden bg-card">
               {linkedSearches.map(search => (
                 <Link key={search.id} href={`/results/${search.id}`} className="block">
-                  <div className="flex items-center gap-4 px-4 py-3.5 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center gap-4 px-4 py-4 hover:bg-muted/50 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{search.location}</p>
+                      <p className="text-[15px] font-medium">{search.location}</p>
                       {search.requirementsText && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{search.requirementsText}</p>
+                        <p className="text-[13px] text-muted-foreground mt-1 truncate">{search.requirementsText}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+                    <div className="flex items-center gap-3 text-[13px] text-muted-foreground shrink-0">
                       <span>{search.analyzedCount ?? 0} results</span>
                       <span>{new Date(search.createdAt).toLocaleDateString()}</span>
-                      <svg className="w-3.5 h-3.5 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>

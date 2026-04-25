@@ -225,25 +225,25 @@ function SearchPageContent() {
   if (prefilling) {
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading search…</p>
+        <p className="text-[15px] text-muted-foreground">Loading search…</p>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border/40 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-base font-semibold tracking-tight">Eifara</Link>
+          <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8">
-        <div className="mb-6">
-          <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
-          <h1 className="text-xl font-semibold mt-1">{fromSearchId ? 'Edit Search' : 'New Search'}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Describe what your client is looking for and we&apos;ll find and analyze matching homes.</p>
+      <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
+        <div className="mb-7">
+          <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
+          <h1 className="text-2xl font-medium tracking-tight mt-2">{fromSearchId ? 'Edit search' : 'New search'}</h1>
+          <p className="text-[15px] text-muted-foreground mt-1.5 leading-relaxed">Describe what your client is looking for and Eifara will find and analyze matching homes.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -290,27 +290,27 @@ function SearchPageContent() {
               value={requirements}
               onChange={e => setRequirements(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Write naturally — the more detail, the better the matches.</p>
+            <p className="text-[13px] text-muted-foreground">Write naturally — the more detail, the better the matches.</p>
           </div>
 
           {/* Filters */}
           <div className="space-y-3">
-            <h2 className="text-sm font-medium">Filters</h2>
+            <h2 className="text-[15px] font-medium">Filters</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="priceMin" className="text-xs">Min price</Label>
+                <Label htmlFor="priceMin" className="text-[13px]">Min price</Label>
                 <Input id="priceMin" type="number" placeholder="300,000" value={priceMin} onChange={e => setPriceMin(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="priceMax" className="text-xs">Max price</Label>
+                <Label htmlFor="priceMax" className="text-[13px]">Max price</Label>
                 <Input id="priceMax" type="number" placeholder="600,000" value={priceMax} onChange={e => setPriceMax(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="bedsMin" className="text-xs">Min beds</Label>
+                <Label htmlFor="bedsMin" className="text-[13px]">Min beds</Label>
                 <Input id="bedsMin" type="number" placeholder="3" value={bedsMin} onChange={e => setBedsMin(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="bathsMin" className="text-xs">Min baths</Label>
+                <Label htmlFor="bathsMin" className="text-[13px]">Min baths</Label>
                 <Input id="bathsMin" type="number" step="0.5" placeholder="2" value={bathsMin} onChange={e => setBathsMin(e.target.value)} />
               </div>
             </div>
@@ -320,18 +320,18 @@ function SearchPageContent() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-medium">Feature checklist</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Check features your client wants — factored into photo analysis.</p>
+                <h2 className="text-[15px] font-medium">Feature checklist</h2>
+                <p className="text-[13px] text-muted-foreground mt-1">Check features your client wants — factored into photo analysis.</p>
               </div>
               {checkedCount > 0 && (
-                <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <span className="text-[12.5px] font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">
                   {checkedCount} selected
                 </span>
               )}
             </div>
 
-            <Card className="border-border/40">
-              <CardContent className="p-0 divide-y divide-border/40">
+            <Card className="border-border">
+              <CardContent className="p-0 divide-y divide-border">
                 {FEATURE_GROUPS.map(group => {
                   const groupChecked = group.features.filter(f => checkedFeatures.has(f.id)).length
                   const isOpen = expandedGroups.has(group.label)
@@ -340,12 +340,12 @@ function SearchPageContent() {
                       <button
                         type="button"
                         onClick={() => toggleGroup(group.label)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+                        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/40 transition-colors text-left"
                       >
-                        <span className="text-sm font-medium">{group.label}</span>
+                        <span className="text-[15px] font-medium">{group.label}</span>
                         <div className="flex items-center gap-2">
                           {groupChecked > 0 && (
-                            <span className="text-xs font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{groupChecked}</span>
+                            <span className="text-[12.5px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">{groupChecked}</span>
                           )}
                           <svg
                             className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -356,7 +356,7 @@ function SearchPageContent() {
                         </div>
                       </button>
                       {isOpen && (
-                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 gap-y-2 gap-x-4">
+                        <div className="px-4 pb-3.5 pt-1 grid grid-cols-2 gap-y-2.5 gap-x-4">
                           {group.features.map(feature => (
                             <div key={feature.id} className="flex items-center gap-2">
                               <Checkbox
@@ -364,7 +364,7 @@ function SearchPageContent() {
                                 checked={checkedFeatures.has(feature.id)}
                                 onCheckedChange={() => toggleFeature(feature.id)}
                               />
-                              <Label htmlFor={feature.id} className="text-sm font-normal cursor-pointer leading-tight">{feature.label}</Label>
+                              <Label htmlFor={feature.id} className="text-[14px] font-normal cursor-pointer leading-snug">{feature.label}</Label>
                             </div>
                           ))}
                         </div>
