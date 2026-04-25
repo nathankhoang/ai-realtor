@@ -17,6 +17,9 @@ const qstash = HAS_QSTASH
 
 function getAppUrl(): string {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '')
+  // NEXT_PUBLIC_APP_URL is already set on Vercel for the production
+  // domain; reuse it instead of forcing a separate APP_URL to be set.
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return 'http://localhost:3000'
 }
