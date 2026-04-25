@@ -26,12 +26,22 @@ export const searches = pgTable('searches', {
   bathsMin: integer('baths_min'),
   totalCandidates: integer('total_candidates').default(0),
   analyzedCount: integer('analyzed_count').default(0),
+  // Lifecycle: 'running' | 'completed' | 'failed' | 'cancelled'.
+  // Stored as text rather than a Postgres enum to avoid migration churn
+  // when adding new states later. Use the SearchStatus type for safety.
+  status: text('status').notNull().default('running'),
+  errorMessage: text('error_message'),
+  completedAt: timestamp('completed_at'),
+  cancelledAt: timestamp('cancelled_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
   index('idx_searches_user_id').on(t.userId, t.createdAt.desc()),
   index('idx_searches_client_id').on(t.clientId),
+  index('idx_searches_status').on(t.status),
 ])
+
+export type SearchStatus = 'running' | 'completed' | 'failed' | 'cancelled'
 
 export const listings = pgTable('listings', {
   id: uuid('id').primaryKey().defaultRandom(),

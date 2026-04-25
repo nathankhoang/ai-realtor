@@ -47,12 +47,19 @@ interface Props {
 
 type ViewMode = 'overview' | 'focus'
 
+const INITIAL_PAGE_SIZE = 12
+const PAGE_INCREMENT = 12
+
 export default function ResultsClient({ searchId, displayed, hidden }: Props) {
   const router = useRouter()
   const [view, setView] = useState<ViewMode>('overview')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showHidden, setShowHidden] = useState(false)
   const [rerunning, setRerunning] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
+
+  const visibleDisplayed = displayed.slice(0, visibleCount)
+  const hasMore = displayed.length > visibleCount
 
   function toggleSelect(listingId: string) {
     setSelected(prev => {
@@ -128,7 +135,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
             transition={{ duration: 0.25 }}
             className="space-y-5"
           >
-            {displayed.map((row, i) => (
+            {visibleDisplayed.map((row, i) => (
               <motion.div
                 key={row.resultId}
                 initial={{ opacity: 0, y: 16 }}
@@ -156,6 +163,19 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                 />
               </motion.div>
             ))}
+
+            {hasMore && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleCount(c => c + PAGE_INCREMENT)}
+                  className="text-[13px]"
+                >
+                  Show {Math.min(PAGE_INCREMENT, displayed.length - visibleCount)} more · {displayed.length - visibleCount} remaining
+                </Button>
+              </div>
+            )}
 
             {/* Hidden / low-score results */}
             {hidden.length > 0 && (

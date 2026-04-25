@@ -54,6 +54,12 @@ async function handler(req: Request) {
   const search = await db.query.searches.findFirst({ where: eq(searches.id, searchId) })
   if (!search) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
 
+  // If the user cancelled the search before this job started, exit cheaply
+  // without burning Anthropic / Zillow credits.
+  if (search.status === 'cancelled' || search.cancelledAt) {
+    return NextResponse.json({ skipped: true, reason: 'cancelled' })
+  }
+
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) })
   if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
@@ -136,10 +142,28 @@ async function handler(req: Request) {
     return NextResponse.json({ skipped: true, reason: 'race_condition' })
   }
 
-  // Atomically increment analyzedCount on the search row
-  await db.update(searches)
+  // Atomically increment analyzedCount on the search row.
+  const [updated] = await db.update(searches)
     .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
     .where(eq(searches.id, searchId))
+    .returning({ analyzedCount: searches.analyzedCount, totalCandidates: searches.totalCandidates, status: searches.status })
+
+  // If this was the last listing in the batch (or all candidates), mark
+  // the search as completed. We use a generous "5 listings analyzed" floor
+  // so first-batch completion ticks status to 'completed' even when the
+  // user hasn't asked for more batches.
+  const FIRST_BATCH = 5
+  const newCount = updated?.analyzedCount ?? 0
+  const totalCandidatesNow = updated?.totalCandidates ?? FIRST_BATCH
+  if (
+    updated &&
+    updated.status === 'running' &&
+    newCount >= Math.min(FIRST_BATCH, totalCandidatesNow)
+  ) {
+    await db.update(searches)
+      .set({ status: 'completed', completedAt: new Date() })
+      .where(and(eq(searches.id, searchId), eq(searches.status, 'running')))
+  }
 
   return NextResponse.json({ ok: true, score })
 }

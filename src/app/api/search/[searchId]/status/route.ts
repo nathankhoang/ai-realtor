@@ -26,5 +26,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ searchI
     analyzedCount: search.analyzedCount ?? 0,
     totalCandidates: search.totalCandidates ?? 0,
     resultCount: Number(resultCount),
+    status: search.status,
+    errorMessage: search.errorMessage,
+    cancelledAt: search.cancelledAt,
+    completedAt: search.completedAt,
   })
 }

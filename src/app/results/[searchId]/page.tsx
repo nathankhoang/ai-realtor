@@ -11,6 +11,7 @@ import NextBatchButton from './NextBatchButton'
 import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
 import RefreshButton from './RefreshButton'
+import CancelButton from './CancelButton'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -127,10 +128,31 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             </Link>
           </div>
           <div className="flex items-center gap-2">
+            <CancelButton searchId={searchId} status={search.status} />
             <RefreshButton searchId={searchId} />
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
           </div>
         </div>
+
+        {/* Cancelled state banner */}
+        {search.status === 'cancelled' && (
+          <Card className="border-border bg-muted/40">
+            <CardContent className="py-3 px-4 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-[13px] text-foreground/80">
+                <span className="font-medium">Search cancelled.</span>{' '}
+                {displayed.length > 0
+                  ? `${displayed.length} listing${displayed.length === 1 ? '' : 's'} were analyzed before you cancelled.`
+                  : 'No listings were analyzed before you cancelled.'}
+              </p>
+              <Link
+                href={`/search?from=${searchId}`}
+                className="text-[13px] font-medium text-primary hover:text-primary/80"
+              >
+                Start a new search →
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {rows.length === 0 ? (
           <Card className="border-border">
