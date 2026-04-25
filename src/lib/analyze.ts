@@ -41,7 +41,9 @@ export async function analyzeListingPhotos(
     return getUnknownFeatures()
   }
 
-  const photoContent: Anthropic.ImageBlockParam[] = photoUrls.slice(0, 8).map((url) => ({
+  // 5 photos covers the vast majority of feature detection at meaningfully
+  // lower cost than 8. Each photo is ~1.5–2k input tokens.
+  const photoContent: Anthropic.ImageBlockParam[] = photoUrls.slice(0, 5).map((url) => ({
     type: 'image',
     source: { type: 'url', url },
   }))

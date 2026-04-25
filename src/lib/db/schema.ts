@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean, index } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -27,7 +27,11 @@ export const searches = pgTable('searches', {
   totalCandidates: integer('total_candidates').default(0),
   analyzedCount: integer('analyzed_count').default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-})
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  index('idx_searches_user_id').on(t.userId, t.createdAt.desc()),
+  index('idx_searches_client_id').on(t.clientId),
+])
 
 export const listings = pgTable('listings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -42,6 +46,10 @@ export const listings = pgTable('listings', {
   sqft: integer('sqft'),
   photoUrls: jsonb('photo_urls').$type<string[]>().default([]),
   rawData: jsonb('raw_data'),
+  // Cached Zillow detail payload (description, MLS resoFacts, price history).
+  // Refreshed when older than DETAIL_STALE_AFTER_DAYS in the worker.
+  detailJson: jsonb('detail_json'),
+  detailFetchedAt: timestamp('detail_fetched_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
@@ -51,7 +59,9 @@ export const listingAnalyses = pgTable('listing_analyses', {
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
   featuresJson: jsonb('features_json').notNull(),
   analyzedAt: timestamp('analyzed_at').notNull().defaultNow(),
-})
+}, (t) => [
+  index('idx_listing_analyses_listing_id').on(t.listingId),
+])
 
 export const searchResults = pgTable('search_results', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -62,7 +72,12 @@ export const searchResults = pgTable('search_results', {
   batchNumber: integer('batch_number').notNull().default(1),
   isSaved: integer('is_saved').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (t) => [unique().on(t.searchId, t.listingId)])
+}, (t) => [
+  unique().on(t.searchId, t.listingId),
+  // Composite for the most common query: results page sorts by score within a search
+  index('idx_search_results_search_score').on(t.searchId, t.matchScore.desc()),
+  index('idx_search_results_listing_id').on(t.listingId),
+])
 
 export const clients = pgTable('clients', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -73,7 +88,10 @@ export const clients = pgTable('clients', {
   notes: text('notes'),
   shareToken: text('share_token').unique(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-})
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  index('idx_clients_user_id').on(t.userId),
+])
 
 export const savedListings = pgTable('saved_listings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -82,7 +100,11 @@ export const savedListings = pgTable('saved_listings', {
   notes: text('notes'),
   lastKnownPrice: integer('last_known_price'),
   savedAt: timestamp('saved_at').notNull().defaultNow(),
-}, (t) => [unique().on(t.clientId, t.listingId)])
+}, (t) => [
+  unique().on(t.clientId, t.listingId),
+  index('idx_saved_listings_client_id').on(t.clientId),
+  index('idx_saved_listings_listing_id').on(t.listingId),
+])
 
 export type User = typeof users.$inferSelect
 export type Search = typeof searches.$inferSelect

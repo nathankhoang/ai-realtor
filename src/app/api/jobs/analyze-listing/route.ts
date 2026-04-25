@@ -5,11 +5,15 @@ import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
-import { getListingDetails } from '@/lib/zillow'
+import { getListingDetails, type ListingContext } from '@/lib/zillow'
 import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
 import type { AnalyzeListingJob } from '@/lib/queue'
 import type { ParsedRequirements } from '@/types'
+
+const DETAIL_STALE_AFTER_DAYS = 7
+const ANALYSIS_STALE_AFTER_DAYS = 30
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Worker endpoint. QStash POSTs one job per listing here. Each invocation
@@ -57,18 +61,49 @@ async function handler(req: Request) {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
   }) as ParsedRequirements
 
-  // Fetch listing detail (description, MLS facts) — best-effort
-  const listingContext = await getListingDetails(listing.zillowId).catch(() => undefined)
+  // Listing detail (description, MLS facts) — cached per listing for
+  // DETAIL_STALE_AFTER_DAYS. Saves one Zillow API call per worker when
+  // the same listing is seen across searches.
+  const detailFresh =
+    listing.detailJson != null
+    && listing.detailFetchedAt != null
+    && Date.now() - new Date(listing.detailFetchedAt).getTime() < DETAIL_STALE_AFTER_DAYS * DAY_MS
+
+  let listingContext: ListingContext | undefined
+  if (detailFresh) {
+    listingContext = listing.detailJson as ListingContext
+  } else {
+    listingContext = await getListingDetails(listing.zillowId).catch(() => undefined)
+    if (listingContext) {
+      // Best-effort cache write — don't fail the job if the update fails.
+      await db.update(listings)
+        .set({ detailJson: listingContext, detailFetchedAt: new Date() })
+        .where(eq(listings.id, listing.id))
+        .catch(err => console.error('detail cache write failed', err))
+    }
+  }
+
   const photoUrls = (listing.photoUrls ?? []) as string[]
 
-  // Vision analysis — most expensive step. Re-uses cached analysis if present.
+  // Vision analysis — most expensive step. Re-uses cached analysis when
+  // it's less than ANALYSIS_STALE_AFTER_DAYS old; re-runs vision on stale
+  // ones in case the listing was re-photographed.
   let analysis = await db.query.listingAnalyses.findFirst({
     where: eq(listingAnalyses.listingId, listing.id),
   })
-  let features = analysis?.featuresJson
+  const analysisFresh =
+    analysis != null
+    && Date.now() - new Date(analysis.analyzedAt).getTime() < ANALYSIS_STALE_AFTER_DAYS * DAY_MS
+
+  let features = analysisFresh ? analysis?.featuresJson : undefined
   if (!features) {
     features = await analyzeListingPhotos(photoUrls, listingContext)
-    if (!analysis) {
+    if (analysis) {
+      // Refresh the existing row instead of inserting a duplicate.
+      await db.update(listingAnalyses)
+        .set({ featuresJson: features, analyzedAt: new Date() })
+        .where(eq(listingAnalyses.id, analysis.id))
+    } else {
       const [created] = await db.insert(listingAnalyses).values({
         listingId: listing.id,
         featuresJson: features,

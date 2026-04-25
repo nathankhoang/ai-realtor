@@ -3,11 +3,12 @@ export const maxDuration = 30
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings, searchResults } from '@/lib/db/schema'
+import { users, searches, searchResults } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
+import { upsertListings } from '@/lib/listings'
 
 const NEXT_BATCH_SIZE = 10
 
@@ -75,55 +76,26 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   const batchZpids = [...rankedZpids, ...remaining].slice(0, NEXT_BATCH_SIZE)
   const batch = batchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
-  // Skip listings that already have a search result for this search (defensive
-  // — happens if user clicks the button twice fast).
-  const existingListings = batch.length > 0
-    ? await db
-        .select({ id: listings.id, zillowId: listings.zillowId })
-        .from(listings)
-        .where(inArray(listings.zillowId, batch.map(b => b.zpid)))
-    : []
-  const zpidToListingId = new Map(existingListings.map(l => [l.zillowId, l.id]))
-  const existingListingIds = existingListings.map(l => l.id)
+  // Upsert all listings in batch (one round-trip for existence, one for inserts).
+  const zpidToListingId = await upsertListings(batch)
+  const allListingIds = Array.from(zpidToListingId.values())
 
-  const alreadyDone = existingListingIds.length > 0
+  // Skip listings that already have a search result for this search (defensive —
+  // user clicked twice quickly, or QStash replayed an enqueue).
+  const alreadyDone = allListingIds.length > 0
     ? new Set(
         (await db
           .select({ listingId: searchResults.listingId })
           .from(searchResults)
           .where(and(
             eq(searchResults.searchId, searchId),
-            inArray(searchResults.listingId, existingListingIds),
+            inArray(searchResults.listingId, allListingIds),
           ))
         ).map(r => r.listingId),
       )
     : new Set<string>()
 
-  // Insert/upsert listing rows for any zpid we haven't seen, then enqueue
-  // a job for each listing that isn't already analyzed.
-  const listingIds: string[] = []
-  for (const zl of batch) {
-    let listingId = zpidToListingId.get(zl.zpid)
-    if (!listingId) {
-      const [created] = await db.insert(listings).values({
-        zillowId: zl.zpid,
-        address: zl.address,
-        city: zl.city,
-        state: zl.state,
-        zipCode: zl.zipcode,
-        price: zl.price,
-        beds: zl.bedrooms,
-        baths: zl.bathrooms,
-        sqft: zl.livingArea,
-        photoUrls: zl.photos,
-        rawData: zl,
-      }).returning()
-      listingId = created.id
-    }
-    if (!alreadyDone.has(listingId)) {
-      listingIds.push(listingId)
-    }
-  }
+  const listingIds = allListingIds.filter(id => !alreadyDone.has(id))
 
   await enqueueAnalyzeListings(
     listingIds.map(listingId => ({ searchId, listingId, batchNumber: nextBatchNumber })),

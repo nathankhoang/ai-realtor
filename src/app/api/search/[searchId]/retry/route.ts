@@ -3,11 +3,12 @@ export const maxDuration = 30
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings, searchResults } from '@/lib/db/schema'
+import { users, searches, searchResults } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
+import { upsertListings } from '@/lib/listings'
 
 const FIRST_BATCH_SIZE = 5
 
@@ -71,52 +72,29 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
   const candidateZpids = [...rankedZpids, ...remaining].slice(0, FIRST_BATCH_SIZE)
+  const candidates = candidateZpids
+    .map(z => zpidToListing.get(z))
+    .filter((v): v is NonNullable<typeof v> => !!v)
 
-  // Find which of these are already saved as listings + already done
-  const existingListings = await db
-    .select({ id: listings.id, zillowId: listings.zillowId })
-    .from(listings)
-    .where(inArray(listings.zillowId, candidateZpids))
-  const zpidToListingId = new Map(existingListings.map(l => [l.zillowId, l.id]))
+  // Upsert listing rows for the candidates, then find which of those
+  // already have a search result for this search.
+  const zpidToListingId = await upsertListings(candidates)
+  const allListingIds = Array.from(zpidToListingId.values())
 
-  const alreadyDoneListingIds = existingListings.length > 0
-    ? (await db
-        .select({ listingId: searchResults.listingId })
-        .from(searchResults)
-        .where(and(
-          eq(searchResults.searchId, searchId),
-          inArray(searchResults.listingId, existingListings.map(l => l.id)),
-        ))
-      ).map(r => r.listingId)
-    : []
-  const alreadyDone = new Set(alreadyDoneListingIds)
+  const alreadyDone = allListingIds.length > 0
+    ? new Set(
+        (await db
+          .select({ listingId: searchResults.listingId })
+          .from(searchResults)
+          .where(and(
+            eq(searchResults.searchId, searchId),
+            inArray(searchResults.listingId, allListingIds),
+          ))
+        ).map(r => r.listingId),
+      )
+    : new Set<string>()
 
-  const todoListingIds: string[] = []
-  for (const zpid of candidateZpids) {
-    const zl = zpidToListing.get(zpid)
-    if (!zl) continue
-    let listingId = zpidToListingId.get(zpid)
-    if (!listingId) {
-      // Listing wasn't saved yet (original POST died very early)
-      const [created] = await db.insert(listings).values({
-        zillowId: zl.zpid,
-        address: zl.address,
-        city: zl.city,
-        state: zl.state,
-        zipCode: zl.zipcode,
-        price: zl.price,
-        beds: zl.bedrooms,
-        baths: zl.bathrooms,
-        sqft: zl.livingArea,
-        photoUrls: zl.photos,
-        rawData: zl,
-      }).returning()
-      listingId = created.id
-    }
-    if (!alreadyDone.has(listingId)) {
-      todoListingIds.push(listingId)
-    }
-  }
+  const todoListingIds = allListingIds.filter(id => !alreadyDone.has(id))
 
   if (todoListingIds.length === 0) {
     return NextResponse.json({

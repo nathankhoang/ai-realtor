@@ -3,12 +3,13 @@ export const maxDuration = 30
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings } from '@/lib/db/schema'
+import { users, searches } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
+import { upsertListings } from '@/lib/listings'
 import type { ParsedRequirements } from '@/types'
 
 const FIRST_BATCH_SIZE = 5
@@ -107,29 +108,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     .map(z => zpidToListing.get(z))
     .filter(Boolean) as typeof zillowListings
 
-  // Upsert listings, then enqueue
-  const listingIds: string[] = []
-  for (const zl of firstBatch) {
-    const existing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
-    if (existing) {
-      listingIds.push(existing.id)
-    } else {
-      const [created] = await db.insert(listings).values({
-        zillowId: zl.zpid,
-        address: zl.address,
-        city: zl.city,
-        state: zl.state,
-        zipCode: zl.zipcode,
-        price: zl.price,
-        beds: zl.bedrooms,
-        baths: zl.bathrooms,
-        sqft: zl.livingArea,
-        photoUrls: zl.photos,
-        rawData: zl,
-      }).returning()
-      listingIds.push(created.id)
-    }
-  }
+  // Upsert listings then enqueue.
+  const zpidToListingId = await upsertListings(firstBatch)
+  const listingIds = firstBatch
+    .map(zl => zpidToListingId.get(zl.zpid))
+    .filter((v): v is string => !!v)
 
   await enqueueAnalyzeListings(
     listingIds.map(listingId => ({ searchId: newSearch.id, listingId, batchNumber: 1 })),

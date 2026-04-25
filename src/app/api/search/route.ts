@@ -2,13 +2,14 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
-import { users, searches, listings, clients } from '@/lib/db/schema'
+import { users, searches, clients } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { searchRatelimit } from '@/lib/ratelimit'
+import { upsertListings } from '@/lib/listings'
 
 const REQUIREMENTS_TEXT_MAX = 5000
 
@@ -161,30 +162,13 @@ async function handleSearch(req: Request) {
     .map(z => zpidToListing.get(z))
     .filter(Boolean) as typeof zillowListings
 
-  // Insert/upsert listings (with photos from search results) BEFORE enqueueing,
-  // so the worker can just look up by listingId.
-  const listingIds: string[] = []
-  for (const zl of firstBatch) {
-    const existing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
-    if (existing) {
-      listingIds.push(existing.id)
-    } else {
-      const [created] = await db.insert(listings).values({
-        zillowId: zl.zpid,
-        address: zl.address,
-        city: zl.city,
-        state: zl.state,
-        zipCode: zl.zipcode,
-        price: zl.price,
-        beds: zl.bedrooms,
-        baths: zl.bathrooms,
-        sqft: zl.livingArea,
-        photoUrls: zl.photos,
-        rawData: zl,
-      }).returning()
-      listingIds.push(created.id)
-    }
-  }
+  // Insert/upsert listings (with photos from search results) BEFORE
+  // enqueueing, so the worker can look up by listingId. One round-trip
+  // for the existence check, one for the bulk insert.
+  const zpidToListingId = await upsertListings(firstBatch)
+  const listingIds = firstBatch
+    .map(zl => zpidToListingId.get(zl.zpid))
+    .filter((v): v is string => !!v)
 
   // Enqueue one job per listing. Workers run independently in their own
   // function invocations, so they aren't bound by this 30s budget.
