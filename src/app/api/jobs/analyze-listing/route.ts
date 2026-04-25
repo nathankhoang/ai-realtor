@@ -1,6 +1,7 @@
 export const maxDuration = 30
 
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
@@ -30,6 +31,10 @@ async function handler(req: Request) {
   if (!searchId || !listingId) {
     return NextResponse.json({ error: 'searchId and listingId are required' }, { status: 400 })
   }
+
+  // Tag every Sentry event from this invocation with the job context.
+  Sentry.setTag('searchId', searchId)
+  Sentry.setTag('listingId', listingId)
 
   // Idempotency: skip if already processed for this search
   const existing = await db.query.searchResults.findFirst({

@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { users, searches, listings, clients } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
@@ -7,6 +8,9 @@ import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
+import { searchRatelimit } from '@/lib/ratelimit'
+
+const REQUIREMENTS_TEXT_MAX = 5000
 
 // Setup phase only (Zillow query + parse + prescreen + insert listings + enqueue).
 // Vision analysis is now offloaded to per-listing workers — see
@@ -17,6 +21,7 @@ export async function POST(req: Request) {
   try {
     return await handleSearch(req)
   } catch (err: unknown) {
+    Sentry.captureException(err, { tags: { route: 'api/search', method: 'POST' } })
     const msg = err instanceof Error ? err.message : String(err)
     console.error('SEARCH_UNHANDLED:', msg, err instanceof Error ? err.stack : '')
     return NextResponse.json({ error: `Internal error: ${msg}` }, { status: 500 })
@@ -29,13 +34,28 @@ async function handleSearch(req: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Per-user rate limit: 5 requests / 60s. Prevents accidental double-clicks
+  // and casual abuse without affecting normal usage.
+  const rl = await searchRatelimit.limit(userId)
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Too many search requests. Please wait a moment and try again.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((rl.reset - Date.now()) / 1000)),
+        },
+      },
+    )
+  }
+
   let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  // Monthly reset
+  // Monthly reset (UTC — server clock is UTC on Vercel)
   const now = new Date()
   const resetDate = new Date(dbUser.searchesResetAt)
-  if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+  if (now.getUTCMonth() !== resetDate.getUTCMonth() || now.getUTCFullYear() !== resetDate.getUTCFullYear()) {
     const [updated] = await db.update(users)
       .set({ searchesUsedThisMonth: 0, searchesResetAt: now })
       .where(eq(users.id, dbUser.id))
@@ -57,6 +77,18 @@ async function handleSearch(req: Request) {
 
   if (!location) return NextResponse.json({ error: 'Location is required' }, { status: 400 })
   if (!requirementsText) return NextResponse.json({ error: 'Requirements are required' }, { status: 400 })
+  if (typeof location !== 'string' || typeof requirementsText !== 'string') {
+    return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
+  }
+  if (location.length > 200) {
+    return NextResponse.json({ error: 'Location is too long' }, { status: 422 })
+  }
+  if (requirementsText.length > REQUIREMENTS_TEXT_MAX) {
+    return NextResponse.json(
+      { error: `Requirements text is too long (max ${REQUIREMENTS_TEXT_MAX} characters)` },
+      { status: 422 },
+    )
+  }
 
   let resolvedClientId: string | null = null
   if (clientId) {
