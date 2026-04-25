@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Card } from '@/components/ui/card'
-import type { ListingFeatures, FeatureEvidence, RequirementsChecklist as Checklist } from '@/types'
+import type { ListingFeatures, RequirementsChecklist as Checklist } from '@/types'
 import SaveButton from './SaveButton'
 import RequirementsChecklist from './RequirementsChecklist'
+import FeatureEvidenceList, { collectFeatureEvidence } from './FeatureEvidenceList'
 
 interface Props {
   rank: number
@@ -47,7 +48,7 @@ export default function ListingCard({
       ? { bg: 'bg-foreground', fg: 'text-background', glow: 'shadow-[0_8px_24px_-8px_rgba(15,14,10,0.45)]' }
       : { bg: 'bg-card', fg: 'text-foreground', glow: 'shadow-[0_4px_18px_-6px_rgba(15,14,10,0.20)]' }
 
-  const visibleEvidence = features ? collectEvidence(features) : []
+  const visibleEvidence = features ? collectFeatureEvidence(features) : []
 
   return (
     <Card
@@ -239,10 +240,13 @@ export default function ListingCard({
           </div>
         </div>
 
-        {/* Editorial pull-quote: "Why it matched" */}
+        {/* "Why it matched" — readable sans-serif with primary-tinted left rule */}
         {explanation && (
-          <figure className="relative pl-5 -ml-5 border-l-2 border-primary/45">
-            <p className="text-[15.5px] leading-[1.65] text-foreground/85 font-[family-name:var(--font-instrument-serif)] italic">
+          <figure className="relative pl-4 -ml-4 border-l-2 border-primary/40">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+              Why it matched
+            </p>
+            <p className="text-[15.5px] leading-[1.65] text-foreground/90">
               {explanation}
             </p>
           </figure>
@@ -288,7 +292,7 @@ export default function ListingCard({
             </button>
 
             <AnimatePresence initial={false}>
-              {evidenceOpen && (
+              {evidenceOpen && features && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -296,10 +300,12 @@ export default function ListingCard({
                   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-3 grid gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
-                    {visibleEvidence.map(e => (
-                      <EvidenceRow key={e.label} item={e} onJumpToPhoto={(i) => setPhotoIdx(i)} />
-                    ))}
+                  <div className="mt-3">
+                    <FeatureEvidenceList
+                      features={features}
+                      photos={photos}
+                      onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, photos.length - 1))}
+                    />
                   </div>
                 </motion.div>
               )}
@@ -310,8 +316,8 @@ export default function ListingCard({
         {/* Notes */}
         {features?.notes && (
           <div className="border-t border-border pt-4">
-            <p className="text-[13px] text-muted-foreground leading-relaxed">
-              <span className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-foreground/60 mr-2">
+            <p className="text-[13.5px] text-muted-foreground leading-[1.65]">
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-foreground/60 mr-2">
                 Notes
               </span>
               <WithYears text={features.notes} />
@@ -329,72 +335,6 @@ function SpecPair({ value, label }: { value: string; label: string }) {
       <span className="font-semibold tabular-nums text-foreground">{value}</span>
       <span className="ml-1 text-muted-foreground">{label}</span>
     </span>
-  )
-}
-
-/* ─────────────────────  EVIDENCE  ───────────────────── */
-
-type AnyEvidence = FeatureEvidence & { type?: string; height?: string }
-type EvidenceItem = { label: string; ev: AnyEvidence }
-
-const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
-  { label: 'Floors', key: 'floors' },
-  { label: 'Countertops', key: 'kitchenCountertops' },
-  { label: 'Appliances', key: 'kitchenAppliances' },
-  { label: 'Cabinets', key: 'kitchenCabinets' },
-  { label: 'Bathrooms', key: 'bathrooms' },
-  { label: 'Ceilings', key: 'ceilings' },
-  { label: 'Windows', key: 'windows' },
-  { label: 'Natural light', key: 'naturalLight' },
-]
-
-function collectEvidence(features: ListingFeatures): EvidenceItem[] {
-  return FEATURE_ROWS
-    .map(({ label, key }) => ({ label, ev: features[key] as AnyEvidence | undefined }))
-    .filter((r): r is EvidenceItem => !!r.ev?.condition && r.ev.condition !== 'unknown')
-}
-
-function EvidenceRow({
-  item,
-  onJumpToPhoto,
-}: {
-  item: EvidenceItem
-  onJumpToPhoto: (i: number) => void
-}) {
-  const { label, ev } = item
-  const icon = ev.condition === 'updated' ? '✓' : ev.condition === 'poor' ? '✗' : '·'
-  const iconColor =
-    ev.condition === 'updated'
-      ? 'text-primary'
-      : ev.condition === 'poor'
-        ? 'text-foreground/40'
-        : 'text-muted-foreground'
-  const qualifier = ev.type || ev.height
-  const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
-
-  return (
-    <div className="bg-card px-3 py-2.5">
-      <div className="flex items-baseline gap-2 text-[13px]">
-        <span className={`font-bold leading-none ${iconColor}`}>{icon}</span>
-        <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
-        <span className="font-medium capitalize text-foreground/90 truncate">
-          {qualifier ?? ev.condition}
-        </span>
-        {photoRef && ev.photoIndex != null && (
-          <button
-            onClick={() => onJumpToPhoto(ev.photoIndex!)}
-            className="ml-auto shrink-0 font-mono font-medium text-primary/85 hover:text-primary text-[12.5px] hover:underline underline-offset-2"
-          >
-            {photoRef}
-          </button>
-        )}
-      </div>
-      {ev.detail && (
-        <p className="mt-1 pl-5 text-[12.5px] text-muted-foreground line-clamp-2 leading-relaxed">
-          <WithYears text={ev.detail} />
-        </p>
-      )}
-    </div>
   )
 }
 
