@@ -80,26 +80,19 @@ async function handler(req: Request) {
     listingContext,
   )
 
-  // Insert search result. ON CONFLICT in case of race / retry, but the
-  // earlier idempotency check should already have caught most cases.
-  try {
-    await db.insert(searchResults).values({
-      searchId,
-      listingId,
-      matchScore: score,
-      matchExplanation: explanation,
-      batchNumber,
-    })
-  } catch (err) {
-    // Re-check the existence: a parallel worker may have inserted the same
-    // (searchId, listingId) pair while we were processing. That's fine.
-    const dup = await db.query.searchResults.findFirst({
-      where: and(
-        eq(searchResults.searchId, searchId),
-        eq(searchResults.listingId, listingId),
-      ),
-    })
-    if (!dup) throw err
+  // Insert search result. The unique constraint on (search_id, listing_id)
+  // guarantees idempotency — onConflictDoNothing handles parallel-worker
+  // races cleanly.
+  const inserted = await db.insert(searchResults).values({
+    searchId,
+    listingId,
+    matchScore: score,
+    matchExplanation: explanation,
+    batchNumber,
+  }).onConflictDoNothing({ target: [searchResults.searchId, searchResults.listingId] }).returning()
+
+  if (inserted.length === 0) {
+    // Conflict: another worker beat us to it. Don't double-count.
     return NextResponse.json({ skipped: true, reason: 'race_condition' })
   }
 

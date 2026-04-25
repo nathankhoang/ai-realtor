@@ -11,6 +11,29 @@ export interface ZillowListing {
   photos: string[]
 }
 
+const SEARCH_TIMEOUT_MS = 12_000
+const DETAIL_TIMEOUT_MS = 8_000
+
+/**
+ * fetch() with an AbortController-backed timeout. Throws a clearly-typed
+ * error if the upstream takes longer than `timeoutMs`. Use everywhere we
+ * call Zillow so a hung request can't eat the worker's 30s budget.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, label: string): Promise<Response> {
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`${label} timeout after ${timeoutMs}ms`)
+    }
+    throw err
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 export async function searchZillow(params: {
   location: string
   priceMin?: number
@@ -46,12 +69,17 @@ export async function searchZillow(params: {
     ...(priceRange && { listPriceRange: priceRange }),
   })
 
-  const res = await fetch(`https://private-zillow.p.rapidapi.com/search/byaddress?${query}`, {
-    headers: {
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+  const res = await fetchWithTimeout(
+    `https://private-zillow.p.rapidapi.com/search/byaddress?${query}`,
+    {
+      headers: {
+        'x-rapidapi-key': apiKey,
+        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+      },
     },
-  })
+    SEARCH_TIMEOUT_MS,
+    'Zillow search',
+  )
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -82,12 +110,6 @@ export async function searchZillow(params: {
   })
 }
 
-// Photos are already included in searchZillow results via allPropertyPhotos.highResolution.
-// Throwing here causes callers that do `.catch(() => zl.photos)` to use the search-result photos.
-export async function getListingPhotos(_zpid: string): Promise<string[]> {
-  throw new Error('use photos from search results')
-}
-
 export interface ListingContext {
   description: string
   yearBuilt: number | null
@@ -106,12 +128,17 @@ export async function getListingPrice(zpid: string): Promise<number | null> {
   const apiKey = process.env.RAPIDAPI_KEY
   if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
 
-  const res = await fetch(`https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`, {
-    headers: {
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+  const res = await fetchWithTimeout(
+    `https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`,
+    {
+      headers: {
+        'x-rapidapi-key': apiKey,
+        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+      },
     },
-  })
+    DETAIL_TIMEOUT_MS,
+    'Zillow detail (price)',
+  )
 
   if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
 
@@ -127,12 +154,17 @@ export async function getListingDetails(zpid: string): Promise<ListingContext> {
   const apiKey = process.env.RAPIDAPI_KEY
   if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
 
-  const res = await fetch(`https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`, {
-    headers: {
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+  const res = await fetchWithTimeout(
+    `https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`,
+    {
+      headers: {
+        'x-rapidapi-key': apiKey,
+        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+      },
     },
-  })
+    DETAIL_TIMEOUT_MS,
+    'Zillow detail',
+  )
 
   if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
 

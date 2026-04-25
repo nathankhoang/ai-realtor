@@ -62,7 +62,7 @@ export const searchResults = pgTable('search_results', {
   batchNumber: integer('batch_number').notNull().default(1),
   isSaved: integer('is_saved').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-})
+}, (t) => [unique().on(t.searchId, t.listingId)])
 
 export const clients = pgTable('clients', {
   id: uuid('id').primaryKey().defaultRandom(),
