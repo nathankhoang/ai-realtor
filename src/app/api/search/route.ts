@@ -1,14 +1,17 @@
 import { auth } from '@clerk/nextjs/server'
-import { NextResponse, after } from 'next/server'
+import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings, listingAnalyses, searchResults, clients } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
-import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
-import { analyzeListingPhotos, parseRequirements, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
+import { users, searches, listings, clients } from '@/lib/db/schema'
+import { eq, and } from 'drizzle-orm'
+import { searchZillow } from '@/lib/zillow'
+import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
-import { sendAnalysisComplete } from '@/lib/email'
+import { enqueueAnalyzeListings } from '@/lib/queue'
 
-export const maxDuration = 60
+// Setup phase only (Zillow query + parse + prescreen + insert listings + enqueue).
+// Vision analysis is now offloaded to per-listing workers — see
+// /api/jobs/analyze-listing.
+export const maxDuration = 30
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +23,8 @@ export async function POST(req: Request) {
   }
 }
 
+const FIRST_BATCH_SIZE = 5
+
 async function handleSearch(req: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -27,7 +32,7 @@ async function handleSearch(req: Request) {
   let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  // Monthly reset: if last reset was a different calendar month, zero the counter
+  // Monthly reset
   const now = new Date()
   const resetDate = new Date(dbUser.searchesResetAt)
   if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
@@ -61,6 +66,7 @@ async function handleSearch(req: Request) {
     if (client) resolvedClientId = clientId
   }
 
+  // Parse requirements (Haiku, ~3s)
   let parsedRequirements
   try {
     parsedRequirements = await parseRequirements(requirementsText)
@@ -69,6 +75,7 @@ async function handleSearch(req: Request) {
     return NextResponse.json({ error: `AI service error: ${msg.slice(0, 200)}` }, { status: 502 })
   }
 
+  // Insert search row
   const [search] = await db.insert(searches).values({
     userId: dbUser.id,
     clientId: resolvedClientId,
@@ -85,10 +92,11 @@ async function handleSearch(req: Request) {
     .set({ searchesUsedThisMonth: dbUser.searchesUsedThisMonth + 1 })
     .where(eq(users.id, dbUser.id))
 
+  // Zillow search
   let zillowListings
   try {
     zillowListings = await searchZillow({ location, priceMin, priceMax, bedsMin, bathsMin })
-  } catch (err) {
+  } catch {
     await db.update(searches).set({ totalCandidates: 0 }).where(eq(searches.id, search.id))
     return NextResponse.json({
       searchId: search.id,
@@ -100,107 +108,61 @@ async function handleSearch(req: Request) {
     .set({ totalCandidates: zillowListings.length })
     .where(eq(searches.id, search.id))
 
-  // Return immediately — analysis runs in the background
-  after(async () => {
-    try {
-      const rankedZpids = await prescreenListings(
-        zillowListings.map(zl => ({
-          zpid: zl.zpid,
-          address: zl.address,
-          price: zl.price,
-          beds: zl.bedrooms,
-          baths: zl.bathrooms,
-          sqft: zl.livingArea,
-        })),
-        parsedRequirements,
-      )
+  // Pre-screen → top candidates
+  const rankedZpids = await prescreenListings(
+    zillowListings.map(zl => ({
+      zpid: zl.zpid,
+      address: zl.address,
+      price: zl.price,
+      beds: zl.bedrooms,
+      baths: zl.bathrooms,
+      sqft: zl.livingArea,
+    })),
+    parsedRequirements,
+  )
 
-      const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
-      const allZpids = zillowListings.map(zl => zl.zpid)
-      const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-      // First batch is 5 listings (down from 10) so the worst-case wall time
-      // fits comfortably inside the 60s function budget.
-      const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, 5)
-      const firstBatch = firstBatchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
+  const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
+  const allZpids = zillowListings.map(zl => zl.zpid)
+  const remaining = allZpids.filter(z => !rankedZpids.includes(z))
+  const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, FIRST_BATCH_SIZE)
+  const firstBatch = firstBatchZpids
+    .map(z => zpidToListing.get(z))
+    .filter(Boolean) as typeof zillowListings
 
-      const processListing = async (zl: typeof zillowListings[number]) => {
-        let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
-
-        if (!listing) {
-          const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
-          const [newListing] = await db.insert(listings).values({
-            zillowId: zl.zpid,
-            address: zl.address,
-            city: zl.city,
-            state: zl.state,
-            zipCode: zl.zipcode,
-            price: zl.price,
-            beds: zl.bedrooms,
-            baths: zl.bathrooms,
-            sqft: zl.livingArea,
-            photoUrls: photos,
-            rawData: zl,
-          }).returning()
-          listing = newListing
-        }
-
-        const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
-        const photoUrls = (listing.photoUrls ?? []) as string[]
-        const features = await analyzeListingPhotos(photoUrls, listingContext)
-
-        let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
-        if (!analysis) {
-          const [newAnalysis] = await db.insert(listingAnalyses).values({
-            listingId: listing.id,
-            featuresJson: features,
-          }).returning()
-          analysis = newAnalysis
-        }
-
-        const { score, explanation } = await scoreListingAgainstRequirements(
-          parsedRequirements,
-          features,
-          { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
-          listingContext,
-        )
-
-        await db.insert(searchResults).values({
-          searchId: search.id,
-          listingId: listing.id,
-          matchScore: score,
-          matchExplanation: explanation,
-          batchNumber: 1,
-        })
-      }
-
-      // Run all listings in parallel (capped at 5) and atomically increment
-      // analyzedCount as each one finishes. If the function times out
-      // mid-batch, the count still reflects the listings that landed.
-      const results = await Promise.allSettled(firstBatch.map(async (zl) => {
-        try {
-          await processListing(zl)
-          await db.update(searches)
-            .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
-            .where(eq(searches.id, search.id))
-          return true
-        } catch (err) {
-          console.error('Error processing listing', zl.zpid, err)
-          throw err
-        }
-      }))
-      const processed = results.filter(r => r.status === 'fulfilled').length
-
-      if (dbUser.emailAnalysisDone) {
-        try {
-          await sendAnalysisComplete(dbUser.email, search.location, processed, search.id)
-        } catch (emailErr) {
-          console.error('Failed to send analysis complete email:', emailErr)
-        }
-      }
-    } catch (err) {
-      console.error('Background analysis failed:', err)
+  // Insert/upsert listings (with photos from search results) BEFORE enqueueing,
+  // so the worker can just look up by listingId.
+  const listingIds: string[] = []
+  for (const zl of firstBatch) {
+    const existing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
+    if (existing) {
+      listingIds.push(existing.id)
+    } else {
+      const [created] = await db.insert(listings).values({
+        zillowId: zl.zpid,
+        address: zl.address,
+        city: zl.city,
+        state: zl.state,
+        zipCode: zl.zipcode,
+        price: zl.price,
+        beds: zl.bedrooms,
+        baths: zl.bathrooms,
+        sqft: zl.livingArea,
+        photoUrls: zl.photos,
+        rawData: zl,
+      }).returning()
+      listingIds.push(created.id)
     }
-  })
+  }
+
+  // Enqueue one job per listing. Workers run independently in their own
+  // function invocations, so they aren't bound by this 30s budget.
+  await enqueueAnalyzeListings(
+    listingIds.map(listingId => ({
+      searchId: search.id,
+      listingId,
+      batchNumber: 1,
+    })),
+  )
 
   return NextResponse.json({ searchId: search.id })
 }

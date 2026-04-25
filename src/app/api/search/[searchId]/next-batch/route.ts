@@ -1,14 +1,17 @@
-export const maxDuration = 60
+export const maxDuration = 30
 
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
-import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
-import { analyzeListingPhotos, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
+import { users, searches, listings, searchResults } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
+import { searchZillow } from '@/lib/zillow'
+import { prescreenListings } from '@/lib/analyze'
+import { enqueueAnalyzeListings } from '@/lib/queue'
 
-export async function POST(req: Request, { params }: { params: Promise<{ searchId: string }> }) {
+const NEXT_BATCH_SIZE = 10
+
+export async function POST(_req: Request, { params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -32,10 +35,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
   }) as { required: string[]; niceToHave: string[]; dontCare: string[]; dealBreakers: string[] }
 
-  // API returns 200 results/page; use page + in-page offset to continue where we left off
+  // Zillow returns 200 results/page; figure out which page covers our offset
   const pageNumber = Math.floor(analyzedCount / 200) + 1
   const pageOffset = analyzedCount % 200
-  const nextBatchNumber = Math.floor(analyzedCount / 10) + 1
+  const nextBatchNumber = Math.floor(analyzedCount / NEXT_BATCH_SIZE) + 1
 
   let zillowListings
   try {
@@ -53,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
 
   const pageCandidates = zillowListings.slice(pageOffset)
 
-  // Pre-screen remaining candidates with Haiku to pick the best 10 to vision-analyze
+  // Pre-screen with Haiku to pick the strongest candidates
   const rankedZpids = await prescreenListings(
     pageCandidates.map(zl => ({
       zpid: zl.zpid,
@@ -69,15 +72,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
   const zpidToListing = new Map(pageCandidates.map(zl => [zl.zpid, zl]))
   const allZpids = pageCandidates.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const batchZpids = [...rankedZpids, ...remaining].slice(0, 10)
+  const batchZpids = [...rankedZpids, ...remaining].slice(0, NEXT_BATCH_SIZE)
   const batch = batchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
-  const processListing = async (zl: typeof zillowListings[number]) => {
-    let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
+  // Skip listings that already have a search result for this search (defensive
+  // — happens if user clicks the button twice fast).
+  const existingListings = batch.length > 0
+    ? await db
+        .select({ id: listings.id, zillowId: listings.zillowId })
+        .from(listings)
+        .where(inArray(listings.zillowId, batch.map(b => b.zpid)))
+    : []
+  const zpidToListingId = new Map(existingListings.map(l => [l.zillowId, l.id]))
+  const existingListingIds = existingListings.map(l => l.id)
 
-    if (!listing) {
-      const photos = await getListingPhotos(zl.zpid).catch(() => zl.photos)
-      const [newListing] = await db.insert(listings).values({
+  const alreadyDone = existingListingIds.length > 0
+    ? new Set(
+        (await db
+          .select({ listingId: searchResults.listingId })
+          .from(searchResults)
+          .where(and(
+            eq(searchResults.searchId, searchId),
+            inArray(searchResults.listingId, existingListingIds),
+          ))
+        ).map(r => r.listingId),
+      )
+    : new Set<string>()
+
+  // Insert/upsert listing rows for any zpid we haven't seen, then enqueue
+  // a job for each listing that isn't already analyzed.
+  const listingIds: string[] = []
+  for (const zl of batch) {
+    let listingId = zpidToListingId.get(zl.zpid)
+    if (!listingId) {
+      const [created] = await db.insert(listings).values({
         zillowId: zl.zpid,
         address: zl.address,
         city: zl.city,
@@ -87,56 +115,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
         beds: zl.bedrooms,
         baths: zl.bathrooms,
         sqft: zl.livingArea,
-        photoUrls: photos,
+        photoUrls: zl.photos,
         rawData: zl,
       }).returning()
-      listing = newListing
+      listingId = created.id
     }
-
-    const listingContext = await getListingDetails(zl.zpid).catch(() => undefined)
-    const photoUrls = (listing.photoUrls ?? []) as string[]
-    const features = await analyzeListingPhotos(photoUrls, listingContext)
-
-    let analysis = await db.query.listingAnalyses.findFirst({ where: eq(listingAnalyses.listingId, listing.id) })
-    if (!analysis) {
-      const [newAnalysis] = await db.insert(listingAnalyses).values({
-        listingId: listing.id,
-        featuresJson: features,
-      }).returning()
-      analysis = newAnalysis
+    if (!alreadyDone.has(listingId)) {
+      listingIds.push(listingId)
     }
-
-    const { score, explanation } = await scoreListingAgainstRequirements(
-      parsedRequirements,
-      features,
-      { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
-      listingContext,
-    )
-
-    await db.insert(searchResults).values({
-      searchId: search.id,
-      listingId: listing.id,
-      matchScore: score,
-      matchExplanation: explanation,
-      batchNumber: nextBatchNumber,
-    })
   }
 
-  // All 10 in parallel + atomic increment per success → count stays accurate
-  // even if the function times out mid-batch.
-  const results = await Promise.allSettled(batch.map(async (zl) => {
-    try {
-      await processListing(zl)
-      await db.update(searches)
-        .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
-        .where(eq(searches.id, search.id))
-      return true
-    } catch (err) {
-      console.error('Error processing listing', zl.zpid, err)
-      throw err
-    }
-  }))
-  const processed = results.filter(r => r.status === 'fulfilled').length
+  await enqueueAnalyzeListings(
+    listingIds.map(listingId => ({ searchId, listingId, batchNumber: nextBatchNumber })),
+  )
 
-  return NextResponse.json({ processed })
+  return NextResponse.json({ enqueued: listingIds.length })
 }
