@@ -118,8 +118,9 @@ async function handler(req: Request) {
     }
   }
 
-  // Score the listing against requirements
-  const { score, explanation } = await scoreListingAgainstRequirements(
+  // Score the listing against requirements (also returns the per-requirement
+  // checklist used by the new "what matched / what didn't" UI).
+  const { score, explanation, checklist } = await scoreListingAgainstRequirements(
     parsedRequirements,
     features,
     { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
@@ -134,6 +135,7 @@ async function handler(req: Request) {
     listingId,
     matchScore: score,
     matchExplanation: explanation,
+    requirementsChecklist: checklist,
     batchNumber,
   }).onConflictDoNothing({ target: [searchResults.searchId, searchResults.listingId] }).returning()
 

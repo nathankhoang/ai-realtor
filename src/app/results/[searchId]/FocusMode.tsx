@@ -3,8 +3,9 @@
 import { motion, AnimatePresence } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { ListingFeatures, FeatureEvidence } from '@/types'
+import type { ListingFeatures, FeatureEvidence, RequirementsChecklist as Checklist } from '@/types'
 import SaveButton from './SaveButton'
+import RequirementsChecklist from './RequirementsChecklist'
 
 interface ListingRow {
   resultId: string
@@ -21,6 +22,7 @@ interface ListingRow {
   photos: string[]
   explanation: string
   features: ListingFeatures | null
+  checklist: Checklist | null
   zillowId: string
   savedClientIds: string[]
 }
@@ -274,12 +276,22 @@ function FocusCard({ listing }: { listing: ListingRow }) {
           )}
         </div>
 
-        {/* Match explanation */}
+        {/* Match explanation — editorial pull-quote */}
         {listing.explanation && (
-          <div className="rounded-2xl bg-primary/[0.06] border border-primary/15 px-5 py-4">
+          <figure className="relative pl-5 -ml-5 border-l-2 border-primary/45">
             <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-primary mb-2">Why it matched</p>
-            <p className="text-[15px] leading-[1.65] text-foreground/90">{listing.explanation}</p>
-          </div>
+            <p className="text-[16px] leading-[1.65] text-foreground/90 font-[family-name:var(--font-instrument-serif)] italic">
+              {listing.explanation}
+            </p>
+          </figure>
+        )}
+
+        {/* Requirements checklist */}
+        {listing.checklist && listing.checklist.evaluations.length > 0 && (
+          <RequirementsChecklist
+            checklist={listing.checklist}
+            onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, listing.photos.length - 1))}
+          />
         )}
 
         {/* Evidence — always expanded in focus mode */}

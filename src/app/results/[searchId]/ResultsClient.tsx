@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
-import type { ListingFeatures } from '@/types'
+import type { ListingFeatures, RequirementsChecklist } from '@/types'
 import ListingCard from './ListingCard'
 import BulkSaveBar from './BulkSaveBar'
 import FocusMode from './FocusMode'
@@ -26,6 +26,7 @@ interface ListingRow {
   photos: string[]
   explanation: string
   features: ListingFeatures | null
+  checklist: RequirementsChecklist | null
   zillowId: string
   savedClientIds: string[]
 }
@@ -155,6 +156,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                   photos={row.photos}
                   explanation={row.explanation}
                   features={row.features}
+                  checklist={row.checklist}
                   zillowId={row.zillowId}
                   listingId={row.listingId}
                   savedClientIds={row.savedClientIds}
