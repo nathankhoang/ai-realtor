@@ -4,11 +4,17 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
 import { analyzeListingPhotos, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
 
-export async function POST(req: Request, { params }: { params: Promise<{ searchId: string }> }) {
+/**
+ * Idempotent retry: re-runs the first-batch logic for the given search,
+ * skipping any listing that already has a search_results row for this
+ * search. Used when the original POST /api/search died mid-batch (e.g.
+ * function timeout). Does NOT consume a new search count.
+ */
+export async function POST(_req: Request, { params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -21,22 +27,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
   })
   if (!search) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
 
-  const analyzedCount = search.analyzedCount ?? 0
-  const totalCandidates = search.totalCandidates ?? 0
-
-  if (analyzedCount >= totalCandidates) {
-    return NextResponse.json({ error: 'All listings already analyzed' }, { status: 400 })
-  }
-
   const parsedRequirements = (search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
   }) as { required: string[]; niceToHave: string[]; dontCare: string[]; dealBreakers: string[] }
 
-  // API returns 200 results/page; use page + in-page offset to continue where we left off
-  const pageNumber = Math.floor(analyzedCount / 200) + 1
-  const pageOffset = analyzedCount % 200
-  const nextBatchNumber = Math.floor(analyzedCount / 10) + 1
-
+  // Re-fetch the same Zillow page-1 candidates the first batch would have used
   let zillowListings
   try {
     zillowListings = await searchZillow({
@@ -45,17 +40,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
       priceMax: search.priceMax ?? undefined,
       bedsMin: search.bedsMin ?? undefined,
       bathsMin: search.bathsMin ?? undefined,
-      page: pageNumber,
     })
   } catch {
     return NextResponse.json({ error: 'Zillow search failed' }, { status: 500 })
   }
 
-  const pageCandidates = zillowListings.slice(pageOffset)
+  // If totalCandidates was never set (the original POST died very early),
+  // set it now so the stepper can show a meaningful count.
+  if ((search.totalCandidates ?? 0) === 0 && zillowListings.length > 0) {
+    await db.update(searches)
+      .set({ totalCandidates: zillowListings.length })
+      .where(eq(searches.id, searchId))
+  }
 
-  // Pre-screen remaining candidates with Haiku to pick the best 10 to vision-analyze
+  // Pre-screen → top-5 candidates (same logic as the original first batch)
   const rankedZpids = await prescreenListings(
-    pageCandidates.map(zl => ({
+    zillowListings.map(zl => ({
       zpid: zl.zpid,
       address: zl.address,
       price: zl.price,
@@ -66,11 +66,45 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
     parsedRequirements,
   )
 
-  const zpidToListing = new Map(pageCandidates.map(zl => [zl.zpid, zl]))
-  const allZpids = pageCandidates.map(zl => zl.zpid)
+  const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
+  const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const batchZpids = [...rankedZpids, ...remaining].slice(0, 10)
-  const batch = batchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
+  const candidateZpids = [...rankedZpids, ...remaining].slice(0, 5)
+
+  // Find which of these zpids ALREADY have a search_results row for this
+  // search (i.e. the first batch already processed them) — skip those.
+  const existingListings = await db
+    .select({ id: listings.id, zillowId: listings.zillowId })
+    .from(listings)
+    .where(inArray(listings.zillowId, candidateZpids))
+  const zpidToListingId = new Map(existingListings.map(l => [l.zillowId, l.id]))
+
+  const alreadyDoneListingIds = existingListings.length > 0
+    ? (await db
+        .select({ listingId: searchResults.listingId })
+        .from(searchResults)
+        .where(and(
+          eq(searchResults.searchId, searchId),
+          inArray(searchResults.listingId, existingListings.map(l => l.id)),
+        ))
+      ).map(r => r.listingId)
+    : []
+  const alreadyDoneSet = new Set(alreadyDoneListingIds)
+
+  const todoZpids = candidateZpids.filter(z => {
+    const lid = zpidToListingId.get(z)
+    return !lid || !alreadyDoneSet.has(lid)
+  })
+
+  if (todoZpids.length === 0) {
+    return NextResponse.json({
+      processed: 0,
+      alreadyDone: candidateZpids.length,
+      message: 'All first-batch listings already analyzed.',
+    })
+  }
+
+  const todoBatch = todoZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
   const processListing = async (zl: typeof zillowListings[number]) => {
     let listing = await db.query.listings.findFirst({ where: eq(listings.zillowId, zl.zpid) })
@@ -118,25 +152,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ searchI
       listingId: listing.id,
       matchScore: score,
       matchExplanation: explanation,
-      batchNumber: nextBatchNumber,
+      batchNumber: 1,
     })
   }
 
-  // All 10 in parallel + atomic increment per success → count stays accurate
-  // even if the function times out mid-batch.
-  const results = await Promise.allSettled(batch.map(async (zl) => {
+  const results = await Promise.allSettled(todoBatch.map(async (zl) => {
     try {
       await processListing(zl)
       await db.update(searches)
         .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
-        .where(eq(searches.id, search.id))
+        .where(eq(searches.id, searchId))
       return true
     } catch (err) {
-      console.error('Error processing listing', zl.zpid, err)
+      console.error('Retry: error processing listing', zl.zpid, err)
       throw err
     }
   }))
-  const processed = results.filter(r => r.status === 'fulfilled').length
 
-  return NextResponse.json({ processed })
+  const processed = results.filter(r => r.status === 'fulfilled').length
+  const failed = results.filter(r => r.status === 'rejected').length
+
+  return NextResponse.json({
+    processed,
+    alreadyDone: candidateZpids.length - todoZpids.length,
+    failed,
+    totalCandidates: zillowListings.length,
+  })
 }

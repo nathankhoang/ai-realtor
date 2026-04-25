@@ -10,6 +10,7 @@ import type { ListingFeatures } from '@/types'
 import NextBatchButton from './NextBatchButton'
 import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
+import RefreshButton from './RefreshButton'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -125,7 +126,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               Edit & re-search →
             </Link>
           </div>
-          <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
+          <div className="flex items-center gap-2">
+            <RefreshButton searchId={searchId} />
+            <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
+          </div>
         </div>
 
         {rows.length === 0 ? (

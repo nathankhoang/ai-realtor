@@ -162,9 +162,9 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
 
       {/* Footer / fallback states */}
       {isStalled ? (
-        <StalledNotice onRefresh={() => router.refresh()} />
+        <StalledNotice searchId={searchId} />
       ) : isSlow ? (
-        <SlowNotice onRefresh={() => router.refresh()} />
+        <SlowNotice searchId={searchId} />
       ) : (
         <p className="mt-9 text-center text-[12.5px] text-muted-foreground">
           Eifara only surfaces matches scoring 55%+ — quality over volume.
@@ -174,7 +174,7 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
   )
 }
 
-function SlowNotice({ onRefresh }: { onRefresh: () => void }) {
+function SlowNotice({ searchId }: { searchId: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -184,16 +184,17 @@ function SlowNotice({ onRefresh }: { onRefresh: () => void }) {
     >
       <p className="text-[13.5px] font-medium text-foreground">Taking longer than usual.</p>
       <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-        Vision analysis is still running in the background. Refresh to check what&rsquo;s landed.
+        Vision analysis is still running in the background. Try the refresh below to retry any
+        listings that haven&rsquo;t finished.
       </p>
-      <Button size="sm" variant="outline" onClick={onRefresh} className="mt-3 text-[13px]">
-        Refresh
-      </Button>
+      <div className="mt-3 flex justify-center">
+        <RetryAction searchId={searchId} label="Retry analysis" />
+      </div>
     </motion.div>
   )
 }
 
-function StalledNotice({ onRefresh }: { onRefresh: () => void }) {
+function StalledNotice({ searchId }: { searchId: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -203,15 +204,36 @@ function StalledNotice({ onRefresh }: { onRefresh: () => void }) {
     >
       <p className="text-[13.5px] font-medium text-foreground">Analysis may have stalled.</p>
       <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-        The background job appears stuck. Try refreshing — partial results may be available — or
-        re-run the search.
+        The background job didn&rsquo;t finish. Retry to pick up where it stopped — this won&rsquo;t
+        consume a new search.
       </p>
       <div className="mt-3 flex justify-center gap-2">
-        <Button size="sm" variant="outline" onClick={onRefresh} className="text-[13px]">
-          Refresh
-        </Button>
+        <RetryAction searchId={searchId} label="Retry analysis" />
       </div>
     </motion.div>
+  )
+}
+
+function RetryAction({ searchId, label }: { searchId: string; label: string }) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  async function retry() {
+    setLoading(true)
+    try {
+      await fetch(`/api/search/${searchId}/retry`, { method: 'POST' })
+      router.refresh()
+    } catch {
+      // ignore — toast on the refresh button covers user-visible errors
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button size="sm" variant="outline" onClick={retry} disabled={loading} className="text-[13px]">
+      {loading ? 'Retrying…' : label}
+    </Button>
   )
 }
 

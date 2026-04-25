@@ -61,17 +61,17 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
         </motion.span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3">
         {plans.map((plan) => {
           const isCurrent = currentTier === plan.tier
-          const isHighlighted = plan.tier === 'starter'
+          const isHighlighted = plan.tier === 'pro'
           const priceId = annual ? plan.annualPriceId : plan.monthlyPriceId
           const showAnnual = annual && plan.tier !== 'free'
 
           return (
             <Card
               key={plan.tier}
-              className={`relative flex flex-col rounded-3xl ${
+              className={`relative flex flex-col rounded-3xl overflow-visible ${
                 isHighlighted
                   ? 'border-border shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
                   : 'border-border'

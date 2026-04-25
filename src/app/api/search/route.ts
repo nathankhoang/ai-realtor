@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse, after } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, listings, listingAnalyses, searchResults, clients } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { searchZillow, getListingPhotos, getListingDetails } from '@/lib/zillow'
 import { analyzeListingPhotos, parseRequirements, prescreenListings, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
@@ -118,7 +118,9 @@ async function handleSearch(req: Request) {
       const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
       const allZpids = zillowListings.map(zl => zl.zpid)
       const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-      const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, 10)
+      // First batch is 5 listings (down from 10) so the worst-case wall time
+      // fits comfortably inside the 60s function budget.
+      const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, 5)
       const firstBatch = firstBatchZpids.map(z => zpidToListing.get(z)).filter(Boolean) as typeof zillowListings
 
       const processListing = async (zl: typeof zillowListings[number]) => {
@@ -171,19 +173,22 @@ async function handleSearch(req: Request) {
         })
       }
 
-      let processed = 0
-      for (let i = 0; i < firstBatch.length; i += 5) {
-        const chunk = firstBatch.slice(i, i + 5)
-        const results = await Promise.allSettled(chunk.map(zl => processListing(zl)))
-        processed += results.filter(r => r.status === 'fulfilled').length
-        results.forEach((r, j) => {
-          if (r.status === 'rejected') console.error('Error processing listing', chunk[j].zpid, r.reason)
-        })
-      }
-
-      await db.update(searches)
-        .set({ analyzedCount: processed })
-        .where(eq(searches.id, search.id))
+      // Run all listings in parallel (capped at 5) and atomically increment
+      // analyzedCount as each one finishes. If the function times out
+      // mid-batch, the count still reflects the listings that landed.
+      const results = await Promise.allSettled(firstBatch.map(async (zl) => {
+        try {
+          await processListing(zl)
+          await db.update(searches)
+            .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
+            .where(eq(searches.id, search.id))
+          return true
+        } catch (err) {
+          console.error('Error processing listing', zl.zpid, err)
+          throw err
+        }
+      }))
+      const processed = results.filter(r => r.status === 'fulfilled').length
 
       if (dbUser.emailAnalysisDone) {
         try {

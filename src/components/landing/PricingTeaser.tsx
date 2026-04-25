@@ -31,7 +31,7 @@ const TIERS: Tier[] = [
   },
   {
     name: 'Starter',
-    highlight: true,
+    highlight: false,
     free: false,
     searches: '20 searches / month',
     monthly: 50,
@@ -47,7 +47,7 @@ const TIERS: Tier[] = [
   },
   {
     name: 'Pro',
-    highlight: false,
+    highlight: true,
     free: false,
     searches: 'Unlimited searches',
     monthly: 150,
@@ -82,7 +82,7 @@ export function PricingTeaser() {
 
         <BillingToggle annual={annual} setAnnual={setAnnual} />
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
+        <div className="mt-12 grid gap-4 pt-3 md:grid-cols-3">
           {TIERS.map((t) => (
             <PricingCard key={t.name} tier={t} annual={annual} />
           ))}

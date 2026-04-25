@@ -79,7 +79,7 @@ Respond ONLY with valid JSON, no explanation:`
         ],
       },
     ],
-  })
+  }, { timeout: 25_000, maxRetries: 1 })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
 
@@ -126,7 +126,7 @@ Return ONLY a JSON array of the top 15 zpids ordered best to worst. No explanati
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 512,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }, { timeout: 12_000, maxRetries: 1 })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '[]'
   try {
@@ -159,7 +159,7 @@ Respond with:
 }`,
       },
     ],
-  })
+  }, { timeout: 12_000, maxRetries: 1 })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
   try {
@@ -241,7 +241,7 @@ Respond ONLY with valid JSON:
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 256,
     messages: [{ role: 'user', content: prompt }],
-  })
+  }, { timeout: 12_000, maxRetries: 1 })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
   try {
