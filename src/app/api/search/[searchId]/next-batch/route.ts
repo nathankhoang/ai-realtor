@@ -9,6 +9,7 @@ import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
+import type { ParsedRequirements } from '@/types'
 
 const NEXT_BATCH_SIZE = 10
 
@@ -32,9 +33,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     return NextResponse.json({ error: 'All listings already analyzed' }, { status: 400 })
   }
 
-  const parsedRequirements = (search.requirementsJson ?? {
+  const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
-  }) as { required: string[]; niceToHave: string[]; dontCare: string[]; dealBreakers: string[] }
+  }
 
   // Zillow returns 200 results/page; figure out which page covers our offset
   const pageNumber = Math.floor(analyzedCount / 200) + 1

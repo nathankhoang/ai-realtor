@@ -63,9 +63,9 @@ async function handler(req: Request) {
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) })
   if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
-  const parsedRequirements = (search.requirementsJson ?? {
+  const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
-  }) as ParsedRequirements
+  }
 
   // Listing detail (description, MLS facts) — cached per listing for
   // DETAIL_STALE_AFTER_DAYS. Saves one Zillow API call per worker when
@@ -121,7 +121,7 @@ async function handler(req: Request) {
   // Score the listing against requirements
   const { score, explanation } = await scoreListingAgainstRequirements(
     parsedRequirements,
-    features as Parameters<typeof scoreListingAgainstRequirements>[1],
+    features,
     { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
     listingContext,
   )
@@ -169,25 +169,31 @@ async function handler(req: Request) {
 }
 
 /**
- * In production, QStash signs every request. We verify the signature
- * before processing. The signature middleware also looks at the
- * `x-eifara-dev-bypass` header — if it's set AND we're in dev (no
- * QStash key configured), we skip verification. This lets local dev
- * work without setting up Upstash.
+ * Signature verification policy:
+ *
+ *   - In production (NODE_ENV === 'production'), QStash signing keys are
+ *     REQUIRED. If they're missing, the worker refuses every request.
+ *   - In development / preview, if the signing key is unset we accept
+ *     unsigned calls (so the queue.ts fallback path works without
+ *     setting up Upstash).
+ *
+ * This closes the misconfiguration window where someone could ship to
+ * production with QSTASH_TOKEN set but signing keys missing.
  */
-const wrappedHandler = process.env.QSTASH_CURRENT_SIGNING_KEY
-  ? verifySignatureAppRouter(handler)
-  : async (req: Request) => {
-      // Local dev / preview without QStash configured. Only allow when
-      // QSTASH_TOKEN is also unset (i.e. the queue.ts fallback path is
-      // making the call).
-      if (process.env.QSTASH_TOKEN) {
-        return NextResponse.json(
-          { error: 'QSTASH_CURRENT_SIGNING_KEY is required in production' },
-          { status: 500 },
-        )
-      }
-      return handler(req)
-    }
+const isProduction = process.env.NODE_ENV === 'production'
+const hasSigningKey = !!process.env.QSTASH_CURRENT_SIGNING_KEY
+
+const wrappedHandler =
+  hasSigningKey
+    ? verifySignatureAppRouter(handler)
+    : isProduction
+      ? async () =>
+          NextResponse.json(
+            {
+              error: 'Worker is misconfigured: QSTASH_CURRENT_SIGNING_KEY missing in production',
+            },
+            { status: 500 },
+          )
+      : handler
 
 export const POST = wrappedHandler

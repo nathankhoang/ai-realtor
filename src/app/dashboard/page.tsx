@@ -29,10 +29,10 @@ export default async function DashboardPage() {
     dbUser = newUser
   }
 
-  // Monthly reset check
+  // Monthly reset check (UTC — server clock is UTC on Vercel)
   const now = new Date()
   const resetDate = new Date(dbUser.searchesResetAt)
-  if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+  if (now.getUTCMonth() !== resetDate.getUTCMonth() || now.getUTCFullYear() !== resetDate.getUTCFullYear()) {
     const [updated] = await db.update(users)
       .set({ searchesUsedThisMonth: 0, searchesResetAt: now })
       .where(eq(users.id, dbUser.id))
@@ -76,11 +76,8 @@ export default async function DashboardPage() {
   const usagePercent = limit === Infinity ? 0 : Math.min(100, Math.round((used / limit) * 100))
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1)
 
-  // Days until next monthly reset
-  const nextReset = new Date(dbUser.searchesResetAt)
-  nextReset.setMonth(nextReset.getMonth() + 1)
-  nextReset.setDate(1)
-  nextReset.setHours(0, 0, 0, 0)
+  // Days until next monthly reset (UTC)
+  const nextReset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0))
   const daysUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
 
   const isNewUser = recentSearches.length === 0 && clientRows.length === 0

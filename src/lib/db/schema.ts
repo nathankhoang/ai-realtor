@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean, index } from 'drizzle-orm/pg-core'
+import type { ParsedRequirements, ListingFeatures } from '@/types'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -18,7 +19,7 @@ export const searches = pgTable('searches', {
   userId: uuid('user_id').references(() => users.id).notNull(),
   clientId: uuid('client_id').references(() => clients.id),
   requirementsText: text('requirements_text'),
-  requirementsJson: jsonb('requirements_json'),
+  requirementsJson: jsonb('requirements_json').$type<ParsedRequirements>(),
   location: text('location').notNull(),
   priceMin: integer('price_min'),
   priceMax: integer('price_max'),
@@ -67,7 +68,7 @@ export const listings = pgTable('listings', {
 export const listingAnalyses = pgTable('listing_analyses', {
   id: uuid('id').primaryKey().defaultRandom(),
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
-  featuresJson: jsonb('features_json').notNull(),
+  featuresJson: jsonb('features_json').$type<ListingFeatures>().notNull(),
   analyzedAt: timestamp('analyzed_at').notNull().defaultNow(),
 }, (t) => [
   index('idx_listing_analyses_listing_id').on(t.listingId),

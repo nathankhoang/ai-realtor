@@ -9,6 +9,7 @@ import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
+import type { ParsedRequirements } from '@/types'
 
 const FIRST_BATCH_SIZE = 5
 
@@ -30,9 +31,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   })
   if (!search) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
 
-  const parsedRequirements = (search.requirementsJson ?? {
+  const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [],
-  }) as { required: string[]; niceToHave: string[]; dontCare: string[]; dealBreakers: string[] }
+  }
 
   // Re-fetch the same Zillow page-1 candidates the first batch used
   let zillowListings
