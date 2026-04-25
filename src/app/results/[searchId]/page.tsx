@@ -8,7 +8,7 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures } from '@/types'
 import NextBatchButton from './NextBatchButton'
-import AnalysisPoller from './AnalysisPoller'
+import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
@@ -129,9 +129,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
         </div>
 
         {rows.length === 0 ? (
-          <Card>
-            <CardContent className="py-16 text-center space-y-6">
-              <AnalysisPoller searchId={searchId} initialAnalyzed={analyzed} initialTotal={total} />
+          <Card className="border-border">
+            <CardContent className="py-12 px-6">
+              <AnalysisStepper searchId={searchId} initialAnalyzed={analyzed} initialTotal={total} />
             </CardContent>
           </Card>
         ) : (
