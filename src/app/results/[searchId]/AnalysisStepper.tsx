@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   searchId: string
@@ -22,10 +23,17 @@ const SUB_STATUSES = [
   'Cross-referencing photos',
 ]
 
+const SLOW_THRESHOLD_SEC = 75
+const STALL_THRESHOLD_SEC = 150
+
 export default function AnalysisStepper({ searchId, initialAnalyzed, initialTotal }: Props) {
   const router = useRouter()
   const [analyzed, setAnalyzed] = useState(initialAnalyzed)
   const [total, setTotal] = useState(initialTotal)
+  // resultCount = number of search_results rows; this updates live as each
+  // listing finishes (analyzedCount in the DB only updates at the end of the
+  // batch, so it's not useful for live progress).
+  const [resultCount, setResultCount] = useState(0)
   const [subIdx, setSubIdx] = useState(0)
   const [elapsedSec, setElapsedSec] = useState(0)
 
@@ -38,6 +46,7 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
           const data = await res.json()
           setAnalyzed(data.analyzedCount)
           setTotal(data.totalCandidates)
+          setResultCount(data.resultCount)
           if (data.resultCount > 0) router.refresh()
         }
       } catch {}
@@ -60,15 +69,19 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
   // Step state machine
   // Step 1 (pulled): always done by the time we're polling
   // Step 2 (pre-screened): done when total > 0
-  // Step 3 (ai analysis): in progress while analyzed < total
-  // Step 4 (ranked): waits until step 3 is done — handled by router refresh
+  // Step 3 (ai): live-progressing as resultCount climbs toward total
+  // Step 4 (ranked): waits until step 3 is done — server refresh moves the
+  //   page off this stepper as soon as resultCount > 0
   const step1Done = true
   const step2Done = total > 0
-  const step3Active = step2Done && analyzed < Math.max(total, 1)
+  const step3Active = step2Done && resultCount < Math.max(total, 1)
   const step3Done = step2Done && analyzed >= total && total > 0
   const step4Active = step3Done
 
-  const aiPct = total > 0 ? Math.min(100, Math.round((analyzed / total) * 100)) : 12
+  const aiPct = total > 0 ? Math.min(100, Math.round((resultCount / total) * 100)) : 0
+
+  const isSlow = elapsedSec > SLOW_THRESHOLD_SEC && resultCount === 0
+  const isStalled = elapsedSec > STALL_THRESHOLD_SEC && resultCount === 0
 
   const steps = [
     {
@@ -91,17 +104,21 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
       done: step3Done,
       active: step3Active,
       detail: step3Active
-        ? `${analyzed} of ${total} listings analyzed`
+        ? total > 0
+          ? `${resultCount} of ${Math.min(total, 10)} analyzed`
+          : 'Starting…'
         : step3Done
           ? `All ${total} analyzed`
           : null,
       subStatus: step3Active ? SUB_STATUSES[subIdx] : null,
-      progress: step3Active ? aiPct : step3Done ? 100 : 0,
+      progress: step3Active
+        ? Math.max(aiPct, Math.min(20, elapsedSec / 1.5)) // visible movement even before first listing finishes
+        : step3Done ? 100 : 0,
     },
     {
       key: 'rank',
       title: 'Scoring & ranking matches',
-      done: false, // server refresh will land us out of this view once results exist
+      done: false,
       active: step4Active,
       detail: step4Active ? 'Almost there…' : null,
     },
@@ -120,13 +137,12 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
           <span className="text-muted-foreground">so you don&rsquo;t have to.</span>
         </h2>
         <p className="mt-3 text-[13px] text-muted-foreground tabular-nums">
-          {elapsedSec}s elapsed · usually takes 30–60s
+          {elapsedSec}s elapsed
         </p>
       </div>
 
       {/* Steps */}
       <ol className="relative space-y-1">
-        {/* Connector line — sits behind the dots */}
         <div
           aria-hidden
           className="absolute left-[14px] top-3 bottom-3 w-px bg-border"
@@ -144,10 +160,58 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
         ))}
       </ol>
 
-      <p className="mt-9 text-center text-[12.5px] text-muted-foreground">
-        Eifara only surfaces matches scoring 55%+ — quality over volume.
-      </p>
+      {/* Footer / fallback states */}
+      {isStalled ? (
+        <StalledNotice onRefresh={() => router.refresh()} />
+      ) : isSlow ? (
+        <SlowNotice onRefresh={() => router.refresh()} />
+      ) : (
+        <p className="mt-9 text-center text-[12.5px] text-muted-foreground">
+          Eifara only surfaces matches scoring 55%+ — quality over volume.
+        </p>
+      )}
     </div>
+  )
+}
+
+function SlowNotice({ onRefresh }: { onRefresh: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="mt-9 rounded-xl border border-border bg-muted/40 px-4 py-3.5 text-center"
+    >
+      <p className="text-[13.5px] font-medium text-foreground">Taking longer than usual.</p>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+        Vision analysis is still running in the background. Refresh to check what&rsquo;s landed.
+      </p>
+      <Button size="sm" variant="outline" onClick={onRefresh} className="mt-3 text-[13px]">
+        Refresh
+      </Button>
+    </motion.div>
+  )
+}
+
+function StalledNotice({ onRefresh }: { onRefresh: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="mt-9 rounded-xl border border-destructive/25 bg-destructive/[0.04] px-4 py-3.5 text-center"
+    >
+      <p className="text-[13.5px] font-medium text-foreground">Analysis may have stalled.</p>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+        The background job appears stuck. Try refreshing — partial results may be available — or
+        re-run the search.
+      </p>
+      <div className="mt-3 flex justify-center gap-2">
+        <Button size="sm" variant="outline" onClick={onRefresh} className="text-[13px]">
+          Refresh
+        </Button>
+      </div>
+    </motion.div>
   )
 }
 
