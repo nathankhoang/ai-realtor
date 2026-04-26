@@ -51,13 +51,13 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-10">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-7 sm:py-10 space-y-8 sm:space-y-10">
         {/* Client header */}
         <div>
           <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
@@ -119,9 +119,13 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                 const features = analysis?.featuresJson as ListingFeatures | null
                 return (
                   <Card key={s.id} className="overflow-hidden border-border">
-                    <div className="flex gap-4 p-4">
+                    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:gap-4">
                       {photos[0] && (
-                        <img src={photos[0]} alt="" className="w-28 object-cover rounded-md shrink-0 self-start" style={{ height: '88px' }} />
+                        <img
+                          src={photos[0]}
+                          alt=""
+                          className="w-full h-44 sm:w-28 sm:h-[88px] object-cover rounded-md shrink-0 self-start"
+                        />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">

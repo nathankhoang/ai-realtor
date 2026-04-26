@@ -113,12 +113,13 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
           <ToggleSegment active={view === 'focus'} onClick={() => setView('focus')} layoutId="results-view-pill">
             <span className="flex items-center gap-1.5">
               <FocusIcon className="h-3.5 w-3.5" />
-              Review one-by-one
+              <span className="sm:hidden">One-by-one</span>
+              <span className="hidden sm:inline">Review one-by-one</span>
             </span>
           </ToggleSegment>
         </div>
 
-        <p className="text-[13px] text-muted-foreground">
+        <p className="hidden sm:block text-[13px] text-muted-foreground">
           {view === 'focus'
             ? `Reviewing ${displayed.length} ${displayed.length === 1 ? 'home' : 'homes'} · use ← → to navigate`
             : selected.size > 0

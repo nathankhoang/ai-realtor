@@ -27,7 +27,7 @@ export default function DashboardHero({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-3xl border border-border bg-card p-8 md:p-10"
+      className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-10"
     >
       {/* Ambient cobalt glow — subtle */}
       <div
@@ -50,7 +50,7 @@ export default function DashboardHero({
           <p className="text-[11.5px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             {greeting.eyebrow}
           </p>
-          <h1 className="mt-2 text-[clamp(2rem,4.5vw,3rem)] font-medium leading-[1.05] tracking-[-0.025em] text-foreground">
+          <h1 className="mt-2 text-[clamp(1.75rem,5vw,3rem)] font-medium leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05]">
             {greeting.line}
             {firstName ? `, ${firstName}` : ''}.
           </h1>

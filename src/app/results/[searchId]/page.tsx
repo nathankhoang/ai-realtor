@@ -105,13 +105,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-6">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-3 sm:px-4 py-6 sm:py-10 space-y-6">
         {/* Search summary */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -137,7 +137,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               Edit & re-search →
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <CancelButton searchId={searchId} status={search.status} />
             <RefreshButton searchId={searchId} />
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />

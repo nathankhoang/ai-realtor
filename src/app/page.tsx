@@ -96,9 +96,9 @@ export default async function Home() {
 function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-stone-900/8 bg-[#F1EEE7]/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <div className="flex items-center gap-9">
-          <Link href="/" className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
+        <div className="flex items-center gap-6 md:gap-9 min-w-0">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <Logo />
             <span className="text-[17px] font-medium tracking-tight text-stone-950">Eifara</span>
           </Link>
@@ -120,7 +120,7 @@ function Header() {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <SignInTrigger>Sign in</SignInTrigger>
           <SignUpTrigger size="sm" tone="dark">
             Start free
@@ -155,18 +155,18 @@ function Stats() {
   ]
   return (
     <section className="border-y border-stone-900/8 bg-[#F1EEE7]">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 px-6 md:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 px-4 sm:px-6 md:grid-cols-4">
         {items.map((s, i) => (
           <div
             key={s.label}
-            className={`px-5 py-9 ${i > 0 ? 'border-l border-stone-900/8' : ''} ${
+            className={`px-4 py-7 sm:px-5 sm:py-9 ${i > 0 ? 'border-l border-stone-900/8' : ''} ${
               i === 2 ? 'max-md:border-l max-md:border-t' : ''
             } ${i === 3 ? 'max-md:border-t' : ''}`}
           >
-            <p className="text-4xl font-medium tracking-[-0.025em] text-stone-950 md:text-5xl">
+            <p className="text-[28px] font-medium tracking-[-0.025em] text-stone-950 sm:text-4xl md:text-5xl">
               <StatCounter value={s.value} suffix={s.suffix} />
             </p>
-            <p className="mt-2 text-[14px] leading-snug text-stone-500">{s.label}</p>
+            <p className="mt-2 text-[13px] leading-snug text-stone-500 sm:text-[14px]">{s.label}</p>
           </div>
         ))}
       </div>
@@ -178,17 +178,17 @@ function Stats() {
 
 function ProblemStrip() {
   return (
-    <section className="bg-[#F1EEE7] py-28">
-      <div className="mx-auto max-w-3xl px-6 text-center">
+    <section className="bg-[#F1EEE7] py-20 md:py-28">
+      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-stone-500">
           The problem
         </p>
-        <h2 className="text-4xl font-medium leading-[1.1] tracking-[-0.025em] text-stone-950 md:text-5xl">
-          Your client wants hardwood, an updated kitchen,
-          <br />
-          and no HOA. <span className="text-stone-400">Zillow can&rsquo;t read photos.</span>
+        <h2 className="text-[28px] font-medium leading-[1.15] tracking-[-0.025em] text-stone-950 sm:text-4xl md:text-5xl md:leading-[1.1]">
+          Your client wants hardwood, an updated kitchen,{' '}
+          <span className="md:block">and no HOA.</span>{' '}
+          <span className="text-stone-400">Zillow can&rsquo;t read photos.</span>
         </h2>
-        <p className="mx-auto mt-7 max-w-xl text-[17px] leading-[1.6] text-stone-600">
+        <p className="mx-auto mt-6 max-w-xl text-[15.5px] leading-[1.65] text-stone-600 sm:mt-7 sm:text-[17px] sm:leading-[1.6]">
           So you do — for hours. You open dozens of listings, eyeball every kitchen, squint at the
           floors, and try to remember which house had what. By the time the shortlist is ready,
           your weekend is gone.
@@ -223,16 +223,16 @@ function FinalCTA() {
         }}
       />
 
-      <div className="relative mx-auto max-w-4xl px-6 py-32 text-center">
-        <h2 className="text-[clamp(2.6rem,6vw,4.5rem)] font-medium leading-[1.0] tracking-[-0.035em]">
+      <div className="relative mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 md:py-32">
+        <h2 className="text-[clamp(2rem,7vw,4.5rem)] font-medium leading-[1.05] tracking-[-0.035em] md:leading-[1.0]">
           Get your weekends back.
           <br />
           <span className="text-white/45">Start with three free searches.</span>
         </h2>
-        <p className="mx-auto mt-7 max-w-md text-[16px] leading-[1.55] text-white/60">
+        <p className="mx-auto mt-6 max-w-md text-[15px] leading-[1.6] text-white/60 sm:mt-7 sm:text-[16px] sm:leading-[1.55]">
           No credit card. A few minutes from sign-up to your first ranked shortlist.
         </p>
-        <div className="mt-10 flex justify-center">
+        <div className="mt-8 flex justify-center sm:mt-10">
           <SignUpTrigger size="lg" tone="accent">
             Start free
           </SignUpTrigger>
@@ -246,7 +246,7 @@ function FinalCTA() {
 
 function Footer() {
   return (
-    <footer className="border-t border-white/5 bg-[#0E0D0A] px-6 py-10">
+    <footer className="border-t border-white/5 bg-[#0E0D0A] px-4 py-8 sm:px-6 md:py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-[14px] text-white/45 md:flex-row">
         <div className="flex items-center gap-2">
           <Logo />

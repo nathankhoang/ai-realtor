@@ -30,20 +30,20 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur-xl sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <span className="text-[17px] font-medium tracking-tight">Eifara</span>
-          <span className="text-[12.5px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">Client report</span>
+          <span className="text-[12.5px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">Client report</span>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-12 space-y-10">
+      <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12 space-y-8 sm:space-y-10">
         {/* Client header */}
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-full bg-primary/10 text-primary text-[20px] font-semibold flex items-center justify-center shrink-0">
             {initials}
           </div>
-          <div>
-            <h1 className="text-3xl font-medium tracking-tight">{client.name}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-medium tracking-tight">{client.name}</h1>
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[14px] text-muted-foreground">
               {client.email && <span>{client.email}</span>}
               {client.phone && <span>{client.phone}</span>}
@@ -139,16 +139,16 @@ function ReportListingCard({
         </div>
       )}
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         {/* Address + price */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-semibold text-xl leading-snug tracking-tight">{address}</h2>
-            <p className="text-[14px] text-muted-foreground mt-1">{[city, state].filter(Boolean).join(', ')}</p>
+        <div className="flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-lg sm:text-xl leading-snug tracking-tight">{address}</h2>
+            <p className="text-[13.5px] sm:text-[14px] text-muted-foreground mt-1">{[city, state].filter(Boolean).join(', ')}</p>
           </div>
           {price && (
             <div className="text-right shrink-0">
-              <p className="text-2xl font-semibold tabular-nums tracking-tight">${price.toLocaleString()}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight">${price.toLocaleString()}</p>
             </div>
           )}
         </div>
@@ -214,9 +214,9 @@ function FeatureHighlights({ features }: { features: ListingFeatures }) {
   return (
     <div>
       <p className="text-[11.5px] font-semibold text-muted-foreground uppercase tracking-[0.16em] mb-3">What we found</p>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {items.map(item => (
-          <div key={item.label} className="flex items-center gap-2 text-[14px]">
+          <div key={item.label} className="flex items-center gap-2 text-[13.5px] sm:text-[14px]">
             <span className={item.good ? 'text-primary' : 'text-muted-foreground'}>
               {item.good ? '✓' : '·'}
             </span>

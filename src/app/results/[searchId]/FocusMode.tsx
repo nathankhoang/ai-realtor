@@ -106,7 +106,7 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
 
       {/* Bottom action bar */}
       <div className="sticky bottom-4 mt-6 z-30">
-        <div className="mx-auto flex max-w-md items-center justify-between gap-2 rounded-full border border-border bg-card/95 px-3 py-2 shadow-[0_10px_40px_-10px_rgba(15,14,10,0.18)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-md items-center justify-between gap-2 rounded-full border border-border bg-card/95 px-2 py-2 shadow-[0_10px_40px_-10px_rgba(15,14,10,0.18)] backdrop-blur-md sm:px-3">
           <Button
             variant="ghost"
             size="sm"
@@ -114,7 +114,8 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
             disabled={idx === 0}
             className="rounded-full"
           >
-            <span aria-hidden>←</span> Previous
+            <span aria-hidden>←</span>
+            <span className="hidden sm:inline ml-1">Previous</span>
           </Button>
 
           <div className="flex items-center">
@@ -131,7 +132,8 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
             disabled={idx === total - 1}
             className="rounded-full"
           >
-            Next <span aria-hidden>→</span>
+            <span className="hidden sm:inline mr-1">Next</span>
+            <span aria-hidden>→</span>
           </Button>
         </div>
       </div>

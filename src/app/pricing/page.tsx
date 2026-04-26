@@ -69,7 +69,7 @@ export default async function PricingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           {userId ? <UserButton /> : (
             <Link href="/sign-in">
@@ -79,13 +79,13 @@ export default async function PricingPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-16 space-y-12">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-16 space-y-10 sm:space-y-12">
         <div className="text-center space-y-4">
           <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Pricing</p>
-          <h1 className="text-4xl md:text-5xl font-medium tracking-[-0.02em]">
+          <h1 className="text-[32px] sm:text-4xl md:text-5xl font-medium tracking-[-0.02em] leading-[1.1]">
             Simple, transparent pricing.
           </h1>
-          <p className="text-[16px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+          <p className="text-[15px] sm:text-[16px] text-muted-foreground max-w-md mx-auto leading-relaxed">
             Find the right homes for your clients faster. Pay only for what you need.
           </p>
         </div>

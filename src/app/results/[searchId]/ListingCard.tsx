@@ -68,7 +68,7 @@ export default function ListingCard({
       {/* ────── HERO PHOTO ────── */}
       <div className="relative bg-stone-200">
         {photos[photoIdx] ? (
-          <div className="relative h-[clamp(280px,38vw,420px)] w-full overflow-hidden">
+          <div className="relative h-[clamp(220px,40vw,420px)] w-full overflow-hidden">
             {/* Photo with subtle parallax-on-hover */}
             <motion.img
               key={photoIdx}
@@ -84,7 +84,7 @@ export default function ListingCard({
             <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/75 via-black/30 to-transparent pointer-events-none" />
           </div>
         ) : (
-          <div className="h-[clamp(280px,38vw,420px)] bg-gradient-to-br from-stone-300 to-stone-400" />
+          <div className="h-[clamp(220px,40vw,420px)] bg-gradient-to-br from-stone-300 to-stone-400" />
         )}
 
         {/* Top-left: rank chip + bulk-select */}
@@ -92,10 +92,10 @@ export default function ListingCard({
           <button
             onClick={onToggleSelect}
             aria-label={isSelected ? 'Deselect' : 'Select for bulk save'}
-            className={`flex h-7 w-7 items-center justify-center rounded-md border-2 backdrop-blur-md transition-all ${
+            className={`flex h-9 w-9 items-center justify-center rounded-md border-2 backdrop-blur-md transition-all sm:h-8 sm:w-8 ${
               isSelected
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-white/70 bg-black/35 text-transparent opacity-0 group-hover/card:opacity-100 hover:bg-black/60'
+                : 'border-white/70 bg-black/45 text-transparent opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 hover:bg-black/65'
             }`}
           >
             {isSelected && (
@@ -121,7 +121,7 @@ export default function ListingCard({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className={`relative rounded-2xl ${scoreSwatch.bg} ${scoreSwatch.fg} ${scoreSwatch.glow} backdrop-blur-md px-5 py-3`}
+            className={`relative rounded-2xl ${scoreSwatch.bg} ${scoreSwatch.fg} ${scoreSwatch.glow} backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3`}
           >
             {isGreat && (
               <motion.span
@@ -132,7 +132,7 @@ export default function ListingCard({
               />
             )}
             <div className="relative flex items-baseline gap-1">
-              <span className="font-[family-name:var(--font-instrument-serif)] italic text-5xl leading-none tabular-nums">
+              <span className="font-[family-name:var(--font-instrument-serif)] italic text-[40px] leading-none tabular-nums sm:text-5xl">
                 {score}
               </span>
               <span className="text-[10.5px] font-medium uppercase tracking-[0.18em] opacity-75 -ml-0.5">
@@ -146,20 +146,20 @@ export default function ListingCard({
         </div>
 
         {/* Bottom: address + price overlay (more editorial than before) */}
-        <div className="absolute inset-x-0 bottom-0 z-10 px-6 py-5 text-white">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="absolute inset-x-0 bottom-0 z-10 px-4 py-4 text-white sm:px-6 sm:py-5">
+          <div className="flex items-end justify-between gap-3 flex-wrap sm:gap-4">
             <div className="min-w-0">
-              <h3 className="text-2xl font-medium leading-tight tracking-tight">{address}</h3>
-              <p className="mt-1 text-[14px] text-white/80">
+              <h3 className="text-xl font-medium leading-tight tracking-tight sm:text-2xl">{address}</h3>
+              <p className="mt-1 text-[13px] text-white/80 sm:text-[14px]">
                 {[city, state].filter(Boolean).join(', ')}
               </p>
             </div>
             {price && (
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <p className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-white/60">
                   List price
                 </p>
-                <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
+                <p className="mt-0.5 text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
                   ${price.toLocaleString()}
                 </p>
                 {overBudgetBy > 0 && (
@@ -185,14 +185,14 @@ export default function ListingCard({
             <button
               onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
               aria-label="Previous photo"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-100 sm:opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
             >
               ‹
             </button>
             <button
               onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
               aria-label="Next photo"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-100 sm:opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
             >
               ›
             </button>
@@ -225,7 +225,7 @@ export default function ListingCard({
       )}
 
       {/* ────── BODY ────── */}
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
         {/* Specs + actions */}
         <div className="flex items-center flex-wrap gap-x-6 gap-y-2 text-[14px]">
           {beds != null && (

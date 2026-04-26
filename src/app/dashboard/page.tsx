@@ -130,9 +130,9 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-7">
-            <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-5 sm:gap-7 min-w-0">
+            <Link href="/dashboard" className="text-[17px] font-medium tracking-tight shrink-0">
               Eifara
             </Link>
             <nav className="hidden sm:flex items-center gap-5 text-[14px] text-muted-foreground">
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
               </Link>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <span className="hidden sm:inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-primary">
               {tierLabel}
             </span>
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
         <UpgradeSuccessToast />
       </Suspense>
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8 space-y-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         <DashboardHero
           firstName={firstName}
           topMatchesThisWeek={topMatchesThisWeek}
@@ -182,7 +182,7 @@ export default async function DashboardPage() {
 
         {/* Bento stats — quota ring spans 2 cols, two stat tiles below/right */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 rounded-2xl border border-border bg-card p-6">
+          <div className="md:col-span-2 rounded-2xl border border-border bg-card p-5 sm:p-6">
             <QuotaRing used={used} limit={limit} daysUntilReset={daysUntilReset} />
           </div>
           <div className="grid grid-cols-1 gap-4">

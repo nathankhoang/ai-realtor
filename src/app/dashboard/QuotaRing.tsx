@@ -23,9 +23,9 @@ export default function QuotaRing({
   const pct = isUnlimited ? 0 : Math.min(100, Math.round((used / (limit as number)) * 100))
   const remaining = isUnlimited ? null : Math.max(0, (limit as number) - used)
 
-  // SVG ring math
-  const size = 160
-  const stroke = 12
+  // SVG ring math — slightly smaller default; container is responsive.
+  const size = 140
+  const stroke = 11
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
 
@@ -48,7 +48,7 @@ export default function QuotaRing({
         : '#2952FF' // cobalt
 
   return (
-    <div className="relative flex items-center gap-6">
+    <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-left">
       {/* Ring */}
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg
@@ -108,7 +108,7 @@ export default function QuotaRing({
       </div>
 
       {/* Right side — labels */}
-      <div className="flex-1 min-w-0 space-y-2">
+      <div className="flex-1 min-w-0 space-y-2 w-full sm:w-auto">
         <p className="text-[11.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           This month
         </p>

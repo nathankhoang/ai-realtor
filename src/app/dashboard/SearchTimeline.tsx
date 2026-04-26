@@ -89,7 +89,7 @@ function SearchRow({ item, index, isLast }: { item: Item; index: number; isLast:
 
       <Link
         href={`/results/${item.id}`}
-        className="group/row block rounded-xl border border-border bg-card px-4 py-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_15px_35px_-18px_rgba(15,14,10,0.18)]"
+        className="group/row block rounded-xl border border-border bg-card px-3.5 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-[0_15px_35px_-18px_rgba(15,14,10,0.18)] sm:px-4 sm:py-3.5"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

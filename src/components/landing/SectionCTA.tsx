@@ -60,14 +60,14 @@ function Inline({
   const inView = useInView(ref, { once: true, margin: '-15%' })
 
   return (
-    <section className="bg-[#F1EEE7] py-20">
-      <div className="mx-auto max-w-5xl px-6">
+    <section className="bg-[#F1EEE7] py-14 sm:py-20">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 16 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-3xl border border-stone-900/8 bg-white p-8 md:p-10"
+          className="relative overflow-hidden rounded-3xl border border-stone-900/8 bg-white p-6 sm:p-8 md:p-10"
         >
           {/* Ambient cobalt fade — subtle, anchors the eye on the CTA */}
           <div
@@ -78,14 +78,14 @@ function Inline({
                 'radial-gradient(circle, rgba(41,82,255,0.18), transparent 70%)',
             }}
           />
-          <div className="relative flex items-center justify-between gap-6 flex-wrap">
-            <div className="min-w-0 flex-1">
-              <p className="text-2xl md:text-[1.7rem] font-medium tracking-[-0.018em] text-stone-950 leading-tight">
+          <div className="relative flex items-start justify-between gap-5 flex-wrap sm:items-center sm:gap-6">
+            <div className="min-w-0 flex-1 min-w-[240px]">
+              <p className="text-[22px] font-medium tracking-[-0.018em] text-stone-950 leading-tight sm:text-2xl md:text-[1.7rem]">
                 {headline}
               </p>
-              <p className="mt-2 text-[14.5px] text-stone-600">{sub}</p>
+              <p className="mt-2 text-[14px] text-stone-600 sm:text-[14.5px]">{sub}</p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 flex-wrap">
               {secondary && <SecondaryButton href={secondary.href}>{secondary.label}</SecondaryButton>}
               <SignUpTrigger size="md" tone="dark">
                 {ctaLabel}
@@ -102,8 +102,8 @@ function Inline({
 
 function Minimal({ ctaLabel, headline }: { ctaLabel: string; headline: string }) {
   return (
-    <section className="bg-[#F1EEE7] py-12">
-      <div className="mx-auto max-w-3xl px-6 flex items-center justify-center gap-4">
+    <section className="bg-[#F1EEE7] py-10 sm:py-12">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 flex flex-col items-center justify-center gap-3 text-center sm:flex-row sm:gap-4 sm:text-left">
         <p className="text-[15px] text-stone-600">{headline}</p>
         <SignUpTrigger size="sm" tone="dark">
           {ctaLabel}
@@ -127,14 +127,14 @@ function Full({
   secondary?: { label: string; href: string }
 }) {
   return (
-    <section className="bg-[#F1EEE7] py-24">
-      <div className="mx-auto max-w-4xl px-6">
+    <section className="bg-[#F1EEE7] py-16 sm:py-24">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-15%' }}
           transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-          className="relative overflow-hidden rounded-3xl bg-stone-950 text-white p-10 md:p-14 text-center"
+          className="relative overflow-hidden rounded-3xl bg-stone-950 text-white p-7 sm:p-10 md:p-14 text-center"
         >
           <div
             aria-hidden
@@ -147,11 +147,11 @@ function Full({
             }}
           />
           <div className="relative">
-            <h3 className="text-3xl md:text-4xl font-medium tracking-[-0.02em] leading-[1.1]">
+            <h3 className="text-[26px] font-medium tracking-[-0.02em] leading-[1.15] sm:text-3xl sm:leading-[1.1] md:text-4xl">
               {headline}
             </h3>
-            <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-white/65">{sub}</p>
-            <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+            <p className="mx-auto mt-4 max-w-md text-[14.5px] leading-relaxed text-white/65 sm:text-[15px]">{sub}</p>
+            <div className="mt-7 flex items-center justify-center gap-3 flex-wrap sm:mt-8">
               <SignUpTrigger size="lg" tone="accent">
                 {ctaLabel}
               </SignUpTrigger>
