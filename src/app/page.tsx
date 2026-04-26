@@ -112,6 +112,7 @@ function Header() {
               ['How it works', '#how'],
               ['Features', '#features'],
               ['Pricing', '/pricing'],
+              ['Blog', '/blog'],
               ['FAQ', '#faq'],
             ].map(([t, href]) => (
               <Link
@@ -257,9 +258,12 @@ function Footer() {
           <Logo />
           <span className="font-medium text-white/85">Eifara</span>
         </div>
-        <nav className="flex gap-7">
+        <nav className="flex gap-5 sm:gap-7">
           <Link href="/pricing" className="hover:text-white/75">
             Pricing
+          </Link>
+          <Link href="/blog" className="hover:text-white/75">
+            Blog
           </Link>
           <a href="#faq" className="hover:text-white/75">
             FAQ

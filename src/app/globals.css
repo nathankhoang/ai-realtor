@@ -189,3 +189,120 @@
 .eifara-pill-btn:hover .eifara-pill-btn__arrow--in {
   transform: translate(0, 0);
 }
+/* ────────────  Blog post prose styles  ──────────── */
+.prose-eifara {
+  color: rgb(41 37 36);
+  font-size: 17px;
+  line-height: 1.7;
+  font-feature-settings: 'ss01', 'cv11';
+}
+.prose-eifara > * + * {
+  margin-top: 1.25em;
+}
+.prose-eifara h2 {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+  color: rgb(15 14 10);
+  margin-top: 2.4em;
+  margin-bottom: 0.6em;
+}
+.prose-eifara h3 {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: rgb(15 14 10);
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+}
+.prose-eifara p {
+  color: rgb(68 64 60);
+}
+.prose-eifara strong {
+  color: rgb(15 14 10);
+  font-weight: 600;
+}
+.prose-eifara em {
+  font-style: italic;
+}
+.prose-eifara a {
+  color: #2952FF;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(41, 82, 255, 0.3);
+  transition: border-color 200ms ease;
+}
+.prose-eifara a:hover {
+  border-bottom-color: #2952FF;
+}
+.prose-eifara ul, .prose-eifara ol {
+  padding-left: 1.4em;
+}
+.prose-eifara ul {
+  list-style: disc;
+}
+.prose-eifara ol {
+  list-style: decimal;
+}
+.prose-eifara li {
+  margin-top: 0.45em;
+  color: rgb(68 64 60);
+}
+.prose-eifara li::marker {
+  color: rgb(168 162 158);
+}
+.prose-eifara blockquote {
+  border-left: 3px solid rgba(41, 82, 255, 0.45);
+  padding-left: 1.1em;
+  margin: 1.6em 0;
+  font-style: italic;
+  color: rgb(68 64 60);
+}
+.prose-eifara code {
+  background: rgba(15, 14, 10, 0.06);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.9em;
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+.prose-eifara pre {
+  background: rgb(15 14 10);
+  color: rgb(241 238 231);
+  border-radius: 12px;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.prose-eifara pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.prose-eifara hr {
+  border: 0;
+  border-top: 1px solid rgba(15, 14, 10, 0.1);
+  margin: 2.6em 0;
+}
+.prose-eifara table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  margin: 1.5em 0;
+}
+.prose-eifara th, .prose-eifara td {
+  text-align: left;
+  padding: 0.7em 0.9em;
+  border-bottom: 1px solid rgba(15, 14, 10, 0.08);
+}
+.prose-eifara th {
+  font-weight: 600;
+  color: rgb(15 14 10);
+  background: rgba(15, 14, 10, 0.03);
+}
+.prose-eifara img {
+  border-radius: 12px;
+  margin: 1.6em auto;
+  max-width: 100%;
+  height: auto;
+}
