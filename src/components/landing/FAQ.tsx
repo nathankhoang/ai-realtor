@@ -8,48 +8,55 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="bg-[#F1EEE7] py-28">
+    <section id="faq" className="bg-background py-28 md:py-36">
       <div className="mx-auto max-w-3xl px-6">
         <div className="mb-14 text-center">
-          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-stone-500">
-            FAQ
-          </p>
-          <h2 className="text-4xl font-medium tracking-[-0.02em] text-stone-950 md:text-5xl">
-            Things agents ask
-            <br />
-            <span className="text-stone-400">before signing up.</span>
+          <div className="eyebrow mx-auto mb-5">
+            <span className="dot" />
+            Questions
+          </div>
+          <h2 className="font-display font-extrabold leading-[1.05] tracking-[-0.025em] text-foreground text-[clamp(2.125rem,5vw,3.75rem)]">
+            The <span className="text-brand-gradient">honest</span> answers.
           </h2>
+          <p className="mt-4 text-[16px] text-brand-slate max-w-md mx-auto">Everything agents ask in the first ten minutes — covered, no fine print.</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3.5">
           {ITEMS.map((item, i) => {
             const isOpen = open === i
             return (
               <div
                 key={item.q}
-                className={`overflow-hidden rounded-2xl border bg-white transition-colors duration-300 ${
-                  isOpen ? 'border-stone-900/15' : 'border-stone-900/8 hover:border-stone-900/12'
+                className={`overflow-hidden rounded-[18px] border bg-card transition-all duration-300 ${
+                  isOpen
+                    ? 'border-brand shadow-[0_4px_24px_-8px_rgba(26,36,25,0.08)]'
+                    : 'border-brand-line hover:border-brand/30'
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => setOpen(isOpen ? null : i)}
-                  className="flex w-full items-center justify-between gap-6 px-6 py-5 text-left"
+                  className="flex w-full items-center justify-between gap-5 px-7 py-5 text-left"
                 >
-                  <span className="text-[16.5px] font-medium tracking-[-0.005em] text-stone-900 md:text-[17.5px]">
+                  <span className="font-display text-[16px] font-bold tracking-[-0.01em] text-foreground md:text-[17px]">
                     {item.q}
                   </span>
                   <motion.span
-                    animate={{ rotate: isOpen ? 45 : 0 }}
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base leading-none transition-colors"
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all"
                     style={
                       isOpen
-                        ? { backgroundColor: '#0E0D0A', color: '#FFFFFF' }
-                        : { backgroundColor: '#FAF8F2', color: 'rgba(15,14,10,0.55)' }
+                        ? {
+                            background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))',
+                            color: '#FFFFFF',
+                          }
+                        : { backgroundColor: 'var(--background)', color: 'var(--brand-slate)' }
                     }
                   >
-                    +
+                    <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" fill="none">
+                      <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </motion.span>
                 </button>
                 <AnimatePresence initial={false}>
@@ -58,10 +65,10 @@ export function FAQ() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                       className="overflow-hidden"
                     >
-                      <p className="px-6 pb-6 text-[15.5px] leading-[1.65] text-stone-600">
+                      <p className="px-7 pb-6 text-[15px] leading-[1.65] text-brand-slate">
                         {item.a}
                       </p>
                     </motion.div>

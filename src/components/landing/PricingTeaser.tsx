@@ -67,16 +67,16 @@ export function PricingTeaser() {
   const [annual, setAnnual] = useState(false)
 
   return (
-    <section className="bg-[#F1EEE7] py-28">
+    <section className="bg-background py-28">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto mb-12 max-w-2xl text-center">
-          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-stone-500">
+          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-brand-slate">
             Pricing
           </p>
-          <h2 className="text-4xl font-medium tracking-[-0.02em] text-stone-950 md:text-5xl">
+          <h2 className="text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
             Start free.
             <br />
-            <span className="text-stone-400">Pay when it pays for itself.</span>
+            <span className="text-brand-slate-light">Pay when it pays for itself.</span>
           </h2>
         </div>
 
@@ -88,7 +88,7 @@ export function PricingTeaser() {
           ))}
         </div>
 
-        <p className="mt-9 text-center text-[14px] text-stone-500">
+        <p className="mt-9 text-center text-[14px] text-brand-slate">
           All prices in USD ·{' '}
           <Link
             href="/pricing"
@@ -114,7 +114,7 @@ function BillingToggle({
       <div
         role="tablist"
         aria-label="Billing interval"
-        className="relative inline-flex items-center rounded-full border border-stone-900/10 bg-white p-1 shadow-[0_1px_0_rgba(15,14,10,0.04)]"
+        className="relative inline-flex items-center rounded-full border border-brand-line bg-white p-1 shadow-[0_1px_0_rgba(15,14,10,0.04)]"
       >
         <ToggleSegment active={!annual} onClick={() => setAnnual(false)} layoutId="billing-pill">
           Monthly
@@ -134,8 +134,8 @@ function BillingToggle({
         className="rounded-full px-3 py-1 text-[13px] font-medium"
         style={
           annual
-            ? { backgroundColor: 'rgba(41,82,255,0.10)', color: '#2952FF' }
-            : { backgroundColor: 'rgba(41,82,255,0.10)', color: '#2952FF', pointerEvents: 'none' }
+            ? { backgroundColor: 'color-mix(in srgb, var(--brand) 14%, transparent)', color: 'var(--brand-deep)' }
+            : { backgroundColor: 'color-mix(in srgb, var(--brand) 14%, transparent)', color: 'var(--brand-deep)', pointerEvents: 'none' }
         }
       >
         Save 20%
@@ -162,14 +162,14 @@ function ToggleSegment({
       aria-selected={active}
       onClick={onClick}
       className={`relative z-10 rounded-full px-5 py-2 text-[14px] font-medium transition-colors duration-200 ${
-        active ? 'text-white' : 'text-stone-700 hover:text-stone-950'
+        active ? 'text-white' : 'text-foreground hover:text-foreground'
       }`}
     >
       {active && (
         <motion.span
           layoutId={layoutId}
           className="absolute inset-0 -z-10 rounded-full"
-          style={{ backgroundColor: '#0E0D0A' }}
+          style={{ backgroundColor: 'var(--foreground)' }}
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         />
       )}
@@ -187,20 +187,20 @@ function PricingCard({ tier, annual }: { tier: Tier; annual: boolean }) {
     <div
       className={`relative flex flex-col rounded-3xl border p-7 ${
         tier.highlight
-          ? 'border-stone-900/12 bg-white shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
-          : 'border-stone-900/8 bg-white/55'
+          ? 'border-brand bg-white shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
+          : 'border-brand-line bg-white/55'
       }`}
     >
       {tier.highlight && (
         <div
           className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[12.5px] font-medium text-white"
-          style={{ backgroundColor: '#2952FF' }}
+          style={{ backgroundColor: 'var(--brand-deep)' }}
         >
           Most popular
         </div>
       )}
 
-      <p className="text-[15px] font-medium text-stone-950">{tier.name}</p>
+      <p className="text-[15px] font-medium text-foreground">{tier.name}</p>
 
       <div className="mt-2 flex items-baseline gap-1.5">
         <motion.span
@@ -208,11 +208,11 @@ function PricingCard({ tier, annual }: { tier: Tier; annual: boolean }) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="text-5xl font-medium tracking-[-0.025em] text-stone-950 tabular-nums"
+          className="text-5xl font-medium tracking-[-0.025em] text-foreground tabular-nums"
         >
           ${displayPrice}
         </motion.span>
-        <span className="text-[15px] text-stone-500">{period}</span>
+        <span className="text-[15px] text-brand-slate">{period}</span>
       </div>
 
       {/* Reserved space — keeps card heights stable across toggle */}
@@ -223,22 +223,22 @@ function PricingCard({ tier, annual }: { tier: Tier; annual: boolean }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25, delay: 0.05 }}
-            className="text-stone-500"
+            className="text-brand-slate"
           >
-            <span className="font-medium text-stone-700 tabular-nums">${tier.annualTotal}</span>{' '}
+            <span className="font-medium text-foreground tabular-nums">${tier.annualTotal}</span>{' '}
             billed annually
           </motion.p>
         ) : null}
       </div>
 
-      <p className="mt-2 text-[13px] font-medium" style={{ color: '#2952FF' }}>
+      <p className="mt-2 text-[13px] font-medium" style={{ color: 'var(--brand-deep)' }}>
         {tier.searches}
       </p>
 
       <ul className="mt-6 space-y-3">
         {tier.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5 text-[15px] leading-snug text-stone-700">
-            <span style={{ color: '#2952FF' }} className="mt-[3px]">
+          <li key={f} className="flex items-start gap-2.5 text-[15px] leading-snug text-foreground">
+            <span style={{ color: 'var(--brand-deep)' }} className="mt-[3px]">
               ✓
             </span>
             {f}

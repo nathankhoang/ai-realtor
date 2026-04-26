@@ -37,24 +37,24 @@ const ROWS = [
 
 export function Comparison() {
   return (
-    <section className="bg-[#F1EEE7] py-28">
+    <section className="bg-surface py-28">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-stone-500">
+          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-brand-slate">
             Before / After
           </p>
-          <h2 className="text-4xl font-medium tracking-[-0.02em] text-stone-950 md:text-5xl">
+          <h2 className="text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
             What changes when AI reads
             <br />
-            <span className="text-stone-400">every photo, every time.</span>
+            <span className="text-brand-slate-light">every photo, every time.</span>
           </h2>
         </div>
 
-        <div className="mt-14 overflow-hidden rounded-3xl border border-stone-900/8 bg-white">
-          <div className="grid grid-cols-[1.2fr_1fr_1fr] bg-stone-50 font-mono text-[12.5px] uppercase tracking-[0.14em] text-stone-500">
+        <div className="mt-14 overflow-hidden rounded-3xl border border-brand-line bg-white">
+          <div className="grid grid-cols-[1.2fr_1fr_1fr] bg-background font-mono text-[12.5px] uppercase tracking-[0.14em] text-brand-slate">
             <div className="p-5">Task</div>
-            <div className="border-l border-stone-900/8 p-5">Without Eifara</div>
-            <div className="border-l border-stone-900/8 p-5" style={{ color: '#2952FF' }}>
+            <div className="border-l border-brand-line p-5">Without Eifara</div>
+            <div className="border-l border-brand-line p-5" style={{ color: 'var(--brand-deep)' }}>
               With Eifara
             </div>
           </div>
@@ -66,18 +66,18 @@ export function Comparison() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-10%' }}
               transition={{ duration: 0.4, delay: i * 0.05 }}
-              className="grid grid-cols-[1.2fr_1fr_1fr] border-t border-stone-900/8 text-[15px]"
+              className="grid grid-cols-[1.2fr_1fr_1fr] border-t border-brand-line text-[15px]"
             >
-              <div className="flex items-center p-5 font-medium text-stone-900">{row.label}</div>
-              <div className="flex items-center gap-2 border-l border-stone-900/8 p-5 text-stone-500">
-                <span className="text-stone-400">✕</span>
+              <div className="flex items-center p-5 font-medium text-foreground">{row.label}</div>
+              <div className="flex items-center gap-2 border-l border-brand-line p-5 text-brand-slate">
+                <span className="text-brand-slate-light">✕</span>
                 {row.before}
               </div>
               <div
-                className="flex items-center gap-2 border-l border-stone-900/8 p-5 text-stone-900"
-                style={{ backgroundColor: 'rgba(41,82,255,0.04)' }}
+                className="flex items-center gap-2 border-l border-brand-line p-5 text-foreground"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--brand) 6%, transparent)' }}
               >
-                <span style={{ color: '#2952FF' }}>✓</span>
+                <span style={{ color: 'var(--brand-deep)' }}>✓</span>
                 {row.after}
               </div>
             </motion.div>

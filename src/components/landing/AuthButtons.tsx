@@ -8,7 +8,7 @@ export function SignInTrigger({ children }: { children: React.ReactNode }) {
   return (
     <button
       onClick={() => openSignIn()}
-      className="rounded-full px-4 py-1.5 text-sm font-medium text-stone-600 transition-colors duration-200 hover:bg-stone-100 hover:text-stone-950"
+      className="rounded-full px-4 py-1.5 text-sm font-medium text-brand-slate transition-colors duration-200 hover:bg-muted hover:text-foreground"
     >
       {children}
     </button>

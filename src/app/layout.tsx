@@ -1,14 +1,13 @@
 import type { Metadata } from 'next'
-import { Inter, Geist_Mono, Instrument_Serif } from 'next/font/google'
+import { Inter, Geist_Mono, Instrument_Serif, Plus_Jakarta_Sans } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Toaster } from '@/components/ui/sonner'
+import EifaraCursor from '@/components/EifaraCursor'
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE, TWITTER_HANDLE } from '@/lib/seo'
 import './globals.css'
 
-// Inter is the workhorse font of modern SaaS — Linear, Notion, Stripe,
-// Cursor, Vercel and most Y Combinator-era startups in 2026. Highly
-// legible at small sizes, full weight range, includes tabular numerals
-// for our score / price displays.
+// Inter remains the body / UI face — full weight range, great at small
+// sizes, tabular numerals for prices and scores.
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
@@ -18,6 +17,16 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+// Plus Jakarta Sans is the new display face — used for headings, eyebrows,
+// score numbers, and other editorial moments. Tighter letterforms than Inter,
+// reads "premium / boutique" rather than "SaaS-default."
+const jakarta = Plus_Jakarta_Sans({
+  variable: '--font-jakarta',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
 })
 
 // Editorial serif used for ONE accent moment per listing (the score
@@ -97,10 +106,11 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${inter.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+        className={`${inter.variable} ${jakarta.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col bg-background text-foreground">
           {children}
+          <EifaraCursor />
           <Toaster />
         </body>
       </html>

@@ -60,7 +60,7 @@ export function PhotoScanDemo() {
           className="absolute left-0 right-0 h-24 pointer-events-none"
           style={{
             background:
-              'linear-gradient(to bottom, transparent, rgba(41,82,255,0.30), transparent)',
+              'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--brand-deep) 30%, transparent), transparent)',
             filter: 'blur(8px)',
           }}
         />
@@ -72,8 +72,8 @@ export function PhotoScanDemo() {
           transition={{ duration: 2.4, ease: [0.4, 0, 0.2, 1] }}
           className="absolute left-0 right-0 h-px"
           style={{
-            backgroundColor: 'rgba(167,184,255,0.85)',
-            boxShadow: '0 0 18px rgba(41,82,255,0.7)',
+            backgroundColor: 'color-mix(in srgb, var(--brand-light) 85%, transparent)',
+            boxShadow: '0 0 18px color-mix(in srgb, var(--brand-deep) 70%, transparent)',
           }}
         />
       )}
@@ -90,20 +90,20 @@ export function PhotoScanDemo() {
         >
           <motion.div
             className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{ backgroundColor: '#2952FF' }}
+            style={{ backgroundColor: 'var(--brand-deep)' }}
             animate={inView ? { scale: [1, 1.6, 1], opacity: [0.95, 0.35, 0.95] } : {}}
             transition={{ duration: 1.8, repeat: Infinity, delay: l.delay }}
           />
           <div
             className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full blur-sm"
-            style={{ backgroundColor: 'rgba(41,82,255,0.35)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--brand-deep) 35%, transparent)' }}
           />
 
           <div
             className="absolute left-3 top-3 whitespace-nowrap rounded-md border bg-stone-950/85 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md"
-            style={{ borderColor: 'rgba(41,82,255,0.45)' }}
+            style={{ borderColor: 'color-mix(in srgb, var(--brand-deep) 45%, transparent)' }}
           >
-            <span style={{ color: '#A7B8FF' }}>✓</span> {l.label}
+            <span style={{ color: 'var(--brand-light)' }}>✓</span> {l.label}
             <span className="ml-1.5 font-mono text-[10px] text-white/55">{l.evidence}</span>
           </div>
         </motion.div>
@@ -119,7 +119,7 @@ export function PhotoScanDemo() {
         <div
           key={c}
           className={`absolute h-4 w-4 ${c}`}
-          style={{ borderColor: 'rgba(167,184,255,0.6)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--brand-light) 60%, transparent)' }}
         />
       ))}
 
@@ -140,9 +140,9 @@ export function PhotoScanDemo() {
           </div>
           <div
             className="rounded-md border px-2 py-1 text-center"
-            style={{ borderColor: 'rgba(41,82,255,0.45)', backgroundColor: 'rgba(41,82,255,0.12)' }}
+            style={{ borderColor: 'color-mix(in srgb, var(--brand-deep) 45%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-deep) 12%, transparent)' }}
           >
-            <span className="text-2xl font-semibold leading-none" style={{ color: '#A7B8FF' }}>
+            <span className="text-2xl font-semibold leading-none" style={{ color: 'var(--brand-light)' }}>
               92
             </span>
             <span className="ml-0.5 text-[10px] text-white/55">/100</span>

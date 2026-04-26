@@ -17,7 +17,7 @@ const ITEMS = [
  */
 export default function TopMarquee() {
   return (
-    <div className="relative overflow-hidden border-b border-stone-900/8 bg-stone-950 py-2 text-[12.5px] font-medium text-white/85">
+    <div className="relative overflow-hidden border-b border-brand-line bg-foreground py-2 text-[12.5px] font-medium text-white/85">
       <motion.div
         className="flex gap-12 whitespace-nowrap"
         animate={{ x: ['0%', '-50%'] }}

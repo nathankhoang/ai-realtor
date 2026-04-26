@@ -19,35 +19,37 @@ type ToneCSS = {
 
 const TONE_VARS: Record<Tone, ToneCSS> = {
   dark: {
-    '--btn-bg': '#0E0D0A',
-    '--btn-fg': '#FAF8F2',
-    '--btn-bg-hover': '#2952FF',
+    '--btn-bg': '#1A2419',
+    '--btn-fg': '#F1F5F0',
+    '--btn-bg-hover': '#4A6249',
     '--btn-fg-hover': '#FFFFFF',
-    '--btn-dot-bg': '#FAF8F2',
-    '--btn-dot-fg': '#0E0D0A',
+    '--btn-dot-bg': '#F1F5F0',
+    '--btn-dot-fg': '#1A2419',
     '--btn-dot-bg-hover': '#FFFFFF',
-    '--btn-dot-fg-hover': '#2952FF',
+    '--btn-dot-fg-hover': '#4A6249',
     '--btn-ring': 'transparent',
   },
   light: {
     '--btn-bg': '#FFFFFF',
-    '--btn-fg': '#0E0D0A',
-    '--btn-bg-hover': '#0E0D0A',
+    '--btn-fg': '#1A2419',
+    '--btn-bg-hover': '#1A2419',
     '--btn-fg-hover': '#FFFFFF',
-    '--btn-dot-bg': '#0E0D0A',
+    '--btn-dot-bg': '#1A2419',
     '--btn-dot-fg': '#FFFFFF',
     '--btn-dot-bg-hover': '#FFFFFF',
-    '--btn-dot-fg-hover': '#0E0D0A',
-    '--btn-ring': 'rgba(15,14,10,0.10)',
+    '--btn-dot-fg-hover': '#1A2419',
+    '--btn-ring': 'rgba(26,36,25,0.10)',
   },
+  // Accent uses the sage gradient — solid-stop fallback ensures the
+  // hover sweep keeps a consistent shape even where gradients flicker.
   accent: {
-    '--btn-bg': '#2952FF',
+    '--btn-bg': '#7A9479',
     '--btn-fg': '#FFFFFF',
-    '--btn-bg-hover': '#0E0D0A',
+    '--btn-bg-hover': '#4A6249',
     '--btn-fg-hover': '#FFFFFF',
     '--btn-dot-bg': '#FFFFFF',
-    '--btn-dot-fg': '#2952FF',
-    '--btn-dot-bg-hover': '#2952FF',
+    '--btn-dot-fg': '#4A6249',
+    '--btn-dot-bg-hover': '#94AB93',
     '--btn-dot-fg-hover': '#FFFFFF',
     '--btn-ring': 'transparent',
   },
@@ -139,12 +141,12 @@ export function SecondaryButton({
   href?: string
   className?: string
 }) {
-  const cls = `group/sec inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium text-stone-700 transition-colors duration-300 hover:text-stone-950 ${className}`
+  const cls = `group/sec inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium text-foreground transition-colors duration-300 hover:text-brand-deep ${className}`
   const inner = (
     <>
       <span className="relative">
         {children}
-        <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-stone-950 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/sec:scale-x-100" />
+        <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-brand-gradient transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/sec:scale-x-100" />
       </span>
       <Arrow className="h-3.5 w-3.5 transition-transform duration-300 group-hover/sec:translate-x-1" />
     </>

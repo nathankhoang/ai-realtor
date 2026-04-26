@@ -48,15 +48,15 @@ const FEATURES = [
 
 export function FeatureMarquee() {
   return (
-    <section className="relative overflow-hidden border-y border-stone-200 bg-[#FAFAF6] py-10">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 bg-gradient-to-r from-[#FAFAF6] to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 bg-gradient-to-l from-[#FAFAF6] to-transparent" />
+    <section className="relative overflow-hidden border-y border-brand-line bg-surface py-10">
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 bg-gradient-to-r from-[var(--surface)] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 bg-gradient-to-l from-[var(--surface)] to-transparent" />
 
       <div className="mb-4 flex items-center justify-center gap-3">
-        <span className="text-xs font-mono uppercase tracking-[0.18em] text-stone-500">
+        <span className="text-xs font-mono uppercase tracking-[0.18em] text-brand-slate">
           Detects 40+ features per listing
         </span>
-        <span className="h-px w-8 bg-stone-300" />
+        <span className="h-px w-8 bg-brand-line" />
       </div>
 
       <Row direction="left" />
