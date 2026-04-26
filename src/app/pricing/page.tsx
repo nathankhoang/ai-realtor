@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
@@ -7,6 +8,19 @@ import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Tier } from '@/types'
 import PricingCards, { type PlanConfig } from './PricingCards'
+
+export const metadata: Metadata = {
+  title: 'Pricing — Free, Starter, and Pro plans',
+  description:
+    'Eifara pricing for real estate agents. Free with 3 searches/month, Starter at $50/mo for 20 searches, Pro at $150/mo unlimited. No credit card required to start.',
+  alternates: { canonical: '/pricing' },
+  openGraph: {
+    title: 'Eifara Pricing — Free, Starter, Pro',
+    description:
+      'Three plans: Free (3 searches/mo), Starter ($50/mo, 20 searches), Pro ($150/mo unlimited). No card to start.',
+    url: '/pricing',
+  },
+}
 
 const plans: PlanConfig[] = [
   {

@@ -12,6 +12,8 @@ import { SignInTrigger, SignUpTrigger } from '@/components/landing/AuthButtons'
 import HeroSection from '@/components/landing/HeroSection'
 import TopMarquee from '@/components/landing/TopMarquee'
 import SectionCTA from '@/components/landing/SectionCTA'
+import StructuredData from '@/components/StructuredData'
+import { organizationJsonLd, softwareApplicationJsonLd, faqPageJsonLd } from '@/lib/seo'
 
 export default async function Home() {
   const { userId } = await auth()
@@ -19,6 +21,9 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950 [font-feature-settings:'ss01','cv11']">
+      <StructuredData data={organizationJsonLd()} />
+      <StructuredData data={softwareApplicationJsonLd()} />
+      <StructuredData data={faqPageJsonLd()} />
       <TopMarquee />
       <Header />
       <HeroSection />

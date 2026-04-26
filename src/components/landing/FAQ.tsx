@@ -2,33 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
-
-const ITEMS = [
-  {
-    q: 'Where does the listing data come from?',
-    a: 'Eifara queries live Zillow data via a real-time API. You get the same listings your client would see browsing Zillow themselves — including price, beds, baths, sqft, photos, and renovation history.',
-  },
-  {
-    q: 'How does the AI photo analysis actually work?',
-    a: 'Eifara passes every listing photo to a vision AI model that\'s tuned to spot materials (hardwood, quartz, tile), conditions (updated vs dated), and layout features. For each finding it returns a specific citation — "photo 2: quartz countertops" — instead of a vague vibe score.',
-  },
-  {
-    q: 'How accurate is the matching?',
-    a: 'Eifara pre-screens on hard filters first (price, beds, baths, location), then runs vision AI on every photo of qualifying listings. Only matches scoring 55%+ make the shortlist. Every score comes with line-item evidence — open any listing to see exactly which features were detected and in which photos.',
-  },
-  {
-    q: 'Can I save listings and share them with clients?',
-    a: 'Yes. Save listings to a client profile, add private notes, and generate a clean shareable report link your client can review on their phone — no Eifara account needed on their side.',
-  },
-  {
-    q: 'Is there a free tier?',
-    a: 'Yes — 3 free searches per month, no credit card. Starter ($50/mo) gets you 20 searches plus shareable reports. Pro ($150/mo) is unlimited.',
-  },
-  {
-    q: 'What about brokerage / team accounts?',
-    a: 'Multi-agent team plans are on the roadmap — one billing relationship, multiple agent logins, shared client profiles. Sign up for any plan now and we\'ll email you when team accounts go live.',
-  },
-]
+import { FAQ_ITEMS as ITEMS } from '@/lib/seo'
 
 export function FAQ() {
   const [open, setOpen] = useState<number | null>(0)
