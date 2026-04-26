@@ -1,7 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { PhotoScanDemo } from '@/components/landing/PhotoScanDemo'
 import { StatCounter } from '@/components/landing/StatCounter'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { BentoGrid } from '@/components/landing/BentoGrid'
@@ -10,7 +9,9 @@ import { Manifesto } from '@/components/landing/Testimonial'
 import { FAQ } from '@/components/landing/FAQ'
 import { PricingTeaser } from '@/components/landing/PricingTeaser'
 import { SignInTrigger, SignUpTrigger } from '@/components/landing/AuthButtons'
-import { SecondaryButton } from '@/components/landing/PrimaryButton'
+import HeroSection from '@/components/landing/HeroSection'
+import TopMarquee from '@/components/landing/TopMarquee'
+import SectionCTA from '@/components/landing/SectionCTA'
 
 export default async function Home() {
   const { userId } = await auth()
@@ -18,15 +19,71 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950 [font-feature-settings:'ss01','cv11']">
+      <TopMarquee />
       <Header />
-      <Hero />
+      <HeroSection />
       <Stats />
+
+      {/* CTA after the stat strip */}
+      <SectionCTA
+        variant="minimal"
+        headline="Three free searches. No credit card needed —"
+        ctaLabel="Start free"
+      />
+
       <ProblemStrip />
+
+      {/* CTA after the problem agitation */}
+      <SectionCTA
+        variant="inline"
+        headline="Skip the Saturday-morning Zillow rabbit hole."
+        sub="Your first three searches are free. Five minutes from sign-up to a ranked shortlist."
+        ctaLabel="Try it on a real client"
+        secondary={{ label: 'See the flow', href: '#how' }}
+      />
+
       <HowItWorks />
+
+      {/* CTA after the how-it-works walkthrough */}
+      <SectionCTA
+        variant="inline"
+        headline="See it on your next client search."
+        sub="No card, no commitment — pull a real shortlist in under five minutes."
+        ctaLabel="Run my first search"
+        secondary={{ label: 'Browse features', href: '#features' }}
+      />
+
       <BentoGrid />
+
+      {/* CTA after the bento feature grid */}
+      <SectionCTA
+        variant="inline"
+        headline="Stop guessing what's behind the listing description."
+        sub="Eifara reads every photo and shows the evidence. Three free searches to prove it."
+        ctaLabel="Start free"
+      />
+
       <Comparison />
+
+      {/* CTA after the comparison table — full attention-block treatment */}
+      <SectionCTA
+        variant="full"
+        headline="Hours of photo-scrolling, in five minutes."
+        sub="Three free searches, no credit card. Cancel anytime."
+        ctaLabel="Start free"
+        secondary={{ label: 'See pricing', href: '/pricing' }}
+      />
+
       <Manifesto />
       <PricingTeaser />
+
+      {/* CTA after pricing — minimal, lets the FAQ flow next */}
+      <SectionCTA
+        variant="minimal"
+        headline="Still unsure? Three searches are on us —"
+        ctaLabel="Try free"
+      />
+
       <FAQ />
       <FinalCTA />
       <Footer />
@@ -84,84 +141,6 @@ function Logo() {
         <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />
       </svg>
     </span>
-  )
-}
-
-/* ─────────────────────────────  HERO  ───────────────────────────── */
-
-function Hero() {
-  return (
-    <section className="relative overflow-hidden bg-[#F1EEE7]">
-      {/* Subtle grain texture across the whole hero */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.045] mix-blend-multiply pointer-events-none"
-        style={{
-          backgroundImage:
-            'url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22><filter id=%22n%22><feTurbulence baseFrequency=%220.85%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>")',
-        }}
-      />
-
-      <div className="relative mx-auto max-w-6xl px-6 pb-24 pt-20 md:pb-32 md:pt-28">
-        <div className="grid items-center gap-14 md:grid-cols-[1.15fr_1fr] md:gap-20">
-          <div>
-            {/* eyebrow */}
-            <div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-stone-900/8 bg-white/70 px-3.5 py-1.5 text-[13px] text-stone-700 backdrop-blur-sm">
-              <span className="relative flex h-1.5 w-1.5">
-                <span
-                  className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70"
-                  style={{ backgroundColor: '#2952FF' }}
-                />
-                <span
-                  className="relative inline-flex h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: '#2952FF' }}
-                />
-              </span>
-              <span className="font-medium">AI photo analysis for real-estate agents</span>
-            </div>
-
-            <h1 className="text-[clamp(2.6rem,6.5vw,5.4rem)] font-medium leading-[0.98] tracking-[-0.035em] text-stone-950">
-              See every home
-              <br />
-              through your
-              <br />
-              <span className="text-stone-400">client&rsquo;s eyes.</span>
-            </h1>
-
-            <p className="mt-7 max-w-lg text-[17px] leading-[1.6] text-stone-600">
-              Describe what your client wants in plain English. Eifara reads every Zillow listing
-              photo with AI, scores each home against the wishlist, and shows you the evidence —
-              like{' '}
-              <span className="text-stone-900">"quartz countertops · photo 2."</span>
-            </p>
-
-            <div className="mt-10 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <SignUpTrigger size="lg" tone="dark">
-                Start free
-              </SignUpTrigger>
-              <SecondaryButton href="#how">See how it works</SecondaryButton>
-            </div>
-
-            <p className="mt-6 text-[13px] text-stone-500">
-              3 free searches · No credit card · Cancel anytime
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* soft halo behind demo */}
-            <div
-              aria-hidden
-              className="absolute -inset-6 -z-10 rounded-[2rem] blur-2xl"
-              style={{
-                backgroundImage:
-                  'radial-gradient(60% 60% at 60% 40%, rgba(41,82,255,0.10), transparent 70%)',
-              }}
-            />
-            <PhotoScanDemo />
-          </div>
-        </div>
-      </div>
-    </section>
   )
 }
 
