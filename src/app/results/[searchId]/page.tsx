@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings } from '@/lib/db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
-import type { ListingFeatures } from '@/types'
+import type { ListingFeatures, RequirementsChecklist } from '@/types'
 import NextBatchButton from './NextBatchButton'
 import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
@@ -80,6 +80,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
     photos: (row.listing.photoUrls ?? []) as string[],
     explanation: row.result.matchExplanation ?? '',
     features: row.analysis?.featuresJson as ListingFeatures | null,
+    checklist: (row.result.requirementsChecklist ?? null) as RequirementsChecklist | null,
     zillowId: row.listing.zillowId,
     savedClientIds: savedByListing.get(row.listing.id) ?? [],
   }))

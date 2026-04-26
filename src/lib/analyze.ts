@@ -1,5 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { ListingFeatures, ParsedRequirements } from '@/types'
+import type {
+  ListingFeatures,
+  ParsedRequirements,
+  RequirementsChecklist,
+  RequirementEvaluation,
+} from '@/types'
 import type { ListingContext } from '@/lib/zillow'
 
 const client = new Anthropic()
@@ -198,7 +203,12 @@ export async function scoreListingAgainstRequirements(
   features: ListingFeatures,
   listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null },
   listingContext?: ListingContext,
-): Promise<{ score: number; explanation: string; tokensUsed: number }> {
+): Promise<{
+  score: number
+  explanation: string
+  checklist: RequirementsChecklist
+  tokensUsed: number
+}> {
   const contextLines: string[] = []
   if (listingContext?.description) {
     contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
@@ -257,27 +267,72 @@ Home at ${listing.address}:
 ${contextSection}
 Write a 2-sentence explanation. Sentence 1: state the score rationale and which key requirements are met or missing. Sentence 2: cite renovation dates if any (e.g. "Kitchen remodeled 2022 per listing") and the source for each claim ("per listing description", "per MLS data", or "photo [N]").
 
+ALSO produce a per-requirement evaluation. For EACH item in the requirements lists above (required + niceToHave + dealBreakers), output one entry. For each:
+- requirement: the original phrase, verbatim
+- category: "required" | "niceToHave" | "dealBreaker"
+- verdict: "matched" | "missed" | "unclear"
+  - matched: the listing clearly satisfies it (note: "no HOA" + listing has no HOA = matched; for dealBreakers, "matched" means the dealbreaker is ABSENT, i.e. good)
+  - missed: the listing clearly does NOT satisfy it
+  - unclear: not enough info to tell (default to this when in doubt; do NOT mark missed for things you can't verify)
+- evidence: ONE sentence citing the source. Examples: "Photo 2 shows quartz countertops, not granite" / "MLS lists HOA fee of $120/month" / "Listing description mentions hardwood throughout"
+- source: "photo" | "mls" | "description" | "none"
+- photoIndex: integer 0-based when source="photo", else null
+
 Respond ONLY with valid JSON:
-{"score": 0.85, "explanation": "..."}`
+{
+  "score": 0.85,
+  "explanation": "...",
+  "evaluations": [
+    {"requirement": "granite countertops", "category": "required", "verdict": "missed", "evidence": "Photo 2 shows quartz, not granite", "source": "photo", "photoIndex": 1},
+    ...
+  ]
+}`
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 256,
+    max_tokens: 1500, // bumped from 256 to fit the per-requirement evaluations
     messages: [{ role: 'user', content: prompt }],
-  }, { timeout: 12_000, maxRetries: 1 })
+  }, { timeout: 18_000, maxRetries: 1 })
 
   const tokensUsed = tokenCount(response.usage)
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const result = JSON.parse(cleaned) as { score: number; explanation: string }
+    const parsed = JSON.parse(cleaned) as {
+      score: number
+      explanation: string
+      evaluations?: RequirementEvaluation[]
+    }
+
+    const evaluations: RequirementEvaluation[] = (parsed.evaluations ?? []).map(e => ({
+      requirement: String(e.requirement ?? ''),
+      category: e.category === 'niceToHave' || e.category === 'dealBreaker' ? e.category : 'required',
+      verdict: ['matched', 'missed', 'unclear'].includes(e.verdict) ? e.verdict : 'unclear',
+      evidence: String(e.evidence ?? ''),
+      source: ['photo', 'mls', 'description', 'none'].includes(e.source) ? e.source : 'none',
+      photoIndex: typeof e.photoIndex === 'number' ? e.photoIndex : null,
+    }))
+
+    const summary = {
+      matched: evaluations.filter(e => e.verdict === 'matched').length,
+      missed: evaluations.filter(e => e.verdict === 'missed').length,
+      unclear: evaluations.filter(e => e.verdict === 'unclear').length,
+      total: evaluations.length,
+    }
+
     return {
-      score: Math.max(0, Math.min(1, result.score)),
-      explanation: result.explanation,
+      score: Math.max(0, Math.min(1, parsed.score)),
+      explanation: parsed.explanation,
+      checklist: { evaluations, summary },
       tokensUsed,
     }
   } catch {
-    return { score: 0.5, explanation: 'Unable to score this listing.', tokensUsed }
+    return {
+      score: 0.5,
+      explanation: 'Unable to score this listing.',
+      checklist: { evaluations: [], summary: { matched: 0, missed: 0, unclear: 0, total: 0 } },
+      tokensUsed,
+    }
   }
 }
 

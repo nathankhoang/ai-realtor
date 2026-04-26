@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean, index } from 'drizzle-orm/pg-core'
-import type { ParsedRequirements, ListingFeatures } from '@/types'
+import type { ParsedRequirements, ListingFeatures, RequirementsChecklist } from '@/types'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -91,6 +91,9 @@ export const searchResults = pgTable('search_results', {
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
   matchScore: real('match_score').notNull(),
   matchExplanation: text('match_explanation'),
+  /** Per-requirement evaluations: matched/missed/unclear with evidence per
+   * item. Populated by the worker; null for legacy rows. */
+  requirementsChecklist: jsonb('requirements_checklist').$type<RequirementsChecklist>(),
   batchNumber: integer('batch_number').notNull().default(1),
   isSaved: integer('is_saved').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),

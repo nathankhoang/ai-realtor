@@ -33,6 +33,35 @@ export interface ParsedRequirements {
   dealBreakers: string[]
 }
 
+export type RequirementVerdict = 'matched' | 'missed' | 'unclear'
+export type EvidenceSource = 'photo' | 'mls' | 'description' | 'none'
+
+export interface RequirementEvaluation {
+  /** The original requirement phrase, e.g. "granite countertops" */
+  requirement: string
+  /** Whether this is a hard requirement, nice-to-have, or deal-breaker */
+  category: 'required' | 'niceToHave' | 'dealBreaker'
+  /** Did the listing satisfy this requirement? */
+  verdict: RequirementVerdict
+  /** One-sentence evidence ("photo 2 shows quartz countertops") */
+  evidence: string
+  /** Where the evidence came from (photo / MLS data / listing description) */
+  source: EvidenceSource
+  /** Photo index when source === 'photo', else null */
+  photoIndex: number | null
+}
+
+export interface RequirementsChecklist {
+  evaluations: RequirementEvaluation[]
+  /** Quick counts for at-a-glance display */
+  summary: {
+    matched: number
+    missed: number
+    unclear: number
+    total: number
+  }
+}
+
 export interface SearchResultWithDetails {
   id: string
   matchScore: number

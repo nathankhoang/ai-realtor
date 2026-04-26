@@ -3,8 +3,10 @@
 import { motion, AnimatePresence } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { ListingFeatures, FeatureEvidence } from '@/types'
+import type { ListingFeatures, RequirementsChecklist as Checklist } from '@/types'
 import SaveButton from './SaveButton'
+import RequirementsChecklist from './RequirementsChecklist'
+import FeatureEvidenceList, { collectFeatureEvidence } from './FeatureEvidenceList'
 
 interface ListingRow {
   resultId: string
@@ -21,6 +23,7 @@ interface ListingRow {
   photos: string[]
   explanation: string
   features: ListingFeatures | null
+  checklist: Checklist | null
   zillowId: string
   savedClientIds: string[]
 }
@@ -147,7 +150,7 @@ function FocusCard({ listing }: { listing: ListingRow }) {
       : 'bg-muted text-foreground'
 
   const photos = listing.photos
-  const evidence = listing.features ? collectEvidence(listing.features) : []
+  const evidence = listing.features ? collectFeatureEvidence(listing.features) : []
 
   return (
     <div className="rounded-3xl border border-border bg-card overflow-hidden">
@@ -274,25 +277,37 @@ function FocusCard({ listing }: { listing: ListingRow }) {
           )}
         </div>
 
-        {/* Match explanation */}
+        {/* Match explanation — readable sans-serif with primary-tinted left rule */}
         {listing.explanation && (
-          <div className="rounded-2xl bg-primary/[0.06] border border-primary/15 px-5 py-4">
-            <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-primary mb-2">Why it matched</p>
-            <p className="text-[15px] leading-[1.65] text-foreground/90">{listing.explanation}</p>
-          </div>
+          <figure className="relative pl-4 -ml-4 border-l-2 border-primary/40">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-2">
+              Why it matched
+            </p>
+            <p className="text-[16px] leading-[1.65] text-foreground/90">
+              {listing.explanation}
+            </p>
+          </figure>
         )}
 
-        {/* Evidence — always expanded in focus mode */}
-        {evidence.length > 0 && (
+        {/* Requirements checklist */}
+        {listing.checklist && listing.checklist.evaluations.length > 0 && (
+          <RequirementsChecklist
+            checklist={listing.checklist}
+            onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, listing.photos.length - 1))}
+          />
+        )}
+
+        {/* Evidence — always expanded in focus mode, with photo thumbnails */}
+        {evidence.length > 0 && listing.features && (
           <div>
-            <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground mb-2.5">
-              Photo-level evidence ({evidence.length})
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-3">
+              Other features detected ({evidence.length})
             </p>
-            <div className="grid gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
-              {evidence.map(item => (
-                <EvidenceRow key={item.label} item={item} onJumpToPhoto={(i) => setPhotoIdx(i)} />
-              ))}
-            </div>
+            <FeatureEvidenceList
+              features={listing.features}
+              photos={listing.photos}
+              onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, listing.photos.length - 1))}
+            />
           </div>
         )}
 
@@ -327,72 +342,6 @@ function Kbd({ children }: { children: React.ReactNode }) {
   )
 }
 
-/* ─────────────────────  EVIDENCE  ───────────────────── */
-
-type AnyEvidence = FeatureEvidence & { type?: string; height?: string }
-type EvidenceItem = { label: string; ev: AnyEvidence }
-
-const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
-  { label: 'Floors', key: 'floors' },
-  { label: 'Countertops', key: 'kitchenCountertops' },
-  { label: 'Appliances', key: 'kitchenAppliances' },
-  { label: 'Cabinets', key: 'kitchenCabinets' },
-  { label: 'Bathrooms', key: 'bathrooms' },
-  { label: 'Ceilings', key: 'ceilings' },
-  { label: 'Windows', key: 'windows' },
-  { label: 'Natural light', key: 'naturalLight' },
-]
-
-function collectEvidence(features: ListingFeatures): EvidenceItem[] {
-  return FEATURE_ROWS
-    .map(({ label, key }) => ({ label, ev: features[key] as AnyEvidence | undefined }))
-    .filter((r): r is EvidenceItem => !!r.ev?.condition && r.ev.condition !== 'unknown')
-}
-
-function EvidenceRow({
-  item,
-  onJumpToPhoto,
-}: {
-  item: EvidenceItem
-  onJumpToPhoto: (i: number) => void
-}) {
-  const { label, ev } = item
-  const icon = ev.condition === 'updated' ? '✓' : ev.condition === 'poor' ? '✗' : '·'
-  const iconColor =
-    ev.condition === 'updated'
-      ? 'text-primary'
-      : ev.condition === 'poor'
-        ? 'text-foreground/40'
-        : 'text-muted-foreground'
-  const qualifier = ev.type || ev.height
-  const photoRef = ev.photoIndex != null ? `photo ${ev.photoIndex + 1}` : null
-
-  return (
-    <div className="bg-background px-3 py-2.5">
-      <div className="flex items-baseline gap-2 text-[13px]">
-        <span className={`font-bold leading-none ${iconColor}`}>{icon}</span>
-        <span className="w-20 shrink-0 text-muted-foreground">{label}</span>
-        <span className="font-medium capitalize text-foreground/90 truncate">
-          {qualifier ?? ev.condition}
-        </span>
-        {photoRef && ev.photoIndex != null && (
-          <button
-            onClick={() => onJumpToPhoto(ev.photoIndex!)}
-            className="ml-auto shrink-0 font-mono font-medium text-primary/85 hover:text-primary text-[12.5px] hover:underline underline-offset-2"
-          >
-            {photoRef}
-          </button>
-        )}
-      </div>
-      {ev.detail && (
-        <p className="mt-1 pl-5 text-[12.5px] text-muted-foreground line-clamp-2 leading-relaxed">
-          <WithYears text={ev.detail} />
-        </p>
-      )}
-    </div>
-  )
-}
-
 function WithYears({ text }: { text: string }) {
   const parts = text.split(/(\b(?:19|20)\d{2}\b)/)
   return (
@@ -400,7 +349,7 @@ function WithYears({ text }: { text: string }) {
       {parts.map((part, i) =>
         /^\d{4}$/.test(part)
           ? <span key={i} className="text-primary font-semibold">{part}</span>
-          : part
+          : part,
       )}
     </>
   )

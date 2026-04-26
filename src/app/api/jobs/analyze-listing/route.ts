@@ -180,8 +180,10 @@ async function processJob({
     }
   }
 
-  // Score the listing against requirements
-  const { score, explanation, tokensUsed: scoreTokens } = await scoreListingAgainstRequirements(
+  // Score the listing against requirements — also returns per-requirement
+  // checklist (used by the "what matched / what didn't" UI) and tokensUsed
+  // (for our cost metrics).
+  const { score, explanation, checklist, tokensUsed: scoreTokens } = await scoreListingAgainstRequirements(
     parsedRequirements,
     features,
     { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
@@ -198,6 +200,7 @@ async function processJob({
     listingId,
     matchScore: score,
     matchExplanation: explanation,
+    requirementsChecklist: checklist,
     batchNumber,
   }).onConflictDoNothing({ target: [searchResults.searchId, searchResults.listingId] }).returning()
 
