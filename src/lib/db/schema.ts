@@ -110,6 +110,27 @@ export const clients = pgTable('clients', {
   index('idx_clients_user_id').on(t.userId),
 ])
 
+/**
+ * Per-listing analysis failure tracking. One row per (searchId, listingId)
+ * pair — when a worker fails, it upserts a row here. When the same listing
+ * later succeeds (e.g. a manual retry works), the row is deleted.
+ *
+ * The UI shows a banner on the results page when any rows exist for a
+ * search, with a "retry failed" button.
+ */
+export const searchFailures = pgTable('search_failures', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  searchId: uuid('search_id').references(() => searches.id).notNull(),
+  listingId: uuid('listing_id').references(() => listings.id).notNull(),
+  errorMessage: text('error_message'),
+  errorType: text('error_type'),  // 'vision' | 'scoring' | 'detail' | 'unknown'
+  attemptCount: integer('attempt_count').notNull().default(1),
+  occurredAt: timestamp('occurred_at').notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.searchId, t.listingId),
+  index('idx_search_failures_search_id').on(t.searchId),
+])
+
 export const savedListings = pgTable('saved_listings', {
   id: uuid('id').primaryKey().defaultRandom(),
   clientId: uuid('client_id').references(() => clients.id).notNull(),
@@ -130,3 +151,4 @@ export type ListingAnalysis = typeof listingAnalyses.$inferSelect
 export type SearchResult = typeof searchResults.$inferSelect
 export type Client = typeof clients.$inferSelect
 export type SavedListing = typeof savedListings.$inferSelect
+export type SearchFailure = typeof searchFailures.$inferSelect

@@ -12,6 +12,7 @@ import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
 import RefreshButton from './RefreshButton'
 import CancelButton from './CancelButton'
+import FailedListingsBanner from './FailedListingsBanner'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -133,6 +134,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
           </div>
         </div>
+
+        {/* Failed listings banner — polls /status, auto-hides at 0 */}
+        <FailedListingsBanner searchId={searchId} />
 
         {/* Cancelled state banner */}
         {search.status === 'cancelled' && (

@@ -3,7 +3,7 @@ export const maxDuration = 30
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
-import { searches, listings, listingAnalyses, searchResults } from '@/lib/db/schema'
+import { searches, listings, listingAnalyses, searchResults, searchFailures } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { getListingDetails, type ListingContext } from '@/lib/zillow'
 import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
@@ -36,9 +36,52 @@ async function handler(req: Request) {
     return NextResponse.json({ error: 'searchId and listingId are required' }, { status: 400 })
   }
 
-  // Tag every Sentry event from this invocation with the job context.
   Sentry.setTag('searchId', searchId)
   Sentry.setTag('listingId', listingId)
+
+  // Wrap the analysis body so any thrown error (vision / scoring / DB)
+  // upserts a search_failures row. The worker still re-throws so QStash
+  // applies its own retry policy on top.
+  try {
+    return await processJob({ searchId, listingId, batchNumber })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const type = classifyError(msg)
+    await db
+      .insert(searchFailures)
+      .values({ searchId, listingId, errorMessage: msg.slice(0, 500), errorType: type })
+      .onConflictDoUpdate({
+        target: [searchFailures.searchId, searchFailures.listingId],
+        set: {
+          errorMessage: msg.slice(0, 500),
+          errorType: type,
+          attemptCount: sql`${searchFailures.attemptCount} + 1`,
+          occurredAt: new Date(),
+        },
+      })
+      .catch(dbErr => console.error('[worker] failed to record failure:', dbErr))
+    throw err
+  }
+}
+
+function classifyError(msg: string): string {
+  const lower = msg.toLowerCase()
+  if (lower.includes('zillow') || lower.includes('detail')) return 'detail'
+  if (lower.includes('vision') || lower.includes('analyzeListingPhotos')) return 'vision'
+  if (lower.includes('score')) return 'scoring'
+  if (lower.includes('timeout')) return 'timeout'
+  return 'unknown'
+}
+
+async function processJob({
+  searchId,
+  listingId,
+  batchNumber,
+}: {
+  searchId: string
+  listingId: string
+  batchNumber: number
+}) {
 
   // Idempotency: skip if already processed for this search
   const existing = await db.query.searchResults.findFirst({
@@ -147,6 +190,15 @@ async function handler(req: Request) {
     // Conflict: another worker beat us to it. Don't double-count.
     return NextResponse.json({ skipped: true, reason: 'race_condition' })
   }
+
+  // Success — clear any prior failure row for this (searchId, listingId)
+  // so the UI banner stops showing it. Best-effort, don't fail on it.
+  await db.delete(searchFailures)
+    .where(and(
+      eq(searchFailures.searchId, searchId),
+      eq(searchFailures.listingId, listingId),
+    ))
+    .catch(err => console.error('[worker] failed to clear prior failure:', err))
 
   // Atomically increment analyzedCount + tokens_used on the search row.
   // visionModel is only set on the first job that runs vision (subsequent

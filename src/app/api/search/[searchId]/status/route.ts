@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches, searchResults } from '@/lib/db/schema'
+import { users, searches, searchResults, searchFailures } from '@/lib/db/schema'
 import { eq, and, count } from 'drizzle-orm'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ searchId: string }> }) {
@@ -22,10 +22,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ searchI
     .from(searchResults)
     .where(eq(searchResults.searchId, searchId))
 
+  const [{ failedCount }] = await db
+    .select({ failedCount: count() })
+    .from(searchFailures)
+    .where(eq(searchFailures.searchId, searchId))
+
   return NextResponse.json({
     analyzedCount: search.analyzedCount ?? 0,
     totalCandidates: search.totalCandidates ?? 0,
     resultCount: Number(resultCount),
+    failedCount: Number(failedCount),
     status: search.status,
     errorMessage: search.errorMessage,
     cancelledAt: search.cancelledAt,
