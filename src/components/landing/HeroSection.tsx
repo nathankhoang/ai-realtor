@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useMotionValue, useSpring } from 'motion/react'
+import { motion, useMotionValue, useReducedMotion, useSpring } from 'motion/react'
 import { useRef, useState } from 'react'
 import { PhotoScanDemo } from './PhotoScanDemo'
 import { SignUpTrigger } from './AuthButtons'
@@ -17,6 +17,10 @@ const HEAD_LINE_2 = ['through', 'your']
 export default function HeroSection() {
   const photoZoneRef = useRef<HTMLDivElement>(null)
   const [hoveringPhoto, setHoveringPhoto] = useState(false)
+  // When the visitor (or crawler emulating one) prefers reduced motion,
+  // skip the slide-up reveal entirely so the h1 text is rendered fully
+  // visible from the first paint — better for accessibility and SEO.
+  const prefersReducedMotion = useReducedMotion()
 
   // Spring-tracked cursor position so the magnifier glides instead of snapping.
   const cursorX = useMotionValue(0)
@@ -63,11 +67,25 @@ export default function HeroSection() {
         <div className="grid items-end gap-12 lg:grid-cols-[1.25fr_1fr] lg:gap-16">
           <div>
             <h1 className="font-medium leading-[0.92] tracking-[-0.04em] text-stone-950 text-[clamp(3rem,8.2vw,7.5rem)]">
-              <RevealLine words={HEAD_LINE_1} delay={0.05} />
-              <RevealLine words={HEAD_LINE_2} delay={0.18} />
-              <span className="block">
-                <RevealLine words={['through']} delay={0.18} hidden />
-                <ClientWord />
+              {/* Always-visible accessible copy of the headline so screen
+                  readers and crawlers see one clean string regardless of
+                  whether the motion reveal runs. */}
+              <span className="sr-only">See every home through your client&rsquo;s eyes.</span>
+              <span aria-hidden>
+                <RevealLine
+                  words={HEAD_LINE_1}
+                  delay={0.05}
+                  reduced={prefersReducedMotion ?? false}
+                />
+                <RevealLine
+                  words={HEAD_LINE_2}
+                  delay={0.18}
+                  reduced={prefersReducedMotion ?? false}
+                />
+                <span className="block">
+                  <RevealLine words={['through']} delay={0.18} hidden />
+                  <ClientWord reduced={prefersReducedMotion ?? false} />
+                </span>
               </span>
             </h1>
 
@@ -141,10 +159,12 @@ function RevealLine({
   words,
   delay = 0,
   hidden = false,
+  reduced = false,
 }: {
   words: string[]
   delay?: number
   hidden?: boolean
+  reduced?: boolean
 }) {
   if (hidden) return null
   // pb-[0.18em] keeps descenders (y, g, p) visible despite the tight
@@ -156,11 +176,11 @@ function RevealLine({
       {words.map((w, i) => (
         <motion.span
           key={`${w}-${i}`}
-          initial={{ y: '100%', opacity: 0 }}
+          initial={reduced ? { y: '0%', opacity: 1 } : { y: '100%', opacity: 0 }}
           animate={{ y: '0%', opacity: 1 }}
           transition={{
-            duration: 0.7,
-            delay: delay + i * 0.06,
+            duration: reduced ? 0 : 0.7,
+            delay: reduced ? 0 : delay + i * 0.06,
             ease: [0.16, 1, 0.3, 1],
           }}
           className="mr-[0.18em] inline-block"
@@ -172,12 +192,12 @@ function RevealLine({
   )
 }
 
-function ClientWord() {
+function ClientWord({ reduced = false }: { reduced?: boolean }) {
   return (
     <motion.span
-      initial={{ y: '100%', opacity: 0 }}
+      initial={reduced ? { y: '0%', opacity: 1 } : { y: '100%', opacity: 0 }}
       animate={{ y: '0%', opacity: 1 }}
-      transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: reduced ? 0 : 0.8, delay: reduced ? 0 : 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="inline-block font-[family-name:var(--font-instrument-serif)] italic font-normal text-stone-400"
     >
       &nbsp;client&rsquo;s eyes.

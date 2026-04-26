@@ -19,6 +19,10 @@ export interface BlogPostMeta {
   author?: string
   /** OG image path; defaults to a per-post route */
   ogImage?: string
+  /** Total word count of the markdown body — used in BlogPosting JSON-LD */
+  wordCount: number
+  /** ISO timestamp of the source file's last write — feeds sitemap freshness */
+  lastModified: string
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -41,9 +45,12 @@ function computeReadingTime(content: string): string {
 
 function parseFile(filename: string): BlogPost {
   const slug = filename.replace(/\.(md|mdx)$/, '')
-  const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf-8')
+  const filePath = path.join(BLOG_DIR, filename)
+  const raw = fs.readFileSync(filePath, 'utf-8')
   const { data, content } = matter(raw)
   const html = marked.parse(content, { gfm: true, breaks: false }) as string
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length
+  const lastModified = fs.statSync(filePath).mtime.toISOString()
 
   return {
     slug,
@@ -54,6 +61,8 @@ function parseFile(filename: string): BlogPost {
     category: data.category ? String(data.category) : undefined,
     author: data.author ? String(data.author) : 'Eifara',
     ogImage: data.ogImage ? String(data.ogImage) : undefined,
+    wordCount,
+    lastModified,
     content,
     html,
   }
@@ -76,4 +85,43 @@ export function getPost(slug: string): BlogPost | null {
 
 export function getAllSlugs(): string[] {
   return listFiles().map(f => f.replace(/\.(md|mdx)$/, ''))
+}
+
+/** URL-safe slug derived from a category label ("Tips & tricks" → "tips-tricks"). */
+export function categorySlug(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/&/g, ' ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Distinct categories across all posts, with slug + count, sorted by count desc. */
+export function getAllCategories(): { label: string; slug: string; count: number }[] {
+  const map = new Map<string, number>()
+  for (const post of getAllPosts()) {
+    if (!post.category) continue
+    map.set(post.category, (map.get(post.category) ?? 0) + 1)
+  }
+  return Array.from(map.entries())
+    .map(([label, count]) => ({ label, slug: categorySlug(label), count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Posts in a given category slug (or [] if no match). */
+export function getPostsByCategory(slug: string): BlogPostMeta[] {
+  return getAllPosts().filter(p => p.category && categorySlug(p.category) === slug)
+}
+
+/**
+ * Posts to recommend after a given post: prefer same category, then fall
+ * back to recency. Excludes the current post. Capped at `limit`.
+ */
+export function getRelatedPosts(slug: string, limit = 3): BlogPostMeta[] {
+  const all = getAllPosts()
+  const current = all.find(p => p.slug === slug)
+  if (!current) return all.slice(0, limit)
+  const sameCat = all.filter(p => p.slug !== slug && p.category && p.category === current.category)
+  const others = all.filter(p => p.slug !== slug && !sameCat.some(s => s.slug === p.slug))
+  return [...sameCat, ...others].slice(0, limit)
 }

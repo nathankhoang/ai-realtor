@@ -8,6 +8,12 @@ import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Tier } from '@/types'
 import PricingCards, { type PlanConfig } from './PricingCards'
+import StructuredData from '@/components/StructuredData'
+import {
+  SITE_URL,
+  softwareApplicationJsonLd,
+  breadcrumbJsonLd,
+} from '@/lib/seo'
 
 export const metadata: Metadata = {
   title: 'Pricing — Free, Starter, and Pro plans',
@@ -82,6 +88,14 @@ export default async function PricingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      <StructuredData data={softwareApplicationJsonLd()} />
+      <StructuredData
+        data={breadcrumbJsonLd([
+          { name: 'Home', url: SITE_URL },
+          { name: 'Pricing', url: `${SITE_URL}/pricing` },
+        ])}
+      />
+
       <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>

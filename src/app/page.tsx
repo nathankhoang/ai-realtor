@@ -14,6 +14,7 @@ import TopMarquee from '@/components/landing/TopMarquee'
 import SectionCTA from '@/components/landing/SectionCTA'
 import StructuredData from '@/components/StructuredData'
 import { organizationJsonLd, softwareApplicationJsonLd, faqPageJsonLd } from '@/lib/seo'
+import { getAllPosts } from '@/lib/blog'
 
 export default async function Home() {
   const { userId } = await auth()
@@ -91,7 +92,7 @@ export default async function Home() {
 
       <FAQ />
       <FinalCTA />
-      <Footer />
+      <Footer recentPosts={getAllPosts().slice(0, 4)} />
     </div>
   )
 }
@@ -250,27 +251,93 @@ function FinalCTA() {
 
 /* ─────────────────────────────  FOOTER  ───────────────────────────── */
 
-function Footer() {
+function Footer({
+  recentPosts,
+}: {
+  recentPosts: { slug: string; title: string }[]
+}) {
   return (
-    <footer className="border-t border-white/5 bg-[#0E0D0A] px-4 py-8 sm:px-6 md:py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-[14px] text-white/45 md:flex-row">
-        <div className="flex items-center gap-2">
-          <Logo />
-          <span className="font-medium text-white/85">Eifara</span>
+    <footer className="border-t border-white/5 bg-[#0E0D0A] px-4 py-12 sm:px-6 md:py-16">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
+          <div>
+            <div className="flex items-center gap-2">
+              <Logo />
+              <span className="font-medium text-white/85">Eifara</span>
+            </div>
+            <p className="mt-4 max-w-xs text-[13.5px] leading-relaxed text-white/55">
+              AI photo analysis for real estate agents. Three free searches, no credit card.
+            </p>
+          </div>
+
+          <FooterCol
+            heading="Product"
+            links={[
+              ['How it works', '/#how'],
+              ['Features', '/#features'],
+              ['Pricing', '/pricing'],
+              ['FAQ', '/#faq'],
+            ]}
+          />
+
+          <FooterCol
+            heading="Read"
+            links={[
+              ['Blog', '/blog'],
+              ['Learn', '/learn'],
+              ...recentPosts.map(p => [p.title, `/blog/${p.slug}`] as [string, string]),
+            ]}
+          />
+
+          <FooterCol
+            heading="Account"
+            links={[
+              ['Start free', '/sign-up'],
+              ['Sign in', '/sign-in'],
+            ]}
+          />
         </div>
-        <nav className="flex gap-5 sm:gap-7">
-          <Link href="/pricing" className="hover:text-white/75">
-            Pricing
-          </Link>
-          <Link href="/blog" className="hover:text-white/75">
-            Blog
-          </Link>
-          <a href="#faq" className="hover:text-white/75">
-            FAQ
-          </a>
-        </nav>
-        <span>© 2026 Eifara. All rights reserved.</span>
+
+        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-white/5 pt-6 text-[13px] text-white/40 sm:flex-row sm:items-center">
+          <span>© 2026 Eifara. All rights reserved.</span>
+          <div className="flex gap-4">
+            <Link href="/sitemap.xml" className="hover:text-white/70">
+              Sitemap
+            </Link>
+            <Link href="/blog" className="hover:text-white/70">
+              Blog
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
+  )
+}
+
+function FooterCol({
+  heading,
+  links,
+}: {
+  heading: string
+  links: [string, string][]
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.18em] text-white/40">
+        {heading}
+      </p>
+      <ul className="space-y-2.5">
+        {links.map(([label, href]) => (
+          <li key={`${heading}-${href}`}>
+            <Link
+              href={href}
+              className="line-clamp-2 text-[13.5px] text-white/65 transition-colors hover:text-white"
+            >
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

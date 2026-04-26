@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { getAllPosts } from '@/lib/blog'
-import { SITE_NAME } from '@/lib/seo'
+import { getAllPosts, getAllCategories } from '@/lib/blog'
+import {
+  SITE_NAME,
+  SITE_URL,
+  blogIndexJsonLd,
+  breadcrumbJsonLd,
+} from '@/lib/seo'
+import StructuredData from '@/components/StructuredData'
 
 export const metadata: Metadata = {
   title: 'Blog — AI, Real Estate, and the Tools Saving Realtors Hours',
@@ -18,9 +24,18 @@ export const metadata: Metadata = {
 
 export default function BlogIndexPage() {
   const posts = getAllPosts()
+  const categories = getAllCategories()
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950">
+      <StructuredData data={blogIndexJsonLd(posts)} />
+      <StructuredData
+        data={breadcrumbJsonLd([
+          { name: 'Home', url: SITE_URL },
+          { name: 'Blog', url: `${SITE_URL}/blog` },
+        ])}
+      />
+
       <header className="sticky top-0 z-10 border-b border-stone-900/8 bg-[#F1EEE7]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 h-14">
           <Link href="/" className="text-[17px] font-medium tracking-tight">
@@ -52,6 +67,21 @@ export default function BlogIndexPage() {
             We build the tools, then write down what we learn — listing photo analysis,
             buyer-agent workflows, and time-savers worth stealing.
           </p>
+
+          {categories.length > 0 && (
+            <nav aria-label="Categories" className="mt-7 flex flex-wrap gap-2">
+              {categories.map(c => (
+                <Link
+                  key={c.slug}
+                  href={`/blog/category/${c.slug}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-stone-900/10 bg-white px-3 py-1 text-[12.5px] text-stone-700 transition-colors hover:border-stone-900/25 hover:text-stone-950"
+                >
+                  {c.label}
+                  <span className="text-stone-400">{c.count}</span>
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
 
         {posts.length === 0 ? (

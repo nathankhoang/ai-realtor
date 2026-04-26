@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Geist_Mono, Instrument_Serif } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Toaster } from '@/components/ui/sonner'
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from '@/lib/seo'
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE, TWITTER_HANDLE } from '@/lib/seo'
 import './globals.css'
 
 // Inter is the workhorse font of modern SaaS — Linear, Notion, Stripe,
@@ -67,6 +67,9 @@ export const metadata: Metadata = {
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: SITE_DESCRIPTION,
     images: ['/opengraph-image'],
+    ...(TWITTER_HANDLE
+      ? { site: `@${TWITTER_HANDLE}`, creator: `@${TWITTER_HANDLE}` }
+      : {}),
   },
   robots: {
     index: true,

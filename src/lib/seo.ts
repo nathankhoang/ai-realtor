@@ -13,6 +13,13 @@ export const SITE_TAGLINE = 'AI Photo Analysis for Real Estate Agents'
 export const SITE_DESCRIPTION =
   'Describe what your client wants in plain English. Eifara analyzes every Zillow listing photo with AI and ranks homes by fit — with photo-level evidence for every match.'
 
+/**
+ * Twitter / X handle (without the @). Set via env so we don't have to
+ * commit a placeholder; metadata silently omits twitter:site /
+ * twitter:creator if missing.
+ */
+export const TWITTER_HANDLE = process.env.NEXT_PUBLIC_TWITTER_HANDLE ?? ''
+
 export const FAQ_ITEMS: { q: string; a: string }[] = [
   {
     q: 'Where does the listing data come from?',
@@ -97,6 +104,108 @@ export function faqPageJsonLd() {
       '@type': 'Question',
       name: q,
       acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  }
+}
+
+/** Site publisher entity — reused inside Article / Blog schemas. */
+function publisherEntity() {
+  return {
+    '@type': 'Organization',
+    name: SITE_NAME,
+    logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon` },
+  }
+}
+
+export function blogPostingJsonLd(post: {
+  slug: string
+  title: string
+  description: string
+  date: string
+  lastModified?: string
+  author?: string
+  category?: string
+  wordCount?: number
+}) {
+  const url = `${SITE_URL}/blog/${post.slug}`
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    dateModified: post.lastModified ?? post.date,
+    author: { '@type': 'Organization', name: post.author ?? SITE_NAME },
+    publisher: publisherEntity(),
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+    url,
+    image: [`${url}/opengraph-image`],
+    inLanguage: 'en-US',
+    ...(post.category ? { articleSection: post.category, keywords: post.category } : {}),
+    ...(post.wordCount ? { wordCount: post.wordCount } : {}),
+  }
+}
+
+export function breadcrumbJsonLd(
+  items: { name: string; url: string }[],
+) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      item: it.url,
+    })),
+  }
+}
+
+export function blogIndexJsonLd(posts: { slug: string; title: string; description: string; date: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${SITE_URL}/blog`,
+    url: `${SITE_URL}/blog`,
+    name: `${SITE_NAME} Blog`,
+    description:
+      'Field notes on using AI to find better homes faster — listing photo analysis, buyer-agent workflows, and the data behind it all.',
+    publisher: publisherEntity(),
+    inLanguage: 'en-US',
+    blogPost: posts.map(p => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      description: p.description,
+      datePublished: p.date,
+      url: `${SITE_URL}/blog/${p.slug}`,
+    })),
+  }
+}
+
+/**
+ * HowTo JSON-LD — pass an ordered list of step headings + bodies. Use
+ * sparingly; only fits posts that genuinely walk through a procedure
+ * (e.g. the "3 Eifara shortcuts" post).
+ */
+export function howToJsonLd(args: {
+  name: string
+  description: string
+  url: string
+  steps: { name: string; text: string }[]
+  totalTimeIso?: string
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: args.name,
+    description: args.description,
+    ...(args.totalTimeIso ? { totalTime: args.totalTimeIso } : {}),
+    step: args.steps.map((s, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name: s.name,
+      text: s.text,
+      url: `${args.url}#step-${i + 1}`,
     })),
   }
 }
