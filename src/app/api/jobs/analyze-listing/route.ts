@@ -10,6 +10,7 @@ import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/ana
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
 import type { AnalyzeListingJob } from '@/lib/queue'
 import type { ParsedRequirements } from '@/types'
+import { logger } from '@/lib/logger'
 
 const DETAIL_STALE_AFTER_DAYS = 7
 const ANALYSIS_STALE_AFTER_DAYS = 30
@@ -42,11 +43,25 @@ async function handler(req: Request) {
   // Wrap the analysis body so any thrown error (vision / scoring / DB)
   // upserts a search_failures row. The worker still re-throws so QStash
   // applies its own retry policy on top.
+  const startedAt = Date.now()
   try {
-    return await processJob({ searchId, listingId, batchNumber })
+    const result = await processJob({ searchId, listingId, batchNumber })
+    logger.info('worker.success', {
+      searchId,
+      listingId,
+      durationMs: Date.now() - startedAt,
+    })
+    return result
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const type = classifyError(msg)
+    logger.error('worker.failure', {
+      searchId,
+      listingId,
+      errorType: type,
+      durationMs: Date.now() - startedAt,
+      err,
+    })
     await db
       .insert(searchFailures)
       .values({ searchId, listingId, errorMessage: msg.slice(0, 500), errorType: type })
@@ -59,7 +74,7 @@ async function handler(req: Request) {
           occurredAt: new Date(),
         },
       })
-      .catch(dbErr => console.error('[worker] failed to record failure:', dbErr))
+      .catch(dbErr => logger.error('worker.failure.recordFailed', { searchId, listingId, err: dbErr }))
     throw err
   }
 }

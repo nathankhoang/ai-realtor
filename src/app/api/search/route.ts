@@ -11,8 +11,17 @@ import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { searchRatelimit } from '@/lib/ratelimit'
 import { upsertListings } from '@/lib/listings'
+import { logger } from '@/lib/logger'
+import { Redis } from '@upstash/redis'
 
 const DUPLICATE_LOOKBACK_MS = 60 * 60 * 1000 // 1 hour
+const IDEMPOTENCY_TTL_SEC = 60 // 1 minute — covers client retries
+
+// Optional — only used if both Upstash Redis env vars are set.
+const idempotencyRedis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? Redis.fromEnv()
+    : null
 
 /**
  * Hash of the search inputs that would meaningfully change the results.
@@ -51,8 +60,8 @@ export async function POST(req: Request) {
     return await handleSearch(req)
   } catch (err: unknown) {
     Sentry.captureException(err, { tags: { route: 'api/search', method: 'POST' } })
+    logger.error('api.search.unhandled', { err })
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('SEARCH_UNHANDLED:', msg, err instanceof Error ? err.stack : '')
     return NextResponse.json({ error: `Internal error: ${msg}` }, { status: 500 })
   }
 }
@@ -62,6 +71,23 @@ const FIRST_BATCH_SIZE = 5
 async function handleSearch(req: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Idempotency-Key — protects against client-side network retries that
+  // would otherwise create two searches. If the client sends the same key
+  // within IDEMPOTENCY_TTL_SEC, return the previously-created searchId
+  // instead of running again.
+  const idempotencyKey = req.headers.get('idempotency-key')?.slice(0, 128)
+  const idempotencyCacheKey =
+    idempotencyKey && idempotencyRedis
+      ? `eifara:idem:${userId}:${idempotencyKey}`
+      : null
+
+  if (idempotencyCacheKey && idempotencyRedis) {
+    const cached = await idempotencyRedis.get<string>(idempotencyCacheKey).catch(() => null)
+    if (cached) {
+      return NextResponse.json({ searchId: cached, idempotent: true })
+    }
+  }
 
   // Per-user rate limit: 5 requests / 60s. Prevents accidental double-clicks
   // and casual abuse without affecting normal usage.
@@ -245,6 +271,14 @@ async function handleSearch(req: Request) {
       batchNumber: 1,
     })),
   )
+
+  // Cache the new searchId under the idempotency key so a client retry
+  // with the same key gets the same searchId instead of creating another.
+  if (idempotencyCacheKey && idempotencyRedis) {
+    await idempotencyRedis
+      .set(idempotencyCacheKey, search.id, { ex: IDEMPOTENCY_TTL_SEC })
+      .catch(err => logger.warn('idempotency.cacheWriteFailed', { err }))
+  }
 
   return NextResponse.json({ searchId: search.id })
 }
