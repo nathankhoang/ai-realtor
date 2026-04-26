@@ -37,8 +37,8 @@ export default function NextBatchButton({
   if (!hasMore && analyzedCount > 0) return null
 
   return (
-    <Button variant="outline" size="sm" onClick={loadNextBatch} disabled={loading}>
-      {loading ? 'Analyzing…' : `Analyze next 10`}
+    <Button variant="default" size="sm" onClick={loadNextBatch} disabled={loading}>
+      {loading ? 'Analyzing…' : `Get 10 more matches`}
     </Button>
   )
 }

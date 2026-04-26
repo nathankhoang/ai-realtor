@@ -100,19 +100,23 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
     },
     {
       key: 'ai',
-      title: 'Reading every photo with AI',
+      // More accurate copy: it's actually N parallel listings being
+      // analyzed, not one long photo-reading task.
+      title: step3Active
+        ? `Analyzing listings (${resultCount} of ${Math.min(total, 5)})`
+        : 'Analyzing listings',
       done: step3Done,
       active: step3Active,
       detail: step3Active
         ? total > 0
-          ? `${resultCount} of ${Math.min(total, 10)} analyzed`
+          ? `Reading every photo on each listing — ~15s per home`
           : 'Starting…'
         : step3Done
           ? `All ${total} analyzed`
           : null,
       subStatus: step3Active ? SUB_STATUSES[subIdx] : null,
       progress: step3Active
-        ? Math.max(aiPct, Math.min(20, elapsedSec / 1.5)) // visible movement even before first listing finishes
+        ? Math.max(aiPct, Math.min(20, elapsedSec / 1.5))
         : step3Done ? 100 : 0,
     },
     {

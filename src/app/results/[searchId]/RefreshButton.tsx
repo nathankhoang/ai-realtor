@@ -61,7 +61,7 @@ export default function RefreshButton({ searchId }: { searchId: string }) {
           strokeLinejoin="round"
         />
       </motion.svg>
-      {loading ? 'Refreshing…' : 'Refresh'}
+      {loading ? 'Re-checking…' : 'Re-check status'}
     </Button>
   )
 }

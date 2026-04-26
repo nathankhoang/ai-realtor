@@ -34,6 +34,12 @@ export const searches = pgTable('searches', {
   errorMessage: text('error_message'),
   completedAt: timestamp('completed_at'),
   cancelledAt: timestamp('cancelled_at'),
+  // Cost / performance metrics (P5). All nullable — rows from before
+  // metrics were added stay null. tokensUsed is the sum across all
+  // Anthropic calls for this search; visionModel records which vision
+  // model was used so we can A/B Haiku vs Sonnet.
+  tokensUsed: integer('tokens_used'),
+  visionModel: text('vision_model'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [

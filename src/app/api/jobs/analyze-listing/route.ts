@@ -102,10 +102,14 @@ async function handler(req: Request) {
     && Date.now() - new Date(analysis.analyzedAt).getTime() < ANALYSIS_STALE_AFTER_DAYS * DAY_MS
 
   let features = analysisFresh ? analysis?.featuresJson : undefined
+  let visionTokens = 0
+  let visionModelUsed: string | null = null
   if (!features) {
-    features = await analyzeListingPhotos(photoUrls, listingContext)
+    const visionResult = await analyzeListingPhotos(photoUrls, listingContext)
+    features = visionResult.features
+    visionTokens = visionResult.tokensUsed
+    visionModelUsed = visionResult.model
     if (analysis) {
-      // Refresh the existing row instead of inserting a duplicate.
       await db.update(listingAnalyses)
         .set({ featuresJson: features, analyzedAt: new Date() })
         .where(eq(listingAnalyses.id, analysis.id))
@@ -119,12 +123,14 @@ async function handler(req: Request) {
   }
 
   // Score the listing against requirements
-  const { score, explanation } = await scoreListingAgainstRequirements(
+  const { score, explanation, tokensUsed: scoreTokens } = await scoreListingAgainstRequirements(
     parsedRequirements,
     features,
     { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
     listingContext,
   )
+
+  const totalTokensThisJob = visionTokens + scoreTokens
 
   // Insert search result. The unique constraint on (search_id, listing_id)
   // guarantees idempotency — onConflictDoNothing handles parallel-worker
@@ -142,9 +148,18 @@ async function handler(req: Request) {
     return NextResponse.json({ skipped: true, reason: 'race_condition' })
   }
 
-  // Atomically increment analyzedCount on the search row.
+  // Atomically increment analyzedCount + tokens_used on the search row.
+  // visionModel is only set on the first job that runs vision (subsequent
+  // jobs may hit the cache and not call vision); use COALESCE so we don't
+  // overwrite an existing value with null.
   const [updated] = await db.update(searches)
-    .set({ analyzedCount: sql`${searches.analyzedCount} + 1` })
+    .set({
+      analyzedCount: sql`${searches.analyzedCount} + 1`,
+      tokensUsed: sql`COALESCE(${searches.tokensUsed}, 0) + ${totalTokensThisJob}`,
+      visionModel: visionModelUsed
+        ? sql`COALESCE(${searches.visionModel}, ${visionModelUsed})`
+        : searches.visionModel,
+    })
     .where(eq(searches.id, searchId))
     .returning({ analyzedCount: searches.analyzedCount, totalCandidates: searches.totalCandidates, status: searches.status })
 

@@ -4,6 +4,25 @@ import type { ListingContext } from '@/lib/zillow'
 
 const client = new Anthropic()
 
+/**
+ * Vision model — Sonnet 4.6 by default; can be flipped to Haiku 4.5
+ * via env var to run a cost/quality A/B. Haiku is ~5–10× cheaper for
+ * vision; we want real-world score data before committing.
+ *
+ * Set `VISION_MODEL=haiku` on Vercel to test Haiku, or leave unset for
+ * the default Sonnet path.
+ */
+function visionModel(): string {
+  return process.env.VISION_MODEL === 'haiku'
+    ? 'claude-haiku-4-5-20251001'
+    : 'claude-sonnet-4-6'
+}
+
+function tokenCount(usage?: Anthropic.Messages.Usage): number {
+  if (!usage) return 0
+  return (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0)
+}
+
 function buildListingContextBlock(ctx: ListingContext): string {
   const parts: string[] = []
 
@@ -36,9 +55,9 @@ function buildListingContextBlock(ctx: ListingContext): string {
 export async function analyzeListingPhotos(
   photoUrls: string[],
   listingContext?: ListingContext,
-): Promise<ListingFeatures> {
+): Promise<{ features: ListingFeatures; tokensUsed: number; model: string }> {
   if (photoUrls.length === 0) {
-    return getUnknownFeatures()
+    return { features: getUnknownFeatures(), tokensUsed: 0, model: visionModel() }
   }
 
   // 5 photos covers the vast majority of feature detection at meaningfully
@@ -69,8 +88,9 @@ Additional fields:
 
 Respond ONLY with valid JSON, no explanation:`
 
+  const model = visionModel()
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model,
     max_tokens: 1024,
     messages: [
       {
@@ -83,13 +103,14 @@ Respond ONLY with valid JSON, no explanation:`
     ],
   }, { timeout: 25_000, maxRetries: 1 })
 
+  const tokensUsed = tokenCount(response.usage)
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
 
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    return JSON.parse(cleaned) as ListingFeatures
+    return { features: JSON.parse(cleaned) as ListingFeatures, tokensUsed, model }
   } catch {
-    return getUnknownFeatures()
+    return { features: getUnknownFeatures(), tokensUsed, model }
   }
 }
 
@@ -177,7 +198,7 @@ export async function scoreListingAgainstRequirements(
   features: ListingFeatures,
   listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null },
   listingContext?: ListingContext,
-): Promise<{ score: number; explanation: string }> {
+): Promise<{ score: number; explanation: string; tokensUsed: number }> {
   const contextLines: string[] = []
   if (listingContext?.description) {
     contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
@@ -245,13 +266,18 @@ Respond ONLY with valid JSON:
     messages: [{ role: 'user', content: prompt }],
   }, { timeout: 12_000, maxRetries: 1 })
 
+  const tokensUsed = tokenCount(response.usage)
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const result = JSON.parse(cleaned) as { score: number; explanation: string }
-    return { score: Math.max(0, Math.min(1, result.score)), explanation: result.explanation }
+    return {
+      score: Math.max(0, Math.min(1, result.score)),
+      explanation: result.explanation,
+      tokensUsed,
+    }
   } catch {
-    return { score: 0.5, explanation: 'Unable to score this listing.' }
+    return { score: 0.5, explanation: 'Unable to score this listing.', tokensUsed }
   }
 }
 
