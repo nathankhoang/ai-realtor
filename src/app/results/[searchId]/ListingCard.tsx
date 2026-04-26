@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import type { ListingFeatures, RequirementsChecklist as Checklist } from '@/types'
+import type { ListingTag } from '@/lib/db/schema'
 import SaveButton from './SaveButton'
 import RequirementsChecklist from './RequirementsChecklist'
 import FeatureEvidenceList, { collectFeatureEvidence } from './FeatureEvidenceList'
+import ListingMetaControls from './ListingMetaControls'
 
 interface Props {
   rank: number
@@ -27,8 +29,13 @@ interface Props {
   savedClientIds: string[]
   /** Dollar amount over the search's strict budget; 0 when in budget. */
   overBudgetBy: number
+  /** Per-(agent, listing) note — agent's private notes. */
+  note: string | null
+  /** Per-(agent, listing) triage tag. */
+  tag: ListingTag | null
   isSelected: boolean
   onToggleSelect: () => void
+  onMetaChange: (patch: { note?: string | null; tag?: ListingTag | null }) => void
 }
 
 function formatBudgetDelta(over: number): string {
@@ -39,7 +46,7 @@ function formatBudgetDelta(over: number): string {
 export default function ListingCard({
   rank, score, address, city, state, price, beds, baths, sqft,
   photos, explanation, features, checklist, zillowId, listingId, savedClientIds,
-  overBudgetBy, isSelected, onToggleSelect,
+  overBudgetBy, note, tag, isSelected, onToggleSelect, onMetaChange,
 }: Props) {
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
@@ -74,6 +81,7 @@ export default function ListingCard({
               key={photoIdx}
               src={photos[photoIdx]}
               alt={`Listing photo ${photoIdx + 1}`}
+              decoding="async"
               className="absolute inset-0 h-full w-full object-cover"
               initial={{ scale: 1 }}
               whileHover={{ scale: 1.04 }}
@@ -212,7 +220,7 @@ export default function ListingCard({
                   i === photoIdx ? 'ring-primary' : 'ring-transparent opacity-60 hover:opacity-100'
                 }`}
               >
-                <img src={url} alt={`Thumb ${i + 1}`} className="h-10 w-14 object-cover" />
+                <img src={url} alt={`Thumb ${i + 1}`} loading="lazy" decoding="async" className="h-10 w-14 object-cover" />
               </button>
             ))}
             {photos.length > 12 && (
@@ -332,12 +340,23 @@ export default function ListingCard({
           </div>
         )}
 
-        {/* Notes */}
+        {/* Agent triage controls — tag pills + private note */}
+        <div className="border-t border-border pt-4">
+          <ListingMetaControls
+            listingId={listingId}
+            tag={tag}
+            note={note}
+            onChange={onMetaChange}
+            compact
+          />
+        </div>
+
+        {/* AI notes */}
         {features?.notes && (
           <div className="border-t border-border pt-4">
             <p className="text-[13.5px] text-muted-foreground leading-[1.65]">
               <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-foreground/60 mr-2">
-                Notes
+                AI notes
               </span>
               <WithYears text={features.notes} />
             </p>

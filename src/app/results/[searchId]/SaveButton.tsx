@@ -1,11 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
 interface Client { id: string; name: string }
+
+const LAST_CLIENT_KEY = 'eifara:lastSavedClient'
+
+function readLastClient(): Client | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(LAST_CLIENT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Client
+    return parsed?.id && parsed?.name ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function writeLastClient(client: Client | null) {
+  if (typeof window === 'undefined') return
+  try {
+    if (client) window.localStorage.setItem(LAST_CLIENT_KEY, JSON.stringify(client))
+    else window.localStorage.removeItem(LAST_CLIENT_KEY)
+  } catch {
+    // ignore — private mode, quota, etc.
+  }
+}
 
 export default function SaveButton({
   listingId,
@@ -18,17 +42,31 @@ export default function SaveButton({
   const [clients, setClients] = useState<Client[] | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(initialSavedClientIds))
   const [loading, setLoading] = useState(false)
-  const [pop, setPop] = useState(0) // increments on save → triggers pop animation
+  const [pop, setPop] = useState(0)
+  const [lastClient, setLastClient] = useState<Client | null>(null)
+
+  // Read last-saved client from localStorage on mount. (SSR returns null
+  // to avoid a hydration mismatch with localStorage; we hydrate on mount.)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLastClient(readLastClient())
+  }, [])
 
   const isSaved = savedIds.size > 0
+  const savedToLast = lastClient ? savedIds.has(lastClient.id) : false
+
+  async function ensureClientsLoaded() {
+    if (clients) return clients
+    const res = await fetch('/api/clients')
+    const data = await res.json()
+    const list = (data.clients ?? []) as Client[]
+    setClients(list)
+    return list
+  }
 
   async function openDialog() {
     setOpen(true)
-    if (!clients) {
-      const res = await fetch('/api/clients')
-      const data = await res.json()
-      setClients(data.clients ?? [])
-    }
+    await ensureClientsLoaded()
   }
 
   async function toggle(client: Client) {
@@ -46,7 +84,11 @@ export default function SaveButton({
         else next.add(client.id)
         return next
       })
-      if (!alreadySaved) setPop(p => p + 1)
+      if (!alreadySaved) {
+        setPop(p => p + 1)
+        writeLastClient(client)
+        setLastClient(client)
+      }
       toast.success(alreadySaved ? `Removed from ${client.name}` : `Saved to ${client.name}`)
     } catch {
       toast.error('Something went wrong')
@@ -55,53 +97,82 @@ export default function SaveButton({
     }
   }
 
+  async function quickSaveToLast() {
+    if (!lastClient || savedToLast) return
+    // Confirm the last-saved client still exists for this user (they may
+    // have been deleted). If not, fall back to the dialog.
+    const list = await ensureClientsLoaded()
+    const stillExists = list.some(c => c.id === lastClient.id)
+    if (!stillExists) {
+      writeLastClient(null)
+      setLastClient(null)
+      openDialog()
+      return
+    }
+    await toggle(lastClient)
+  }
+
   return (
     <>
-      <motion.button
-        onClick={openDialog}
-        whileTap={{ scale: 0.96 }}
-        className={`group/save inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-          isSaved
-            ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
-            : 'border-border text-foreground/75 hover:border-foreground/30 hover:text-foreground'
-        }`}
-      >
-        <motion.span
-          key={pop}
-          initial={pop > 0 ? { scale: 0.6 } : false}
-          animate={pop > 0 ? { scale: [0.6, 1.25, 1] } : { scale: 1 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="inline-flex"
-          aria-hidden
-        >
-          <HeartIcon filled={isSaved} className="h-4 w-4" />
-        </motion.span>
-        <span>{isSaved ? 'Saved' : 'Save'}</span>
-        {isSaved && savedIds.size > 1 && (
-          <span className="ml-0.5 text-[11px] tabular-nums opacity-75">×{savedIds.size}</span>
+      <div className="inline-flex items-center gap-2">
+        {/* Quick save → last client (only when relevant) */}
+        {lastClient && !savedToLast && (
+          <button
+            onClick={quickSaveToLast}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[13px] font-medium text-foreground/75 transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-50"
+            title={`Save to ${lastClient.name} — your last client`}
+          >
+            <HeartIcon filled={false} className="h-3.5 w-3.5" />
+            <span className="max-w-[120px] truncate">→ {lastClient.name}</span>
+          </button>
         )}
 
-        {/* Burst micro-animation on save */}
-        <AnimatePresence>
-          {pop > 0 && (
-            <motion.span
-              key={`burst-${pop}`}
-              aria-hidden
-              initial={{ scale: 0.6, opacity: 0.85 }}
-              animate={{ scale: 2, opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.55, ease: 'easeOut' }}
-              className="pointer-events-none absolute inline-block"
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: '9999px',
-                background: 'radial-gradient(circle, rgba(41,82,255,0.35), transparent 70%)',
-              }}
-            />
+        <motion.button
+          onClick={openDialog}
+          whileTap={{ scale: 0.96 }}
+          className={`group/save inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+            isSaved
+              ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
+              : 'border-border text-foreground/75 hover:border-foreground/30 hover:text-foreground'
+          }`}
+        >
+          <motion.span
+            key={pop}
+            initial={pop > 0 ? { scale: 0.6 } : false}
+            animate={pop > 0 ? { scale: [0.6, 1.25, 1] } : { scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="inline-flex"
+            aria-hidden
+          >
+            <HeartIcon filled={isSaved} className="h-4 w-4" />
+          </motion.span>
+          <span>{isSaved ? 'Saved' : 'Save'}</span>
+          {isSaved && savedIds.size > 1 && (
+            <span className="ml-0.5 text-[11px] tabular-nums opacity-75">×{savedIds.size}</span>
           )}
-        </AnimatePresence>
-      </motion.button>
+
+          <AnimatePresence>
+            {pop > 0 && (
+              <motion.span
+                key={`burst-${pop}`}
+                aria-hidden
+                initial={{ scale: 0.6, opacity: 0.85 }}
+                animate={{ scale: 2, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.55, ease: 'easeOut' }}
+                className="pointer-events-none absolute inline-block"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '9999px',
+                  background: 'radial-gradient(circle, rgba(41,82,255,0.35), transparent 70%)',
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </motion.button>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
@@ -119,6 +190,11 @@ export default function SaveButton({
             </div>
           ) : (
             <div className="space-y-1 py-1">
+              {lastClient && clients.some(c => c.id === lastClient.id) && (
+                <p className="px-3 pb-1 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Most recent: {lastClient.name}
+                </p>
+              )}
               {clients.map(c => {
                 const checked = savedIds.has(c.id)
                 return (
@@ -140,6 +216,9 @@ export default function SaveButton({
                   </button>
                 )
               })}
+              <p className="px-3 pt-2 text-[11.5px] text-muted-foreground">
+                Tap a client to add or remove this listing.
+              </p>
             </div>
           )}
         </DialogContent>

@@ -91,6 +91,8 @@ function FeatureRow({
               <img
                 src={photoUrl}
                 alt={`${label} reference (photo ${ev.photoIndex! + 1})`}
+                loading="lazy"
+                decoding="async"
                 className="h-20 w-28 object-cover transition-transform duration-500 group-hover/photo:scale-110"
               />
               <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] font-medium text-white">

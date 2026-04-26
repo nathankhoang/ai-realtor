@@ -99,6 +99,28 @@ const FEATURE_GROUPS = [
 
 interface SimpleClient { id: string; name: string }
 
+/**
+ * Parse a user-entered price string. Accepts "$350,000", "350000", "350k",
+ * "1.2m", etc. Returns null when the input is empty or non-numeric so the
+ * caller can show an inline error instead of posting NaN to the API.
+ */
+function parseUserPrice(input: string): number | null {
+  const cleaned = input.trim().toLowerCase().replace(/[$,\s]/g, '')
+  if (!cleaned) return null
+  let multiplier = 1
+  let numeric = cleaned
+  if (cleaned.endsWith('k')) {
+    multiplier = 1_000
+    numeric = cleaned.slice(0, -1)
+  } else if (cleaned.endsWith('m')) {
+    multiplier = 1_000_000
+    numeric = cleaned.slice(0, -1)
+  }
+  const n = parseFloat(numeric)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.round(n * multiplier)
+}
+
 function SearchPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -115,7 +137,9 @@ function SearchPageContent() {
   const [checkedFeatures, setCheckedFeatures] = useState<Set<string>>(new Set())
   const [clientId, setClientId] = useState(searchParams.get('clientId') ?? '')
   const [clientList, setClientList] = useState<SimpleClient[]>([])
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(FEATURE_GROUPS.map(g => g.label)))
+  // Default to all groups collapsed — the full 40-checkbox grid was
+  // overwhelming on first sight. Users open just the categories they care about.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetch('/api/clients')
@@ -186,6 +210,34 @@ function SearchPageContent() {
       return
     }
 
+    // Robust price parse — handles "$350,000", "350k", "1.2m", etc.
+    // Rejects gibberish before posting so the API never sees NaN.
+    const priceMinNum = priceMin ? parseUserPrice(priceMin) : null
+    const priceMaxNum = priceMax ? parseUserPrice(priceMax) : null
+    if (priceMin && priceMinNum == null) {
+      toast.error(`Couldn't parse min price "${priceMin}" — try a number like 300000 or $300,000`)
+      return
+    }
+    if (priceMax && priceMaxNum == null) {
+      toast.error(`Couldn't parse max price "${priceMax}" — try a number like 600000 or $600,000`)
+      return
+    }
+    if (priceMinNum != null && priceMaxNum != null && priceMinNum > priceMaxNum) {
+      toast.error('Min price is higher than max price — swap or correct the values')
+      return
+    }
+
+    const bedsMinNum = bedsMin ? parseFloat(bedsMin) : null
+    const bathsMinNum = bathsMin ? parseFloat(bathsMin) : null
+    if (bedsMin && (bedsMinNum == null || !Number.isFinite(bedsMinNum) || bedsMinNum < 0)) {
+      toast.error('Min beds must be a positive number')
+      return
+    }
+    if (bathsMin && (bathsMinNum == null || !Number.isFinite(bathsMinNum) || bathsMinNum < 0)) {
+      toast.error('Min baths must be a positive number')
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch('/api/search', {
@@ -194,10 +246,10 @@ function SearchPageContent() {
         body: JSON.stringify({
           location: location.trim(),
           requirementsText: combinedRequirements,
-          priceMin: priceMin ? parseInt(priceMin) : undefined,
-          priceMax: priceMax ? parseInt(priceMax) : undefined,
-          bedsMin: bedsMin ? parseFloat(bedsMin) : undefined,
-          bathsMin: bathsMin ? parseFloat(bathsMin) : undefined,
+          priceMin: priceMinNum ?? undefined,
+          priceMax: priceMaxNum ?? undefined,
+          bedsMin: bedsMinNum ?? undefined,
+          bathsMin: bathsMinNum ?? undefined,
           clientId: clientId || undefined,
         }),
       })

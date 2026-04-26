@@ -161,6 +161,69 @@ export async function sendAnalysisComplete(
   })
 }
 
+export interface MonitorMatch {
+  address: string
+  city: string | null
+  state: string | null
+  price: number | null
+  score: number
+  zillowId: string
+  searchId: string
+}
+
+export async function sendMonitorMatches(
+  to: string,
+  searchLocation: string,
+  matches: MonitorMatch[],
+) {
+  if (matches.length === 0) return
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const top = matches[0]
+  const matchesHtml = matches.slice(0, 5).map(m => {
+    const addr = `${m.address}${m.city ? `, ${m.city}` : ''}${m.state ? `, ${m.state}` : ''}`
+    const price = m.price ? `$${m.price.toLocaleString()}` : 'Price unknown'
+    return `<tr>
+      <td style="padding:14px 0;border-top:1px solid #2a2a2a;">
+        <p style="margin:0;font-size:14px;font-weight:600;color:#ffffff;">${addr}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#aaaaaa;">${price} · score ${Math.round(m.score * 100)}/100</p>
+      </td>
+      <td style="padding:14px 0;border-top:1px solid #2a2a2a;text-align:right;">
+        <a href="${appUrl}/results/${m.searchId}" style="display:inline-block;background-color:#3b82f6;color:#ffffff;font-size:12px;font-weight:600;text-decoration:none;padding:6px 12px;border-radius:6px;">View</a>
+      </td>
+    </tr>`
+  }).join('')
+
+  await resend.emails.send({
+    from: 'Eifara <notifications@eifara.com>',
+    to,
+    subject: `${matches.length} new match${matches.length !== 1 ? 'es' : ''} in ${searchLocation}`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:0;background-color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#1a1a1a;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="padding-bottom:24px;"><span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Eifara</span></td></tr>
+        <tr><td style="background-color:#242424;border-radius:12px;padding:32px;">
+          <p style="margin:0 0 8px 0;font-size:13px;font-weight:500;color:#888888;text-transform:uppercase;letter-spacing:0.8px;">New match alert</p>
+          <h1 style="margin:0 0 8px 0;font-size:24px;font-weight:700;color:#ffffff;line-height:1.25;">
+            ${matches.length} new strong match${matches.length !== 1 ? 'es' : ''}
+          </h1>
+          <p style="margin:0 0 20px 0;font-size:14px;color:#aaaaaa;">in <strong style="color:#ffffff;">${searchLocation}</strong> for your monitored search</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0">${matchesHtml}</table>
+
+          <a href="${appUrl}/results/${top.searchId}" style="display:inline-block;margin-top:24px;background-color:#3b82f6;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:11px 22px;border-radius:8px;">See all matches</a>
+        </td></tr>
+        <tr><td style="padding-top:24px;text-align:center;"><p style="margin:0;font-size:12px;color:#555;">Eifara — saved-search monitor</p></td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+  })
+}
+
 export async function sendPriceChangeAlert(
   to: string,
   address: string,

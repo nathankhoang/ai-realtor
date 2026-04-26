@@ -3,8 +3,8 @@ import { redirect, notFound } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { db } from '@/lib/db'
-import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings, listingUserMeta, type ListingTag } from '@/lib/db/schema'
+import { eq, and, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures, RequirementsChecklist } from '@/types'
 import { budgetContext } from '@/lib/budget'
@@ -14,6 +14,7 @@ import ResultsClient from './ResultsClient'
 import RefreshButton from './RefreshButton'
 import CancelButton from './CancelButton'
 import FailedListingsBanner from './FailedListingsBanner'
+import MonitorToggle from './MonitorToggle'
 
 export default async function ResultsPage({ params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -28,9 +29,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   })
   if (!search) notFound()
 
-  // Two parallel queries: results-with-listing-and-analysis, and the
-  // user's full saved-listings set (joined to clients to scope by user).
-  // Saves the previous "fetch clients, then fetch saved by clientId" hop.
+  // Three parallel queries: results-with-listing-and-analysis, this user's
+  // saved-listings (scoped via clients), and the user's listing meta
+  // (notes/tags) for the listings in this search.
   const [baseRows, userSavedRows] = await Promise.all([
     db
       .select({
@@ -49,16 +50,37 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
       .where(eq(clients.userId, dbUser.id)),
   ])
 
+  const listingIdsInSearch = baseRows.map(r => r.listing.id)
+  const userMetaRows = listingIdsInSearch.length > 0
+    ? await db
+        .select({
+          listingId: listingUserMeta.listingId,
+          note: listingUserMeta.note,
+          tag: listingUserMeta.tag,
+        })
+        .from(listingUserMeta)
+        .where(and(
+          eq(listingUserMeta.userId, dbUser.id),
+          inArray(listingUserMeta.listingId, listingIdsInSearch),
+        ))
+    : []
+  const metaByListing = new Map(userMetaRows.map(m => [m.listingId, m]))
+
   const savedByListing = new Map<string, string[]>()
   for (const s of userSavedRows) {
     const existing = savedByListing.get(s.listingId) ?? []
     existing.push(s.clientId)
     savedByListing.set(s.listingId, existing)
   }
-  const rows = baseRows.map(r => ({
-    ...r,
-    savedClientIds: savedByListing.get(r.listing.id) ?? [],
-  }))
+  const rows = baseRows.map(r => {
+    const meta = metaByListing.get(r.listing.id)
+    return {
+      ...r,
+      savedClientIds: savedByListing.get(r.listing.id) ?? [],
+      note: meta?.note ?? null,
+      tag: (meta?.tag ?? null) as ListingTag | null,
+    }
+  })
 
   const budget = budgetContext(search.priceMax)
 
@@ -110,6 +132,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
       zillowId: row.listing.zillowId,
       savedClientIds: row.savedClientIds,
       overBudgetBy,
+      note: row.note,
+      tag: row.tag,
     }
   })
 
@@ -162,6 +186,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             </Link>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <MonitorToggle searchId={searchId} initialEnabled={search.isMonitored ?? false} />
             <CancelButton searchId={searchId} status={search.status} />
             <RefreshButton searchId={searchId} />
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
@@ -177,8 +202,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             <CardContent className="py-3 px-4 flex items-center justify-between gap-3 flex-wrap">
               <p className="text-[13px] text-foreground/80">
                 <span className="font-medium">Search cancelled.</span>{' '}
-                {displayed.length > 0
-                  ? `${displayed.length} listing${displayed.length === 1 ? '' : 's'} were analyzed before you cancelled.`
+                {analyzed > 0
+                  ? `${analyzed} listing${analyzed === 1 ? '' : 's'} were analyzed before you cancelled.`
                   : 'No listings were analyzed before you cancelled.'}
               </p>
               <Link
@@ -229,6 +254,14 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
                 </CardContent>
               </Card>
             )}
+
+            {/* Score legend — orients new users to the 0–100 scale */}
+            <div className="flex items-center gap-3 text-[12px] text-muted-foreground flex-wrap">
+              <span className="font-medium uppercase tracking-[0.14em] text-[10.5px]">Score</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> 85+ great fit</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-foreground/70" /> 70+ close fit</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-foreground/30" /> 55+ partial fit</span>
+            </div>
 
             <ResultsClient
               searchId={searchId}

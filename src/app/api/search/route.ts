@@ -146,6 +146,16 @@ async function handleSearch(req: Request) {
     )
   }
 
+  // Backstop validation — the form parses prices client-side, but defend
+  // against a malicious / mistyped POST that lands NaN or negative values
+  // in the DB.
+  const isPositiveNumberOrNull = (v: unknown): v is number | null | undefined =>
+    v == null || (typeof v === 'number' && Number.isFinite(v) && v >= 0)
+  if (!isPositiveNumberOrNull(priceMin) || !isPositiveNumberOrNull(priceMax)
+      || !isPositiveNumberOrNull(bedsMin) || !isPositiveNumberOrNull(bathsMin)) {
+    return NextResponse.json({ error: 'Filters must be non-negative numbers' }, { status: 422 })
+  }
+
   let resolvedClientId: string | null = null
   if (clientId) {
     const client = await db.query.clients.findFirst({
@@ -246,10 +256,10 @@ async function handleSearch(req: Request) {
   try {
     zillowListings = await searchZillow({
       location,
-      priceMin,
+      priceMin: priceMin ?? undefined,
       priceMax: softMax,
-      bedsMin,
-      bathsMin,
+      bedsMin: bedsMin ?? undefined,
+      bathsMin: bathsMin ?? undefined,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

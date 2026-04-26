@@ -11,6 +11,13 @@ export const users = pgTable('users', {
   searchesResetAt: timestamp('searches_reset_at').notNull().defaultNow(),
   emailAnalysisDone: boolean('email_analysis_done').notNull().default(true),
   emailPriceAlerts: boolean('email_price_alerts').notNull().default(true),
+  // Agent branding shown on the shared /report/[token] page so the report
+  // is the agent's deliverable, not a generic Eifara page. All optional.
+  displayName: text('display_name'),
+  brokerage: text('brokerage'),
+  phone: text('phone'),
+  avatarUrl: text('avatar_url'),
+  reportMessage: text('report_message'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -48,6 +55,10 @@ export const searches = pgTable('searches', {
   // next-batch click pops from the head of this list instead of re-running
   // the prescreen LLM. Null on legacy searches.
   prescreenedZpids: jsonb('prescreened_zpids').$type<string[]>(),
+  // Marking a search as monitored makes the daily cron re-run the Zillow
+  // query, score any *new* listings, and email the agent on strong matches.
+  isMonitored: boolean('is_monitored').notNull().default(false),
+  monitorLastRunAt: timestamp('monitor_last_run_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
@@ -116,6 +127,10 @@ export const clients = pgTable('clients', {
   phone: text('phone'),
   notes: text('notes'),
   shareToken: text('share_token').unique(),
+  // Share-link view tracking — increments on each /report/[token] load.
+  // Tells the agent when to follow up.
+  shareViewCount: integer('share_view_count').notNull().default(0),
+  shareLastViewedAt: timestamp('share_last_viewed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
@@ -149,12 +164,41 @@ export const savedListings = pgTable('saved_listings', {
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
   notes: text('notes'),
   lastKnownPrice: integer('last_known_price'),
+  // Reaction from the client viewing the shared report. One reaction per
+  // saved-listing, latest wins — couples or multiple viewers overwrite each
+  // other, which is fine for V1; the agent gets a single signal per home.
+  clientReaction: text('client_reaction'), // 'love' | 'pass' | null
+  clientComment: text('client_comment'),
+  clientReactedAt: timestamp('client_reacted_at'),
   savedAt: timestamp('saved_at').notNull().defaultNow(),
 }, (t) => [
   unique().on(t.clientId, t.listingId),
   index('idx_saved_listings_client_id').on(t.clientId),
   index('idx_saved_listings_listing_id').on(t.listingId),
 ])
+
+export type ClientReaction = 'love' | 'pass'
+
+/**
+ * Per-(user, listing) note + tag. Lives separately from savedListings so an
+ * agent can take notes / triage homes (Show / Maybe / Skip) on the results
+ * page without committing to saving them to a specific client.
+ */
+export const listingUserMeta = pgTable('listing_user_meta', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  listingId: uuid('listing_id').references(() => listings.id).notNull(),
+  note: text('note'),
+  tag: text('tag'), // 'show' | 'maybe' | 'skip' | null — DB CHECK enforces
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  unique().on(t.userId, t.listingId),
+  index('idx_listing_user_meta_user').on(t.userId),
+  index('idx_listing_user_meta_listing').on(t.listingId),
+])
+
+export type ListingTag = 'show' | 'maybe' | 'skip'
 
 export type User = typeof users.$inferSelect
 export type Search = typeof searches.$inferSelect
@@ -164,3 +208,4 @@ export type SearchResult = typeof searchResults.$inferSelect
 export type Client = typeof clients.$inferSelect
 export type SavedListing = typeof savedListings.$inferSelect
 export type SearchFailure = typeof searchFailures.$inferSelect
+export type ListingUserMeta = typeof listingUserMeta.$inferSelect

@@ -74,7 +74,14 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                       <Button size="sm" variant="outline" className="text-[13px]">Preview report</Button>
                     </Link>
                   )}
-                  <ShareButton clientId={clientId} />
+                  <ShareButton
+                    clientId={clientId}
+                    clientName={client.name}
+                    clientEmail={client.email ?? null}
+                    initialToken={client.shareToken ?? null}
+                    shareViewCount={client.shareViewCount ?? 0}
+                    shareLastViewedAt={client.shareLastViewedAt ?? null}
+                  />
                 </div>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[14px] text-muted-foreground">
@@ -124,6 +131,8 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                         <img
                           src={photos[0]}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-44 sm:w-28 sm:h-[88px] object-cover rounded-md shrink-0 self-start"
                         />
                       )}
@@ -151,6 +160,26 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                         </div>
                         {features?.notes && (
                           <p className="text-[13px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{features.notes}</p>
+                        )}
+                        {s.clientReaction && (
+                          <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12.5px] font-medium ${
+                            s.clientReaction === 'love'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-stone-200 text-stone-700'
+                          }`}>
+                            <span>{s.clientReaction === 'love' ? '♥ Loved this' : '✕ Passed'}</span>
+                            {s.clientReactedAt && (
+                              <span className="text-muted-foreground">
+                                · {new Date(s.clientReactedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {s.clientComment && (
+                          <p className="mt-2 rounded-lg border-l-2 border-primary/40 bg-primary/[0.04] px-3 py-2 text-[13.5px] leading-relaxed text-foreground/85">
+                            <span className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary mr-1.5">{client.name.split(' ')[0]} said:</span>
+                            {s.clientComment}
+                          </p>
                         )}
                         <ListingNoteEditor savedId={s.id} initialNotes={s.notes ?? null} />
                       </div>

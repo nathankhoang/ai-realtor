@@ -7,6 +7,7 @@ import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import NotificationPreferences from './NotificationPreferences'
+import AgentBrandingForm from './AgentBrandingForm'
 
 export default async function SettingsPage() {
   const { userId } = await auth()
@@ -35,6 +36,28 @@ export default async function SettingsPage() {
           <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
           <h1 className="text-2xl font-medium tracking-tight mt-2">Settings</h1>
         </div>
+
+        <Card className="border-border">
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <h2 className="text-[16px] font-medium">Your profile</h2>
+              <p className="text-[14px] text-muted-foreground mt-1">
+                Shown at the top of every shared client report — this is your brand on the deliverable.
+              </p>
+            </div>
+            <div className="border-t border-border pt-4">
+              <AgentBrandingForm
+                initial={{
+                  displayName: dbUser.displayName,
+                  brokerage: dbUser.brokerage,
+                  phone: dbUser.phone,
+                  avatarUrl: dbUser.avatarUrl,
+                  reportMessage: dbUser.reportMessage,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-border">
           <CardContent className="p-6 space-y-4">

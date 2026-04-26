@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ListingFeatures, RequirementsChecklist as Checklist } from '@/types'
+import type { ListingTag } from '@/lib/db/schema'
 import SaveButton from './SaveButton'
 import RequirementsChecklist from './RequirementsChecklist'
 import FeatureEvidenceList, { collectFeatureEvidence } from './FeatureEvidenceList'
+import ListingMetaControls from './ListingMetaControls'
 
 interface ListingRow {
   resultId: string
@@ -27,9 +29,17 @@ interface ListingRow {
   zillowId: string
   savedClientIds: string[]
   overBudgetBy: number
+  note: string | null
+  tag: ListingTag | null
 }
 
-export default function FocusMode({ listings }: { listings: ListingRow[] }) {
+export default function FocusMode({
+  listings,
+  onMetaChange,
+}: {
+  listings: ListingRow[]
+  onMetaChange: (listingId: string, patch: { note?: string | null; tag?: ListingTag | null }) => void
+}) {
   const [idx, setIdx] = useState(0)
   const [direction, setDirection] = useState<1 | -1>(1)
 
@@ -41,25 +51,41 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
     setIdx(i => Math.max(0, Math.min(total - 1, i + delta)))
   }
 
-  // Keyboard nav: ← / → arrows
+  // Keyboard shortcuts:
+  //   ← / → — prev / next
+  //   1 / 2 / 3 — toggle Show / Maybe / Skip on the current listing
   useEffect(() => {
     function handler(e: KeyboardEvent) {
       if (e.target instanceof HTMLElement) {
-        const tag = e.target.tagName.toLowerCase()
-        if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return
+        const targetTag = e.target.tagName.toLowerCase()
+        if (targetTag === 'input' || targetTag === 'textarea' || e.target.isContentEditable) return
       }
+      if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === 'ArrowRight') {
         e.preventDefault()
         go(1)
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         go(-1)
+      } else if (e.key === '1' || e.key === '2' || e.key === '3') {
+        const cur = listings[idx]
+        if (!cur) return
+        const map: Record<string, ListingTag> = { '1': 'show', '2': 'maybe', '3': 'skip' }
+        const desired = map[e.key]
+        const next = cur.tag === desired ? null : desired
+        onMetaChange(cur.listingId, { tag: next })
+        fetch(`/api/listings/${cur.listingId}/meta`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: next }),
+        }).catch(() => {})
+        e.preventDefault()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, total])
+  }, [idx, total, listings])
 
   if (!current) return null
 
@@ -73,7 +99,9 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
           </span>
           <span className="hidden sm:inline-flex items-center gap-1.5">
             <Kbd>←</Kbd> <Kbd>→</Kbd>
-            <span className="ml-1">to navigate</span>
+            <span>navigate ·</span>
+            <Kbd>1</Kbd> <Kbd>2</Kbd> <Kbd>3</Kbd>
+            <span>show / maybe / skip</span>
           </span>
         </div>
         <div className="flex gap-1">
@@ -99,7 +127,7 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
             exit={{ opacity: 0, x: direction * -24 }}
             transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
-            <FocusCard listing={current} />
+            <FocusCard listing={current} onMetaChange={onMetaChange} />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -141,7 +169,13 @@ export default function FocusMode({ listings }: { listings: ListingRow[] }) {
   )
 }
 
-function FocusCard({ listing }: { listing: ListingRow }) {
+function FocusCard({
+  listing,
+  onMetaChange,
+}: {
+  listing: ListingRow
+  onMetaChange: (listingId: string, patch: { note?: string | null; tag?: ListingTag | null }) => void
+}) {
   const [photoIdx, setPhotoIdx] = useState(0)
 
   const isGreat = listing.score >= 85
@@ -163,6 +197,7 @@ function FocusCard({ listing }: { listing: ListingRow }) {
           <img
             src={photos[photoIdx]}
             alt={`Photo ${photoIdx + 1}`}
+            decoding="async"
             className="h-[clamp(280px,42vh,460px)] w-full object-cover"
           />
         ) : (
@@ -242,7 +277,7 @@ function FocusCard({ listing }: { listing: ListingRow }) {
                   i === photoIdx ? 'ring-primary' : 'ring-transparent opacity-65 hover:opacity-100'
                 }`}
               >
-                <img src={url} alt={`Photo ${i + 1}`} className="h-14 w-20 object-cover" />
+                <img src={url} alt={`Photo ${i + 1}`} loading="lazy" decoding="async" className="h-14 w-20 object-cover" />
                 <span className="absolute bottom-0 right-0 rounded-tl-sm bg-black/65 px-1 text-[9px] text-white">
                   {i + 1}
                 </span>
@@ -321,10 +356,20 @@ function FocusCard({ listing }: { listing: ListingRow }) {
           </div>
         )}
 
-        {/* Notes */}
+        {/* Agent triage controls */}
+        <div className="border-t border-border pt-4">
+          <ListingMetaControls
+            listingId={listing.listingId}
+            tag={listing.tag}
+            note={listing.note}
+            onChange={(patch) => onMetaChange(listing.listingId, patch)}
+          />
+        </div>
+
+        {/* AI notes */}
         {listing.features?.notes && (
           <div className="border-t border-border pt-4">
-            <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-foreground/60 mb-1.5">Notes</p>
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.16em] text-foreground/60 mb-1.5">AI notes</p>
             <p className="text-[14px] leading-relaxed text-muted-foreground">
               <WithYears text={listing.features.notes} />
             </p>

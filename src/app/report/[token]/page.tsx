@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { clients, savedListings, listings, listingAnalyses } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { clients, savedListings, listings, listingAnalyses, users, type ClientReaction } from '@/lib/db/schema'
+import { eq, sql } from 'drizzle-orm'
 import type { ListingFeatures, FeatureEvidence } from '@/types'
+import ReactionControls from './ReactionControls'
 
 export default async function ReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -12,13 +13,29 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
   })
   if (!client) notFound()
 
-  const saved = await db
-    .select({ saved: savedListings, listing: listings, analysis: listingAnalyses })
-    .from(savedListings)
-    .innerJoin(listings, eq(savedListings.listingId, listings.id))
-    .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
-    .where(eq(savedListings.clientId, client.id))
-    .orderBy(savedListings.savedAt)
+  // Fetch agent branding + saved listings in parallel.
+  const [agent, saved] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.id, client.userId) }),
+    db
+      .select({ saved: savedListings, listing: listings, analysis: listingAnalyses })
+      .from(savedListings)
+      .innerJoin(listings, eq(savedListings.listingId, listings.id))
+      .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
+      .where(eq(savedListings.clientId, client.id))
+      .orderBy(savedListings.savedAt),
+  ])
+
+  // Best-effort view tracking — fire-and-forget so a slow write never
+  // delays page render. Bots opening the link will still increment, but
+  // the agent generally cares about ballpark engagement, not robot-perfect
+  // counts.
+  db.update(clients)
+    .set({
+      shareViewCount: sql`${clients.shareViewCount} + 1`,
+      shareLastViewedAt: new Date(),
+    })
+    .where(eq(clients.id, client.id))
+    .catch(() => {})
 
   const initials = client.name
     .split(' ')
@@ -27,16 +44,56 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
     .join('')
     .toUpperCase()
 
+  const agentName = agent?.displayName?.trim() || ''
+  const agentInitials = agentName
+    ? agentName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : ''
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <span className="text-[17px] font-medium tracking-tight">Eifara</span>
-          <span className="text-[12.5px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">Client report</span>
+          <span className="text-[17px] font-medium tracking-tight">{agentName || 'Eifara'}</span>
+          <span className="text-[12.5px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
+            {agentName ? 'Your home shortlist' : 'Client report'}
+          </span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12 space-y-8 sm:space-y-10">
+        {/* Agent branding card — shows the agent as the deliverer of the report */}
+        {(agentName || agent?.brokerage || agent?.phone || agent?.reportMessage) && (
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              {agent?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={agent.avatarUrl}
+                  alt={agentName || 'Agent'}
+                  className="h-14 w-14 rounded-full object-cover shrink-0"
+                />
+              ) : agentInitials ? (
+                <div className="h-14 w-14 rounded-full bg-foreground text-background text-[18px] font-semibold flex items-center justify-center shrink-0">
+                  {agentInitials}
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                {agentName && <p className="text-[15.5px] font-semibold tracking-tight">{agentName}</p>}
+                {agent?.brokerage && (
+                  <p className="text-[13.5px] text-muted-foreground">{agent.brokerage}</p>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[13.5px] text-muted-foreground">
+                  {agent?.phone && <a href={`tel:${agent.phone}`} className="hover:text-foreground">{agent.phone}</a>}
+                  {agent?.email && <a href={`mailto:${agent.email}`} className="hover:text-foreground">{agent.email}</a>}
+                </div>
+                {agent?.reportMessage && (
+                  <p className="mt-3 text-[14.5px] leading-relaxed text-foreground/80">{agent.reportMessage}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Client header */}
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-full bg-primary/10 text-primary text-[20px] font-semibold flex items-center justify-center shrink-0">
@@ -83,16 +140,31 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
                   zillowId={listing.zillowId}
                   features={features}
                   agentNote={s.notes ?? null}
+                  token={token}
+                  savedListingId={s.id}
+                  initialReaction={(s.clientReaction ?? null) as ClientReaction | null}
+                  initialComment={s.clientComment ?? null}
                 />
               )
             })}
           </div>
         )}
 
-        {/* Footer */}
-        <div className="border-t border-border pt-8 text-center space-y-1">
-          <p className="text-[13px] text-muted-foreground">Prepared by your agent using Eifara</p>
-          <p className="text-[13px] text-muted-foreground">AI-powered home search · photo-level match analysis</p>
+        {/* Footer — show the agent's contact again as a soft CTA */}
+        <div className="border-t border-border pt-8 text-center space-y-1.5">
+          {agentName ? (
+            <>
+              <p className="text-[14px] text-foreground">Ready to tour any of these?</p>
+              <p className="text-[13px] text-muted-foreground">
+                Reach out to <span className="font-medium text-foreground">{agentName}</span>
+                {agent?.phone && <> · <a href={`tel:${agent.phone}`} className="hover:text-foreground">{agent.phone}</a></>}
+                {agent?.email && <> · <a href={`mailto:${agent.email}`} className="hover:text-foreground">{agent.email}</a></>}
+              </p>
+            </>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">Prepared by your agent using Eifara</p>
+          )}
+          <p className="text-[12.5px] text-muted-foreground/70">Powered by Eifara · AI photo analysis</p>
         </div>
       </main>
     </div>
@@ -102,6 +174,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
 function ReportListingCard({
   rank, photos, address, city, state, price, beds, baths, sqft,
   zillowId, features, agentNote,
+  token, savedListingId, initialReaction, initialComment,
 }: {
   rank: number
   photos: string[]
@@ -115,13 +188,17 @@ function ReportListingCard({
   zillowId: string
   features: ListingFeatures | null
   agentNote: string | null
+  token: string
+  savedListingId: string
+  initialReaction: ClientReaction | null
+  initialComment: string | null
 }) {
   return (
     <div className="border border-border rounded-2xl overflow-hidden bg-card">
       {/* Hero photo */}
       {photos[0] && (
         <div className="relative">
-          <img src={photos[0]} alt="" className="w-full h-56 sm:h-72 object-cover" />
+          <img src={photos[0]} alt="" loading="lazy" decoding="async" className="w-full h-56 sm:h-72 object-cover" />
           <div className="absolute top-3 left-3 bg-black/65 text-white text-[12.5px] font-semibold px-3 py-1 rounded-full backdrop-blur-md">
             #{rank}
           </div>
@@ -133,7 +210,7 @@ function ReportListingCard({
         <div className="flex gap-0.5">
           {photos.slice(1, 5).map((url, i) => (
             <div key={i} className="flex-1">
-              <img src={url} alt="" className="w-full h-20 object-cover" />
+              <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-20 object-cover" />
             </div>
           ))}
         </div>
@@ -184,6 +261,13 @@ function ReportListingCard({
         >
           View full listing on Zillow →
         </a>
+
+        <ReactionControls
+          token={token}
+          savedListingId={savedListingId}
+          initialReaction={initialReaction}
+          initialComment={initialComment}
+        />
       </div>
     </div>
   )

@@ -30,7 +30,7 @@ export default function PhotoLightbox({ photos }: { photos: string[] }) {
             onClick={() => openAt(i)}
             className="relative flex-1 min-w-0 group"
           >
-            <img src={url} alt={`Photo ${i + 1}`} className="w-full h-24 object-cover rounded-sm group-hover:brightness-90 transition-all" />
+            <img src={url} alt={`Photo ${i + 1}`} loading="lazy" decoding="async" className="w-full h-24 object-cover rounded-sm group-hover:brightness-90 transition-all" />
             <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] px-1 rounded-sm leading-4">{i + 1}</span>
           </button>
         ))}
@@ -39,7 +39,7 @@ export default function PhotoLightbox({ photos }: { photos: string[] }) {
             onClick={() => openAt(4)}
             className="relative flex-1 min-w-0 group"
           >
-            <img src={photos[4]} alt="Photo 5" className="w-full h-24 object-cover rounded-sm brightness-50 group-hover:brightness-40 transition-all" />
+            <img src={photos[4]} alt="Photo 5" loading="lazy" decoding="async" className="w-full h-24 object-cover rounded-sm brightness-50 group-hover:brightness-40 transition-all" />
             <span className="absolute inset-0 flex items-center justify-center text-white text-sm font-semibold">+{photos.length - 4}</span>
           </button>
         )}
@@ -61,6 +61,7 @@ export default function PhotoLightbox({ photos }: { photos: string[] }) {
             <img
               src={photos[index]}
               alt={`Photo ${index + 1}`}
+              decoding="async"
               className="max-h-[85vh] max-w-full object-contain rounded-lg"
             />
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">

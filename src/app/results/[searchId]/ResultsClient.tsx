@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import type { ListingFeatures, RequirementsChecklist } from '@/types'
+import type { ListingTag } from '@/lib/db/schema'
 import ListingCard from './ListingCard'
 import BulkSaveBar from './BulkSaveBar'
 import FocusMode from './FocusMode'
+import ComparisonView from './ComparisonView'
 
 interface ListingRow {
   resultId: string
@@ -31,6 +33,8 @@ interface ListingRow {
   savedClientIds: string[]
   /** Dollar amount over the search's strict budget; 0 when in budget. */
   overBudgetBy: number
+  note: string | null
+  tag: ListingTag | null
 }
 
 interface HiddenRow {
@@ -53,6 +57,8 @@ type ViewMode = 'overview' | 'focus'
 const INITIAL_PAGE_SIZE = 12
 const PAGE_INCREMENT = 12
 
+type Filter = 'all' | 'show' | 'maybe' | 'saved'
+
 export default function ResultsClient({ searchId, displayed, hidden }: Props) {
   const router = useRouter()
   const [view, setView] = useState<ViewMode>('overview')
@@ -60,9 +66,53 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
   const [showHidden, setShowHidden] = useState(false)
   const [rerunning, setRerunning] = useState(false)
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [showSkipped, setShowSkipped] = useState(false)
+  const [showStretch, setShowStretch] = useState(false)
+  const [compareOpen, setCompareOpen] = useState(false)
+  // Local view of note/tag so updates via the API reflect immediately.
+  const [metaOverrides, setMetaOverrides] = useState<Record<string, { note?: string | null; tag?: ListingTag | null }>>({})
 
-  const visibleDisplayed = displayed.slice(0, visibleCount)
-  const hasMore = displayed.length > visibleCount
+  // Merge server-provided meta with local overrides — overrides win.
+  const enriched = displayed.map(r => {
+    const o = metaOverrides[r.listingId]
+    return {
+      ...r,
+      note: o?.note !== undefined ? o.note : r.note,
+      tag: o?.tag !== undefined ? o.tag : r.tag,
+    }
+  })
+
+  // Split in-budget / over-budget primary lists. Over-budget shown in a
+  // collapsed "stretch options" section so the agent's primary scan is the
+  // in-budget set. Toggle reveals the rest.
+  const inBudget = enriched.filter(r => r.overBudgetBy === 0)
+  const stretch = enriched.filter(r => r.overBudgetBy > 0)
+
+  function applyFilter(rows: typeof inBudget): typeof inBudget {
+    return rows.filter(r => {
+      if (!showSkipped && r.tag === 'skip') return false
+      if (filter === 'show' && r.tag !== 'show') return false
+      if (filter === 'maybe' && r.tag !== 'maybe') return false
+      if (filter === 'saved' && r.savedClientIds.length === 0) return false
+      return true
+    })
+  }
+  const visibleInBudget = applyFilter(inBudget)
+  const visibleStretch = applyFilter(stretch)
+
+  // Counts (against the post-skip-toggle, full set) for the chip labels.
+  const baseSet = enriched.filter(r => showSkipped || r.tag !== 'skip')
+  const counts = {
+    all: baseSet.length,
+    show: baseSet.filter(r => r.tag === 'show').length,
+    maybe: baseSet.filter(r => r.tag === 'maybe').length,
+    saved: baseSet.filter(r => r.savedClientIds.length > 0).length,
+  }
+  const skippedCount = enriched.filter(r => r.tag === 'skip').length
+
+  const visibleDisplayed = visibleInBudget.slice(0, visibleCount)
+  const hasMore = visibleInBudget.length > visibleCount
 
   function toggleSelect(listingId: string) {
     setSelected(prev => {
@@ -71,6 +121,10 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
       else next.add(listingId)
       return next
     })
+  }
+
+  function onMetaChange(listingId: string, patch: { note?: string | null; tag?: ListingTag | null }) {
+    setMetaOverrides(prev => ({ ...prev, [listingId]: { ...prev[listingId], ...patch } }))
   }
 
   async function rerun() {
@@ -128,6 +182,30 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
         </p>
       </div>
 
+      {/* Filter chips — operate over all displayed (not just current page).
+           Default state: in-budget only, hide skipped. */}
+      {view === 'overview' && enriched.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 -mx-1 px-1 sm:flex-wrap sm:overflow-visible">
+          <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
+            All <span className="opacity-70">{counts.all}</span>
+          </FilterChip>
+          <FilterChip active={filter === 'show'} onClick={() => setFilter('show')} accent="primary">
+            ★ Show <span className="opacity-70">{counts.show}</span>
+          </FilterChip>
+          <FilterChip active={filter === 'maybe'} onClick={() => setFilter('maybe')} accent="amber">
+            Maybe <span className="opacity-70">{counts.maybe}</span>
+          </FilterChip>
+          <FilterChip active={filter === 'saved'} onClick={() => setFilter('saved')} accent="primary">
+            ♥ Saved <span className="opacity-70">{counts.saved}</span>
+          </FilterChip>
+          {skippedCount > 0 && (
+            <FilterChip active={showSkipped} onClick={() => setShowSkipped(v => !v)} muted>
+              {showSkipped ? 'Hide skipped' : `Show ${skippedCount} skipped`}
+            </FilterChip>
+          )}
+        </div>
+      )}
+
       {/* View body */}
       <AnimatePresence mode="wait">
         {view === 'overview' ? (
@@ -139,6 +217,17 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
             transition={{ duration: 0.25 }}
             className="space-y-5"
           >
+            {visibleDisplayed.length === 0 && (
+              <Card className="border-dashed border-border">
+                <CardContent className="py-10 text-center">
+                  <p className="text-[14px] text-foreground">No homes match this filter.</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">
+                    {filter !== 'all' ? 'Try a different filter or ' : 'Clear filters or '}
+                    <button onClick={() => { setFilter('all'); setShowSkipped(false) }} className="text-primary hover:underline">reset</button>.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             {visibleDisplayed.map((row, i) => (
               <motion.div
                 key={row.resultId}
@@ -164,8 +253,11 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                   listingId={row.listingId}
                   savedClientIds={row.savedClientIds}
                   overBudgetBy={row.overBudgetBy}
+                  note={row.note}
+                  tag={row.tag}
                   isSelected={selected.has(row.listingId)}
                   onToggleSelect={() => toggleSelect(row.listingId)}
+                  onMetaChange={(patch) => onMetaChange(row.listingId, patch)}
                 />
               </motion.div>
             ))}
@@ -178,8 +270,71 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                   onClick={() => setVisibleCount(c => c + PAGE_INCREMENT)}
                   className="text-[13px]"
                 >
-                  Show {Math.min(PAGE_INCREMENT, displayed.length - visibleCount)} more · {displayed.length - visibleCount} remaining
+                  Show {Math.min(PAGE_INCREMENT, visibleInBudget.length - visibleCount)} more · {visibleInBudget.length - visibleCount} remaining
                 </Button>
+              </div>
+            )}
+
+            {/* Stretch options — over-budget but within soft band, collapsed */}
+            {visibleStretch.length > 0 && (
+              <div className="pt-3">
+                <button
+                  onClick={() => setShowStretch(v => !v)}
+                  className="text-[13px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                >
+                  <motion.svg
+                    viewBox="0 0 12 12"
+                    className="h-3 w-3"
+                    fill="none"
+                    animate={{ rotate: showStretch ? 90 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <path d="M4 3l4 3-4 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                  {visibleStretch.length} stretch option{visibleStretch.length !== 1 ? 's' : ''} (within 10% over budget)
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {showStretch && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 space-y-5">
+                        {visibleStretch.map((row) => (
+                          <ListingCard
+                            key={row.resultId}
+                            rank={row.rank}
+                            score={row.score}
+                            address={row.address}
+                            city={row.city}
+                            state={row.state}
+                            price={row.price}
+                            beds={row.beds}
+                            baths={row.baths}
+                            sqft={row.sqft}
+                            photos={row.photos}
+                            explanation={row.explanation}
+                            features={row.features}
+                            checklist={row.checklist}
+                            zillowId={row.zillowId}
+                            listingId={row.listingId}
+                            savedClientIds={row.savedClientIds}
+                            overBudgetBy={row.overBudgetBy}
+                            note={row.note}
+                            tag={row.tag}
+                            isSelected={selected.has(row.listingId)}
+                            onToggleSelect={() => toggleSelect(row.listingId)}
+                            onMetaChange={(patch) => onMetaChange(row.listingId, patch)}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 
@@ -244,7 +399,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.3 }}
           >
-            <FocusMode listings={displayed} />
+            <FocusMode listings={enriched} onMetaChange={onMetaChange} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -264,9 +419,20 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
         </div>
       )}
 
-      {/* Bulk save bar — only relevant in overview */}
+      {/* Bulk action bar — save + compare. Only relevant in overview. */}
       {view === 'overview' && (
-        <BulkSaveBar selectedIds={Array.from(selected)} onClear={() => setSelected(new Set())} />
+        <>
+          <BulkSaveBar
+            selectedIds={Array.from(selected)}
+            onClear={() => setSelected(new Set())}
+            onCompare={selected.size >= 2 && selected.size <= 5 ? () => setCompareOpen(true) : undefined}
+          />
+          <ComparisonView
+            open={compareOpen}
+            listings={enriched.filter(r => selected.has(r.listingId))}
+            onClose={() => setCompareOpen(false)}
+          />
+        </>
       )}
     </>
   )
@@ -300,6 +466,37 @@ function ToggleSegment({
           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
         />
       )}
+      {children}
+    </button>
+  )
+}
+
+function FilterChip({
+  active,
+  onClick,
+  accent,
+  muted,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  accent?: 'primary' | 'amber'
+  muted?: boolean
+  children: React.ReactNode
+}) {
+  const base = 'shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors'
+  if (active) {
+    if (accent === 'amber')
+      return <button onClick={onClick} className={`${base} border-amber-400 bg-amber-100 text-amber-900`}>{children}</button>
+    if (accent === 'primary')
+      return <button onClick={onClick} className={`${base} border-primary bg-primary text-primary-foreground`}>{children}</button>
+    return <button onClick={onClick} className={`${base} border-foreground bg-foreground text-background`}>{children}</button>
+  }
+  return (
+    <button
+      onClick={onClick}
+      className={`${base} border-border bg-card hover:border-foreground/30 ${muted ? 'text-muted-foreground' : 'text-foreground/80'}`}
+    >
       {children}
     </button>
   )

@@ -2,7 +2,16 @@ import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    // Allow Zillow's photo CDN(s) so a future <img> → <Image /> migration
+    // works without an additional config change. Photos can come from any
+    // of *.zillowstatic.com or *.zillow.com.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'photos.zillowstatic.com' },
+      { protocol: 'https', hostname: '**.zillowstatic.com' },
+      { protocol: 'https', hostname: '**.zillow.com' },
+    ],
+  },
 }
 
 // Wrap with Sentry only when SENTRY_DSN is set, so local dev / preview

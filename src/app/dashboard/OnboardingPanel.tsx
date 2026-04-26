@@ -2,30 +2,43 @@
 
 import { motion } from 'motion/react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import NewClientButton from './NewClientButton'
 
 /**
- * Three-step onboarding card for users who haven't created a client
- * or run any searches yet. Animated step reveal + step-1 active accent.
+ * Three-step onboarding panel for users who haven't run anything yet.
+ * Reordered to put "run a search" first — agents shouldn't have to set
+ * up data structures before seeing whether the product works for them.
  */
 export default function OnboardingPanel() {
-  const steps = [
+  const steps: Array<{
+    n: number
+    title: string
+    body: string
+    cta?: React.ReactNode
+    active?: boolean
+  }> = [
     {
       n: 1,
-      title: 'Create a client',
-      body: 'Add a buyer you’re working with so we can attach their search history and saved homes.',
-      cta: <NewClientButton />,
+      title: 'Run a search',
+      body: 'Try it on a hypothetical or a real client. Describe what they want — we pull live Zillow listings and have AI analyze every photo.',
+      cta: (
+        <Link href="/search">
+          <Button size="sm">Start a search →</Button>
+        </Link>
+      ),
       active: true,
     },
     {
       n: 2,
-      title: 'Run a search',
-      body: 'Describe what they’re looking for. We pull live Zillow listings and have Claude analyze every photo.',
+      title: 'Review the matches',
+      body: 'Each result shows a score, photo-level evidence, and what’s missing. Mark the keepers — Show, Maybe, Skip.',
     },
     {
       n: 3,
-      title: 'Review the matches',
-      body: 'Each result shows a score, photo-level evidence, and what’s missing. Save the keepers to share.',
+      title: 'Save & share with a client',
+      body: 'Create a client when you’re ready to save homes for them. Send a polished, branded report with one link.',
+      cta: <NewClientButton />,
     },
   ]
 
@@ -87,13 +100,6 @@ export default function OnboardingPanel() {
           </motion.li>
         ))}
       </ol>
-
-      <div className="mt-5 flex items-center gap-2 text-[12.5px] text-muted-foreground">
-        <span>Already have a client?</span>
-        <Link href="/search" className="text-foreground underline-offset-4 hover:underline">
-          Skip ahead and run a search →
-        </Link>
-      </div>
     </motion.section>
   )
 }

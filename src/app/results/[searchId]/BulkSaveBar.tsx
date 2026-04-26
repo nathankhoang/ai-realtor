@@ -1,29 +1,52 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
 interface Client { id: string; name: string }
 
+const LAST_CLIENT_KEY = 'eifara:lastSavedClient'
+
 interface Props {
   selectedIds: string[]
   onClear: () => void
+  /** Provided when 2–5 listings are selected — opens the comparison modal. */
+  onCompare?: () => void
 }
 
-export default function BulkSaveBar({ selectedIds, onClear }: Props) {
+export default function BulkSaveBar({ selectedIds, onClear, onCompare }: Props) {
   const [open, setOpen] = useState(false)
   const [clients, setClients] = useState<Client[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [lastClient, setLastClient] = useState<Client | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(LAST_CLIENT_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Client
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed?.id && parsed?.name) setLastClient(parsed)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  async function ensureClientsLoaded(): Promise<Client[]> {
+    if (clients) return clients
+    const res = await fetch('/api/clients')
+    const data = await res.json()
+    const list = (data.clients ?? []) as Client[]
+    setClients(list)
+    return list
+  }
 
   async function openDialog() {
     setOpen(true)
-    if (!clients) {
-      const res = await fetch('/api/clients')
-      const data = await res.json()
-      setClients(data.clients ?? [])
-    }
+    await ensureClientsLoaded()
   }
 
   async function saveToClient(client: Client) {
@@ -38,6 +61,11 @@ export default function BulkSaveBar({ selectedIds, onClear }: Props) {
           })
         )
       )
+      try {
+        window.localStorage.setItem(LAST_CLIENT_KEY, JSON.stringify(client))
+      } catch {
+        // ignore
+      }
       toast.success(`${selectedIds.length} home${selectedIds.length !== 1 ? 's' : ''} saved to ${client.name}`)
       setOpen(false)
       onClear()
@@ -48,14 +76,50 @@ export default function BulkSaveBar({ selectedIds, onClear }: Props) {
     }
   }
 
+  async function quickSaveToLast() {
+    if (!lastClient) return
+    const list = await ensureClientsLoaded()
+    if (!list.some(c => c.id === lastClient.id)) {
+      // Last client deleted — reopen dialog to pick another.
+      try { window.localStorage.removeItem(LAST_CLIENT_KEY) } catch { /* ignore */ }
+      setLastClient(null)
+      openDialog()
+      return
+    }
+    await saveToClient(lastClient)
+  }
+
   if (selectedIds.length === 0) return null
 
   return (
     <>
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-foreground text-background px-4 py-2.5 rounded-full shadow-lg">
         <span className="text-sm font-medium">{selectedIds.length} selected</span>
+        {onCompare && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onCompare}
+            className="rounded-full h-7 px-3 text-xs"
+            title="Compare these listings side-by-side"
+          >
+            Compare
+          </Button>
+        )}
+        {lastClient && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={quickSaveToLast}
+            disabled={loading}
+            className="rounded-full h-7 px-3 text-xs"
+            title={`Save all ${selectedIds.length} to ${lastClient.name}`}
+          >
+            → {lastClient.name}
+          </Button>
+        )}
         <Button size="sm" variant="secondary" onClick={openDialog} className="rounded-full h-7 px-3 text-xs">
-          Save to client
+          {lastClient ? 'Other client…' : 'Save to client'}
         </Button>
         <button onClick={onClear} className="text-background/60 hover:text-background transition-colors text-sm">✕</button>
       </div>

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 import { users, searches, clients, savedListings, searchResults } from '@/lib/db/schema'
-import { eq, desc, count, max, inArray, and, gte } from 'drizzle-orm'
+import { eq, desc, count, max, inArray, and, gte, isNotNull } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
 import ManageBillingButton from './ManageBillingButton'
 import UpgradeSuccessToast from './UpgradeSuccessToast'
@@ -15,6 +15,14 @@ import QuotaRing from './QuotaRing'
 import ClientCard from './ClientCard'
 import SearchTimeline from './SearchTimeline'
 import OnboardingPanel from './OnboardingPanel'
+
+function mostRecent(dates: Array<Date | null>): Date | null {
+  let best: Date | null = null
+  for (const d of dates) {
+    if (d && (!best || d.getTime() > best.getTime())) best = d
+  }
+  return best
+}
 
 export default async function DashboardPage() {
   const { userId } = await auth()
@@ -54,19 +62,22 @@ export default async function DashboardPage() {
 
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-  const [recentSearches, clientRows, totalSearchesRow, topMatchesWeekRow] = await Promise.all([
+  const [recentSearches, clientRowsRaw, totalSearchesRow, topMatchesWeekRow, clientLastSearchRows] = await Promise.all([
     db.query.searches.findMany({
       where: eq(searches.userId, dbUser.id),
       orderBy: [desc(searches.createdAt)],
       limit: 12,
     }),
     db
-      .select({ client: clients, savedCount: count(savedListings.id) })
+      .select({
+        client: clients,
+        savedCount: count(savedListings.id),
+        lastSavedAt: max(savedListings.savedAt),
+      })
       .from(clients)
       .leftJoin(savedListings, eq(savedListings.clientId, clients.id))
       .where(eq(clients.userId, dbUser.id))
-      .groupBy(clients.id)
-      .orderBy(desc(clients.createdAt)),
+      .groupBy(clients.id),
     db
       .select({ total: count() })
       .from(searches)
@@ -79,10 +90,37 @@ export default async function DashboardPage() {
         and(
           eq(searches.userId, dbUser.id),
           gte(searches.createdAt, weekAgo),
-          gte(searchResults.matchScore, 0.8),
+          // Calibrated for the deterministic-checklist scoring (0.85 = all
+          // required matched, no nice-to-haves). 0.75 ≈ "most required met".
+          gte(searchResults.matchScore, 0.75),
         ),
       ),
+    db
+      .select({ clientId: searches.clientId, lastSearchAt: max(searches.createdAt) })
+      .from(searches)
+      .where(and(eq(searches.userId, dbUser.id), isNotNull(searches.clientId)))
+      .groupBy(searches.clientId),
   ])
+
+  // Sort active clients first — "active" = had a recent search or save.
+  // Inactive clients fall back to creation date.
+  const lastSearchByClient = new Map<string, Date>()
+  for (const r of clientLastSearchRows) {
+    if (r.clientId && r.lastSearchAt) lastSearchByClient.set(r.clientId, new Date(r.lastSearchAt))
+  }
+  const clientRows = [...clientRowsRaw].sort((a, b) => {
+    const aActivity = mostRecent([
+      lastSearchByClient.get(a.client.id) ?? null,
+      a.lastSavedAt ? new Date(a.lastSavedAt) : null,
+    ])
+    const bActivity = mostRecent([
+      lastSearchByClient.get(b.client.id) ?? null,
+      b.lastSavedAt ? new Date(b.lastSavedAt) : null,
+    ])
+    const aMs = aActivity?.getTime() ?? new Date(a.client.createdAt).getTime()
+    const bMs = bActivity?.getTime() ?? new Date(b.client.createdAt).getTime()
+    return bMs - aMs
+  })
 
   const searchIds = recentSearches.map(s => s.id)
   const topScores =
