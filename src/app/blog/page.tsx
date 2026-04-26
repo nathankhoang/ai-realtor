@@ -41,7 +41,7 @@ export default function BlogIndexPage() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-12 sm:py-20">
-        <div className="mb-12 sm:mb-16">
+        <div className="mb-10 sm:mb-12">
           <p className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.2em] text-stone-500">
             Blog
           </p>
@@ -57,12 +57,12 @@ export default function BlogIndexPage() {
         {posts.length === 0 ? (
           <p className="text-[15px] text-stone-500">First post coming soon.</p>
         ) : (
-          <ol className="divide-y divide-stone-900/8 border-y border-stone-900/8">
+          <ul className="space-y-4">
             {posts.map(post => (
               <li key={post.slug}>
                 <Link
                   href={`/blog/${post.slug}`}
-                  className="group block py-7 sm:py-8 transition-colors"
+                  className="group block rounded-2xl border border-stone-900/8 bg-white p-6 sm:p-7 transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-900/15 hover:shadow-[0_18px_40px_-20px_rgba(15,14,10,0.20)]"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-8">
                     <div className="shrink-0 sm:w-32">
@@ -70,7 +70,7 @@ export default function BlogIndexPage() {
                         {formatDate(post.date)}
                       </p>
                       {post.category && (
-                        <p className="mt-1 text-[11.5px] uppercase tracking-[0.18em] text-stone-400">
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-stone-400">
                           {post.category}
                         </p>
                       )}
@@ -88,7 +88,7 @@ export default function BlogIndexPage() {
                 </Link>
               </li>
             ))}
-          </ol>
+          </ul>
         )}
       </main>
 
