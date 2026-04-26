@@ -27,34 +27,34 @@ export default function DashboardHero({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-10"
+      className="relative overflow-hidden rounded-[24px] border border-brand-line bg-card p-6 sm:p-8 md:p-10"
     >
-      {/* Ambient cobalt glow — subtle */}
+      {/* Ambient sage glows */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full opacity-40"
+        className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full opacity-50"
         style={{
-          backgroundImage: 'radial-gradient(circle, rgba(41,82,255,0.20), transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--brand) 20%, transparent), transparent 70%)',
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full opacity-30"
+        className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full opacity-40"
         style={{
-          backgroundImage: 'radial-gradient(circle, rgba(245,158,11,0.10), transparent 70%)',
+          background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-light) 30%, transparent), transparent 70%)',
         }}
       />
 
       <div className="relative flex items-end justify-between gap-6 flex-wrap">
         <div className="min-w-0 flex-1">
-          <p className="text-[11.5px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <p className="font-display text-[11.5px] font-bold uppercase tracking-[0.22em] text-brand-slate">
             {greeting.eyebrow}
           </p>
-          <h1 className="mt-2 text-[clamp(1.75rem,5vw,3rem)] font-medium leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05]">
+          <h1 className="mt-2 font-display text-[clamp(1.75rem,5vw,3rem)] font-extrabold leading-[1.1] tracking-[-0.025em] text-foreground sm:leading-[1.05]">
             {greeting.line}
-            {firstName ? `, ${firstName}` : ''}.
+            {firstName ? <>, <span className="text-brand-gradient">{firstName}</span></> : ''}.
           </h1>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-brand-slate">
             {subtitle}
           </p>
         </div>
@@ -63,18 +63,19 @@ export default function DashboardHero({
           <NewClientButton />
           <Link
             href="/search"
-            className="group/cta relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-foreground px-5 py-2.5 text-[14.5px] font-medium text-background transition-colors"
+            className="group/cta relative inline-flex items-center gap-2 overflow-hidden rounded-full px-5 py-2.5 text-[14.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(74,98,73,0.5)] transition-all duration-300 hover:-translate-y-[1px] hover:shadow-[0_14px_30px_-10px_rgba(74,98,73,0.7)]"
+            style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
           >
             <span className="relative z-10">Run a new search</span>
             <span
               aria-hidden
-              className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-background text-foreground transition-transform duration-300 group-hover/cta:translate-x-0.5"
+              className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-brand-deep transition-transform duration-300 group-hover/cta:translate-x-0.5"
             >
               <svg viewBox="0 0 14 14" className="h-3 w-3" fill="none">
                 <path
                   d="M3 11L11 3M11 3H4.5M11 3V9.5"
                   stroke="currentColor"
-                  strokeWidth="1.6"
+                  strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -82,7 +83,7 @@ export default function DashboardHero({
             </span>
             <span
               aria-hidden
-              className="absolute inset-0 -z-0 origin-left scale-x-0 rounded-full bg-primary transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/cta:scale-x-100"
+              className="absolute inset-0 -translate-x-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)] transition-transform duration-700 group-hover/cta:translate-x-full"
             />
           </Link>
         </div>

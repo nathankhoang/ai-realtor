@@ -165,7 +165,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
                           <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12.5px] font-medium ${
                             s.clientReaction === 'love'
                               ? 'bg-primary/10 text-primary'
-                              : 'bg-stone-200 text-stone-700'
+                              : 'bg-muted text-foreground'
                           }`}>
                             <span>{s.clientReaction === 'love' ? '♥ Loved this' : '✕ Passed'}</span>
                             {s.clientReactedAt && (

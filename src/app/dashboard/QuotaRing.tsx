@@ -40,12 +40,12 @@ export default function QuotaRing({
 
   // Color shifts as you approach quota: cobalt → near-amber → red
   const ringColor = isUnlimited
-    ? '#2952FF'
+    ? 'var(--brand-deep)'
     : pct >= 90
       ? '#dc2626' // red-600
       : pct >= 70
         ? '#d97706' // amber-600
-        : '#2952FF' // cobalt
+        : 'var(--brand-deep)' // cobalt
 
   return (
     <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-left">

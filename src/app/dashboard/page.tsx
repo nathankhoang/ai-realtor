@@ -167,33 +167,18 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-5 sm:gap-7 min-w-0">
-            <Link href="/dashboard" className="text-[17px] font-medium tracking-tight shrink-0">
-              Eifara
-            </Link>
-            <nav className="hidden sm:flex items-center gap-5 text-[14px] text-muted-foreground">
-              <Link href="/pricing" className="hover:text-foreground transition-colors">
-                Pricing
-              </Link>
-              <Link
-                href="/dashboard/settings"
-                className="hover:text-foreground transition-colors"
-              >
-                Settings
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="hidden sm:inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-primary">
+      {/* Mobile-only topbar — sidebar lives at md+ via layout.tsx */}
+      <header className="md:hidden sticky top-0 z-20 border-b border-brand-line bg-card/85 backdrop-blur-xl">
+        <div className="px-4 h-14 flex items-center justify-between gap-3">
+          <Link href="/dashboard" className="font-display text-[17px] font-extrabold tracking-[-0.02em] shrink-0">
+            Eifara
+          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="inline-flex h-6 items-center rounded-full bg-brand-pale px-2.5 text-[11.5px] font-semibold uppercase tracking-[0.16em] text-brand-deep">
               {tierLabel}
             </span>
             {tier === 'free' ? (
-              <Link
-                href="/pricing"
-                className="hidden sm:inline text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <Link href="/pricing" className="text-[13px] text-brand-slate hover:text-foreground transition-colors">
                 Upgrade →
               </Link>
             ) : (
@@ -208,7 +193,7 @@ export default async function DashboardPage() {
         <UpgradeSuccessToast />
       </Suspense>
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10 space-y-6 sm:space-y-8">
         <DashboardHero
           firstName={firstName}
           topMatchesThisWeek={topMatchesThisWeek}
