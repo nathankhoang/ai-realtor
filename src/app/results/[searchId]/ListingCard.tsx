@@ -54,13 +54,25 @@ export default function ListingCard({
   const isGreat = score >= 85
   const isGood = score >= 70
 
-  // Score swatch — emphasises the headline number with editorial-italic serif
-  // so each card has a distinct visual moment.
+  // Score swatch — sage gradient on great matches, deep ink on close ones,
+  // raised pale card on partials. Each card gets a distinct visual moment.
   const scoreSwatch = isGreat
-    ? { bg: 'bg-primary', fg: 'text-primary-foreground', glow: 'shadow-[0_8px_30px_-6px_rgba(41,82,255,0.55)]' }
+    ? {
+        bg: 'bg-brand-gradient',
+        fg: 'text-white',
+        glow: 'shadow-[0_8px_30px_-6px_color-mix(in_srgb,var(--brand)_55%,transparent)]',
+      }
     : isGood
-      ? { bg: 'bg-foreground', fg: 'text-background', glow: 'shadow-[0_8px_24px_-8px_rgba(15,14,10,0.45)]' }
-      : { bg: 'bg-card', fg: 'text-foreground', glow: 'shadow-[0_4px_18px_-6px_rgba(15,14,10,0.20)]' }
+      ? {
+          bg: 'bg-foreground',
+          fg: 'text-background',
+          glow: 'shadow-[0_8px_24px_-8px_rgba(26,36,25,0.45)]',
+        }
+      : {
+          bg: 'bg-card',
+          fg: 'text-foreground',
+          glow: 'shadow-[0_4px_18px_-6px_rgba(26,36,25,0.20)]',
+        }
 
   const visibleEvidence = features ? collectFeatureEvidence(features) : []
 
@@ -140,14 +152,14 @@ export default function ListingCard({
               />
             )}
             <div className="relative flex items-baseline gap-1">
-              <span className="font-[family-name:var(--font-instrument-serif)] italic text-[40px] leading-none tabular-nums sm:text-5xl">
+              <span className="font-display font-black text-[36px] leading-none tabular-nums sm:text-[42px] tracking-[-0.025em]">
                 {score}
               </span>
-              <span className="text-[10.5px] font-medium uppercase tracking-[0.18em] opacity-75 -ml-0.5">
+              <span className="font-display text-[10.5px] font-bold uppercase tracking-[0.14em] opacity-80 -ml-0.5">
                 /100
               </span>
             </div>
-            <div className="relative mt-1 text-[10.5px] font-medium uppercase tracking-[0.16em] opacity-80">
+            <div className="relative mt-1 font-display text-[10.5px] font-bold uppercase tracking-[0.16em] opacity-85">
               Match
             </div>
           </motion.div>

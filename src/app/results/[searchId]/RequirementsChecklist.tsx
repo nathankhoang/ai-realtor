@@ -13,7 +13,7 @@ interface Props {
 /**
  * Per-requirement match/miss display, grouped into three sections:
  *
- *   ✓ What it has         (matched)   — primary cobalt accent
+ *   ✓ What it has         (matched)   — primary sage accent
  *   ✗ What it's missing   (missed)    — warm amber accent (clear, not alarming)
  *   ? Couldn't verify     (unclear)   — collapsed by default, muted
  *
@@ -308,10 +308,10 @@ const GROUP_UI = {
   matched: {
     icon: '✓',
     iconBg: 'bg-primary/12',
-    iconColor: '#2952FF',
+    iconColor: 'var(--brand-deep)',
     headerBg: 'bg-primary/[0.04]',
     countBg: 'rgba(41,82,255,0.10)',
-    countColor: '#2952FF',
+    countColor: 'var(--brand-deep)',
     emphasisedBorder: 'border-primary/25',
   },
   missed: {

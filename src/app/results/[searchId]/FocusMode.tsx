@@ -181,7 +181,7 @@ function FocusCard({
   const isGreat = listing.score >= 85
   const isGood = listing.score >= 70
   const scoreClasses = isGreat
-    ? 'bg-primary text-primary-foreground'
+    ? 'bg-brand-gradient text-white shadow-[0_8px_30px_-6px_color-mix(in_srgb,var(--brand)_55%,transparent)]'
     : isGood
       ? 'bg-foreground text-background'
       : 'bg-muted text-foreground'

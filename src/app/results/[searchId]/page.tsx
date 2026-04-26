@@ -150,9 +150,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-10 border-b border-brand-line bg-card/85 backdrop-blur-xl saturate-150">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
+          <Link href="/dashboard" className="font-display text-[17px] font-extrabold tracking-[-0.02em]">Eifara</Link>
           <UserButton />
         </div>
       </header>
@@ -161,10 +161,12 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
         {/* Search summary */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
-            <h1 className="text-2xl font-medium tracking-tight mt-2">{search.location}</h1>
+            <Link href="/dashboard" className="text-[13px] text-brand-slate hover:text-foreground transition-colors">← Dashboard</Link>
+            <h1 className="font-display text-[clamp(1.625rem,3.5vw,2.25rem)] font-extrabold tracking-[-0.02em] leading-[1.1] mt-2">
+              {hasStrongMatches ? displayed.length : '—'} ranked match{displayed.length !== 1 ? 'es' : ''} in <span className="text-brand-gradient">{search.location}</span>.
+            </h1>
             {search.requirementsText && (
-              <p className="text-[14px] text-muted-foreground mt-1 max-w-lg line-clamp-1">{search.requirementsText}</p>
+              <p className="text-[14px] text-brand-slate mt-2 max-w-lg line-clamp-1">{search.requirementsText}</p>
             )}
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[13px]">
               {search.priceMax && <span className="text-muted-foreground">≤ ${search.priceMax.toLocaleString()}</span>}
