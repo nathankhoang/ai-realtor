@@ -59,35 +59,48 @@ export async function searchZillow(params: {
     params.priceMax ? `max:${params.priceMax}` : '',
   ].filter(Boolean).join(', ')
 
-  const query = new URLSearchParams({
-    location: params.location,
-    page: String(params.page ?? 1),
-    listingStatus: 'For_Sale',
-    homeType: 'Houses, Townhomes, Multi-family, Condos/Co-ops, Lots-Land, Apartments, Manufactured',
-    bed_min: params.bedsMin ? String(params.bedsMin) : 'No_Min',
-    bathrooms: bathsEnum(params.bathsMin),
-    ...(priceRange && { listPriceRange: priceRange }),
-  })
+  const buildQuery = (location: string) =>
+    new URLSearchParams({
+      location,
+      page: String(params.page ?? 1),
+      listingStatus: 'For_Sale',
+      homeType: 'Houses, Townhomes, Multi-family, Condos/Co-ops, Lots-Land, Apartments, Manufactured',
+      bed_min: params.bedsMin ? String(params.bedsMin) : 'No_Min',
+      bathrooms: bathsEnum(params.bathsMin),
+      ...(priceRange && { listPriceRange: priceRange }),
+    })
 
-  const res = await fetchWithTimeout(
-    `https://private-zillow.p.rapidapi.com/search/byaddress?${query}`,
-    {
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+  const callZillow = async (location: string) => {
+    const res = await fetchWithTimeout(
+      `https://private-zillow.p.rapidapi.com/search/byaddress?${buildQuery(location)}`,
+      {
+        headers: {
+          'x-rapidapi-key': apiKey,
+          'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+        },
       },
-    },
-    SEARCH_TIMEOUT_MS,
-    'Zillow search',
-  )
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Zillow API error ${res.status}: ${text.slice(0, 200)}`)
+      SEARCH_TIMEOUT_MS,
+      'Zillow search',
+    )
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Zillow API error ${res.status}: ${text.slice(0, 200)}`)
+    }
+    const data = await res.json()
+    return (data.searchResults ?? []) as Record<string, unknown>[]
   }
 
-  const data = await res.json()
-  const rawResults: Record<string, unknown>[] = data.searchResults ?? []
+  let rawResults = await callZillow(params.location)
+
+  // Zillow's byaddress endpoint silently returns 0 when a city/state/zip
+  // combo is inconsistent (e.g. "Dallas, TX 75044" — 75044 is in Garland,
+  // not Dallas). Fall back to the bare ZIP, which always resolves.
+  if (rawResults.length === 0) {
+    const zipMatch = params.location.match(/\b(\d{5})\b/)
+    if (zipMatch && zipMatch[1] !== params.location.trim()) {
+      rawResults = await callZillow(zipMatch[1])
+    }
+  }
 
   return rawResults.map((r: Record<string, unknown>) => {
     const p = r.property as Record<string, unknown>
