@@ -1,15 +1,43 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
+import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
-import { users, searches, clients } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { users, searches, searchResults, clients } from '@/lib/db/schema'
+import { eq, and, desc, gte, count } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { searchRatelimit } from '@/lib/ratelimit'
 import { upsertListings } from '@/lib/listings'
+
+const DUPLICATE_LOOKBACK_MS = 60 * 60 * 1000 // 1 hour
+
+/**
+ * Hash of the search inputs that would meaningfully change the results.
+ * Whitespace, case, and missing-vs-zero are normalized.
+ */
+function inputHash(p: {
+  location: string
+  requirementsText: string
+  priceMin: number | null
+  priceMax: number | null
+  bedsMin: number | null
+  bathsMin: number | null
+  clientId: string | null
+}): string {
+  const normalized = JSON.stringify({
+    location: p.location.trim().toLowerCase(),
+    req: p.requirementsText.trim().replace(/\s+/g, ' '),
+    priceMin: p.priceMin ?? null,
+    priceMax: p.priceMax ?? null,
+    bedsMin: p.bedsMin ?? null,
+    bathsMin: p.bathsMin ?? null,
+    clientId: p.clientId ?? null,
+  })
+  return createHash('sha256').update(normalized).digest('hex')
+}
 
 const REQUIREMENTS_TEXT_MAX = 5000
 
@@ -99,6 +127,43 @@ async function handleSearch(req: Request) {
     if (client) resolvedClientId = clientId
   }
 
+  // Duplicate-search detection: if the same user submitted an identical
+  // search in the last hour AND it produced at least one result, redirect
+  // them to that existing search instead of running fresh + charging.
+  const hash = inputHash({
+    location,
+    requirementsText,
+    priceMin: priceMin ?? null,
+    priceMax: priceMax ?? null,
+    bedsMin: bedsMin ?? null,
+    bathsMin: bathsMin ?? null,
+    clientId: resolvedClientId,
+  })
+  const lookbackCutoff = new Date(Date.now() - DUPLICATE_LOOKBACK_MS)
+  const recent = await db.query.searches.findFirst({
+    where: and(
+      eq(searches.userId, dbUser.id),
+      eq(searches.inputHash, hash),
+      gte(searches.createdAt, lookbackCutoff),
+    ),
+    orderBy: [desc(searches.createdAt)],
+  })
+  if (recent) {
+    // Confirm the existing search has at least one result; if it died early
+    // with no results, fall through to running a fresh one.
+    const [{ resultCount }] = await db
+      .select({ resultCount: count() })
+      .from(searchResults)
+      .where(eq(searchResults.searchId, recent.id))
+    if (Number(resultCount) > 0) {
+      return NextResponse.json({
+        searchId: recent.id,
+        duplicate: true,
+        message: 'Showing your existing results from less than an hour ago.',
+      })
+    }
+  }
+
   // Parse requirements (Haiku, ~3s)
   let parsedRequirements
   try {
@@ -119,6 +184,7 @@ async function handleSearch(req: Request) {
     priceMax: priceMax ?? null,
     bedsMin: bedsMin ?? null,
     bathsMin: bathsMin ?? null,
+    inputHash: hash,
   }).returning()
 
   await db.update(users)

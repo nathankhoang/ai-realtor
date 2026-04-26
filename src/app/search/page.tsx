@@ -213,6 +213,9 @@ function SearchPageContent() {
       }
 
       const data = await res.json()
+      if (data.duplicate) {
+        toast.info('Showing your existing results from the last hour. Edit & re-search if you want a fresh run.')
+      }
       router.push(`/results/${data.searchId}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong')

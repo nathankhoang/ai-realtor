@@ -40,12 +40,17 @@ export const searches = pgTable('searches', {
   // model was used so we can A/B Haiku vs Sonnet.
   tokensUsed: integer('tokens_used'),
   visionModel: text('vision_model'),
+  // SHA-256 of normalized (location + requirementsText + filters). Used
+  // to detect duplicate searches within a 1-hour window so we redirect
+  // to the existing results instead of charging for a re-run.
+  inputHash: text('input_hash'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [
   index('idx_searches_user_id').on(t.userId, t.createdAt.desc()),
   index('idx_searches_client_id').on(t.clientId),
   index('idx_searches_status').on(t.status),
+  index('idx_searches_user_hash').on(t.userId, t.inputHash),
 ])
 
 export type SearchStatus = 'running' | 'completed' | 'failed' | 'cancelled'
