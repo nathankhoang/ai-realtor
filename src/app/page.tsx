@@ -11,7 +11,9 @@ import { PricingTeaser } from '@/components/landing/PricingTeaser'
 import { SignInTrigger, SignUpTrigger } from '@/components/landing/AuthButtons'
 import HeroSection from '@/components/landing/HeroSection'
 import TopMarquee from '@/components/landing/TopMarquee'
+import { FeatureMarquee } from '@/components/landing/FeatureMarquee'
 import SectionCTA from '@/components/landing/SectionCTA'
+import TryItDemo from '@/components/landing/TryItDemo'
 import StructuredData from '@/components/StructuredData'
 import { organizationJsonLd, softwareApplicationJsonLd, faqPageJsonLd } from '@/lib/seo'
 import { getAllPosts } from '@/lib/blog'
@@ -28,6 +30,7 @@ export default async function Home() {
       <TopMarquee />
       <Header />
       <HeroSection />
+      <FeatureMarquee />
       <Stats />
 
       {/* CTA after the stat strip */}
@@ -38,6 +41,9 @@ export default async function Home() {
       />
 
       <ProblemStrip />
+
+      {/* Live demo — preset briefs run a fake-but-believable analysis */}
+      <TryItDemo />
 
       {/* CTA after the problem agitation */}
       <SectionCTA

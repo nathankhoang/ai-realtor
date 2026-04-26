@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform } from 'motion/react'
 import { useRef } from 'react'
+import BeforeAfterSlider from './BeforeAfterSlider'
 
 const STEPS = [
   {
@@ -40,31 +41,8 @@ const STEPS = [
     n: '02',
     label: 'Analyze',
     title: 'Eifara analyzes every photo on every listing.',
-    body: 'We pull the strongest Zillow matches in your area, then run vision AI on each photo — checking for the specific features your client wants and flagging the ones they don\'t.',
-    visual: (
-      <div className="grid grid-cols-4 gap-2.5 rounded-2xl border border-brand-line bg-white p-5">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0.35 }}
-            animate={{ opacity: [0.35, 1, 0.35] }}
-            transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.18 }}
-            className="relative aspect-square overflow-hidden rounded-md bg-gradient-to-br from-stone-700 to-stone-900"
-          >
-            <span className="absolute right-1 bottom-1 rounded bg-black/60 px-1 text-[10px] text-white/80">
-              {i + 1}
-            </span>
-            <div
-              className="absolute inset-x-0 top-0 h-px"
-              style={{
-                backgroundColor: 'var(--brand-light)',
-                boxShadow: '0 0 8px color-mix(in srgb, var(--brand) 80%, transparent)',
-              }}
-            />
-          </motion.div>
-        ))}
-      </div>
-    ),
+    body: 'We pull the strongest Zillow matches in your area, then run vision AI on each photo — checking for the specific features your client wants and flagging the ones they don\'t. Drag the slider to see what Eifara sees.',
+    visual: <BeforeAfterSlider />,
   },
   {
     n: '03',

@@ -1,12 +1,37 @@
 'use client'
 
 import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { PhotoScanDemo } from './PhotoScanDemo'
 import { SignUpTrigger } from './AuthButtons'
 import { SecondaryButton } from './PrimaryButton'
 
 const HEAD_LINE_1 = ['See', 'every', 'home']
 const HEAD_LINE_2 = ['through', 'your']
+
+const PARTICLE_COUNT = 30
+
+interface Particle {
+  left: number
+  top: number
+  duration: number
+  delay: number
+  opacity: number
+  scale: number
+}
+
+/** Generate the particle field client-side so SSR + hydration don't
+ *  see two different "random" layouts. */
+function generateParticles(): Particle[] {
+  return Array.from({ length: PARTICLE_COUNT }, () => ({
+    left: Math.random() * 100,
+    top: 100 + Math.random() * 20,
+    duration: 8 + Math.random() * 12,
+    delay: Math.random() * 8,
+    opacity: 0.2 + Math.random() * 0.5,
+    scale: 0.5 + Math.random() * 1.2,
+  }))
+}
 
 /**
  * Sage-redesigned hero. Three layered backgrounds: an animated mesh of
@@ -16,6 +41,15 @@ const HEAD_LINE_2 = ['through', 'your']
  */
 export default function HeroSection() {
   const prefersReducedMotion = useReducedMotion()
+  // Generate particles only on the client — Math.random differs between
+  // server and client, so seed an empty array first and populate from
+  // useEffect post-mount.
+  const [particles, setParticles] = useState<Particle[]>([])
+  useEffect(() => {
+    if (prefersReducedMotion) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParticles(generateParticles())
+  }, [prefersReducedMotion])
 
   return (
     <section className="relative overflow-hidden bg-background">
@@ -78,6 +112,23 @@ export default function HeroSection() {
           WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%,black,transparent 80%)',
         }}
       />
+
+      {/* Floating sage particles — drift up and out */}
+      <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+        {particles.map((p, i) => (
+          <span
+            key={i}
+            className="eifara-hero-particle"
+            style={{
+              left: `${p.left}%`,
+              top: `${p.top}%`,
+              opacity: p.opacity,
+              transform: `scale(${p.scale})`,
+              animation: `eifaraFloatUp ${p.duration}s linear ${p.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
 
       <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32">
         {/* Eyebrow chip with pulsing sage dot */}
@@ -163,7 +214,7 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Local keyframes for the hero mesh */}
+      {/* Local keyframes for the hero mesh + particles */}
       <style>{`
         @keyframes eifaraMeshA {
           0% { transform: translate(0, 0) }
@@ -179,6 +230,23 @@ export default function HeroSection() {
           0% { transform: translate(0, 0) scale(1) }
           50% { transform: translate(15%, -10%) scale(1.2) }
           100% { transform: translate(-8%, 12%) scale(0.9) }
+        }
+        .eifara-hero-particle {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          border-radius: 9999px;
+          background: linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light));
+          will-change: transform, opacity;
+        }
+        @keyframes eifaraFloatUp {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
+          10% { opacity: 0.6; }
+          90% { opacity: 0.4; }
+          100% { transform: translateY(-110vh) translateX(40px); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .eifara-hero-particle { display: none; }
         }
       `}</style>
     </section>
