@@ -171,9 +171,14 @@ function SearchPageContent() {
       g.features.filter(f => checkedFeatures.has(f.id)).map(f => f.label)
     )
 
+    // Drop checklist labels already mentioned in the prose so the LLM
+    // doesn't see "hardwood floors" twice and double-count them.
+    const proseLc = requirements.trim().toLowerCase()
+    const dedupedLabels = checkedLabels.filter(l => !proseLc.includes(l.toLowerCase()))
+
     const combinedRequirements = [
       requirements.trim(),
-      checkedLabels.length > 0 ? `Also wants: ${checkedLabels.join(', ')}` : '',
+      dedupedLabels.length > 0 ? `Also wants: ${dedupedLabels.join(', ')}` : '',
     ].filter(Boolean).join('\n')
 
     if (!combinedRequirements) {
@@ -215,6 +220,13 @@ function SearchPageContent() {
       const data = await res.json()
       if (data.duplicate) {
         toast.info('Showing your existing results from the last hour. Edit & re-search if you want a fresh run.')
+      }
+      if (data.priceDriftHint) {
+        const { formMax, proseMax, using } = data.priceDriftHint as { formMax: number; proseMax: number; using: number }
+        toast.info(
+          `Your description mentions $${proseMax.toLocaleString()} but the Max price field is $${formMax.toLocaleString()} — using $${using.toLocaleString()}.`,
+          { duration: 7000 },
+        )
       }
       router.push(`/results/${data.searchId}`)
     } catch (err) {

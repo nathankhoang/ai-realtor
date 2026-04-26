@@ -44,6 +44,10 @@ export const searches = pgTable('searches', {
   // to detect duplicate searches within a 1-hour window so we redirect
   // to the existing results instead of charging for a re-run.
   inputHash: text('input_hash'),
+  // Full prescreened zpid order from the initial Zillow result. Each
+  // next-batch click pops from the head of this list instead of re-running
+  // the prescreen LLM. Null on legacy searches.
+  prescreenedZpids: jsonb('prescreened_zpids').$type<string[]>(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [

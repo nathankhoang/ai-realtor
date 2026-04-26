@@ -34,6 +34,14 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
+/** Coerce to a finite number or null — Zillow occasionally returns
+ *  malformed/string values; without this NaN can land in the DB. */
+function toFiniteNumber(v: unknown): number | null {
+  if (v == null) return null
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 export async function searchZillow(params: {
   location: string
   priceMin?: number
@@ -114,10 +122,10 @@ export async function searchZillow(params: {
       city: String(addr?.city ?? ''),
       state: String(addr?.state ?? ''),
       zipcode: String(addr?.zipcode ?? ''),
-      price: price?.value != null ? Number(price.value) : null,
-      bedrooms: p.bedrooms != null ? Number(p.bedrooms) : null,
-      bathrooms: p.bathrooms != null ? Number(p.bathrooms) : null,
-      livingArea: p.livingArea != null ? Number(p.livingArea) : null,
+      price: toFiniteNumber(price?.value),
+      bedrooms: toFiniteNumber(p.bedrooms),
+      bathrooms: toFiniteNumber(p.bathrooms),
+      livingArea: toFiniteNumber(p.livingArea),
       photos: (allPhotos?.highResolution as string[] | undefined) ?? [],
     }
   })
@@ -137,48 +145,50 @@ export interface ListingContext {
   priceHistory: Array<{ date: string; event: string; price?: number }>
 }
 
-export async function getListingPrice(zpid: string): Promise<number | null> {
+/**
+ * One-attempt-with-retry wrapper for the Zillow detail endpoint. The
+ * upstream is flaky enough that we lose ~1–2% of listings per batch
+ * to transient 5xx; a single backoff retry recovers most of them.
+ */
+async function fetchDetailWithRetry(zpid: string, label: string): Promise<Response> {
   const apiKey = process.env.RAPIDAPI_KEY
   if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
 
-  const res = await fetchWithTimeout(
-    `https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`,
-    {
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
-      },
+  const url = `https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`
+  const init: RequestInit = {
+    headers: {
+      'x-rapidapi-key': apiKey,
+      'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
     },
-    DETAIL_TIMEOUT_MS,
-    'Zillow detail (price)',
-  )
+  }
 
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, init, DETAIL_TIMEOUT_MS, label)
+      // Retry on 5xx; surface 4xx immediately (auth, not-found, etc.)
+      if (res.ok || res.status < 500) return res
+      lastErr = new Error(`Zillow detail API error ${res.status}`)
+    } catch (err) {
+      lastErr = err
+    }
+    if (attempt === 0) await new Promise(r => setTimeout(r, 400))
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Zillow detail fetch failed')
+}
+
+export async function getListingPrice(zpid: string): Promise<number | null> {
+  const res = await fetchDetailWithRetry(zpid, 'Zillow detail (price)')
   if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
 
   const data = await res.json()
   const d = (data.propertyDetails ?? {}) as Record<string, unknown>
   const price = d.price as Record<string, unknown> | undefined
-  if (price?.value != null) return Number(price.value)
-  if (d.listPrice != null) return Number(d.listPrice)
-  return null
+  return toFiniteNumber(price?.value) ?? toFiniteNumber(d.listPrice)
 }
 
 export async function getListingDetails(zpid: string): Promise<ListingContext> {
-  const apiKey = process.env.RAPIDAPI_KEY
-  if (!apiKey) throw new Error('RAPIDAPI_KEY is not configured')
-
-  const res = await fetchWithTimeout(
-    `https://private-zillow.p.rapidapi.com/pro/byzpid?zpid=${zpid}`,
-    {
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
-      },
-    },
-    DETAIL_TIMEOUT_MS,
-    'Zillow detail',
-  )
-
+  const res = await fetchDetailWithRetry(zpid, 'Zillow detail')
   if (!res.ok) throw new Error(`Zillow detail API error ${res.status}`)
 
   const data = await res.json()
@@ -186,21 +196,32 @@ export async function getListingDetails(zpid: string): Promise<ListingContext> {
   const resoFacts = (d.resoFacts ?? {}) as Record<string, unknown>
   const priceHistory = (d.priceHistory ?? []) as Array<Record<string, unknown>>
 
+  const hoaFee = toFiniteNumber(resoFacts.hoaFee)
+  // Trust an explicit hasHoa boolean; otherwise infer from a positive fee.
+  // Boolean(0) === false used to silently hide $0-fee HOAs.
+  const hasHoa =
+    typeof resoFacts.hasHoa === 'boolean'
+      ? resoFacts.hasHoa
+      : (hoaFee != null && hoaFee > 0)
+
   return {
     description: String(d.description ?? ''),
-    yearBuilt: d.yearBuilt != null ? Number(d.yearBuilt) : null,
+    yearBuilt: toFiniteNumber(d.yearBuilt),
     resoFacts: {
       flooring: (resoFacts.flooring as string[] | undefined) ?? [],
       appliances: (resoFacts.appliances as string[] | undefined) ?? [],
       interiorFeatures: (resoFacts.interiorFeatures as string[] | undefined) ?? [],
       isNewConstruction: Boolean(resoFacts.isNewConstruction),
-      hasHoa: Boolean(resoFacts.hasHoa ?? resoFacts.hoaFee),
-      hoaFee: resoFacts.hoaFee != null ? Number(resoFacts.hoaFee) : null,
+      hasHoa,
+      hoaFee,
     },
-    priceHistory: priceHistory.map(h => ({
-      date: String(h.date ?? ''),
-      event: String(h.event ?? ''),
-      ...(h.price != null ? { price: Number(h.price) } : {}),
-    })),
+    priceHistory: priceHistory.map(h => {
+      const p = toFiniteNumber(h.price)
+      return {
+        date: String(h.date ?? ''),
+        event: String(h.event ?? ''),
+        ...(p != null ? { price: p } : {}),
+      }
+    }),
   }
 }

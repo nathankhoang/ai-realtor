@@ -3,8 +3,8 @@ export const maxDuration = 30
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users, searches } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { users, searches, searchResults } from '@/lib/db/schema'
+import { eq, and, desc, gte, count } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
@@ -12,8 +12,10 @@ import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
 import { softBudget } from '@/lib/budget'
 import type { ParsedRequirements } from '@/types'
+import { logger } from '@/lib/logger'
 
 const FIRST_BATCH_SIZE = 5
+const DUPLICATE_LOOKBACK_MS = 60 * 60 * 1000 // 1 hour
 
 export async function POST(_req: Request, { params }: { params: Promise<{ searchId: string }> }) {
   const { searchId } = await params
@@ -27,6 +29,34 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     where: and(eq(searches.id, searchId), eq(searches.userId, dbUser.id)),
   })
   if (!original) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
+
+  // Duplicate-rerun guard: if the original search has the same inputHash
+  // as a more recent run that produced results, redirect to that one
+  // instead of charging again. Same rule as the create-search path.
+  if (original.inputHash) {
+    const lookbackCutoff = new Date(Date.now() - DUPLICATE_LOOKBACK_MS)
+    const recent = await db.query.searches.findFirst({
+      where: and(
+        eq(searches.userId, dbUser.id),
+        eq(searches.inputHash, original.inputHash),
+        gte(searches.createdAt, lookbackCutoff),
+      ),
+      orderBy: [desc(searches.createdAt)],
+    })
+    if (recent && recent.id !== original.id) {
+      const [{ resultCount }] = await db
+        .select({ resultCount: count() })
+        .from(searchResults)
+        .where(eq(searchResults.searchId, recent.id))
+      if (Number(resultCount) > 0) {
+        return NextResponse.json({
+          searchId: recent.id,
+          duplicate: true,
+          message: 'A re-run with these exact parameters finished in the last hour — showing those results.',
+        })
+      }
+    }
+  }
 
   // Monthly reset (UTC)
   const now = new Date()
@@ -65,6 +95,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     priceMax: original.priceMax,
     bedsMin: original.bedsMin,
     bathsMin: original.bathsMin,
+    inputHash: original.inputHash,
   }).returning()
 
   await db.update(users)
@@ -80,7 +111,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
       bedsMin: original.bedsMin ?? undefined,
       bathsMin: original.bathsMin ?? undefined,
     })
-  } catch {
+  } catch (err) {
+    logger.warn('rerun.zillowFailed', { searchId: newSearch.id, err: err instanceof Error ? err.message : String(err) })
     await db.update(searches).set({ totalCandidates: 0 }).where(eq(searches.id, newSearch.id))
     return NextResponse.json({ searchId: newSearch.id, error: 'Zillow search failed' }, { status: 207 })
   }
@@ -99,20 +131,23 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
       sqft: zl.livingArea,
     })),
     parsedRequirements,
+    original.priceMax,
+    Math.min(zillowListings.length, 60),
   )
 
-  const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, FIRST_BATCH_SIZE)
-  const firstBatch = firstBatchZpids
-    .map(z => zpidToListing.get(z))
-    .filter(Boolean) as typeof zillowListings
+  const orderedZpids = [...rankedZpids, ...remaining]
+  await db.update(searches)
+    .set({ prescreenedZpids: orderedZpids })
+    .where(eq(searches.id, newSearch.id))
 
-  // Upsert listings then enqueue.
-  const zpidToListingId = await upsertListings(firstBatch)
-  const listingIds = firstBatch
-    .map(zl => zpidToListingId.get(zl.zpid))
+  // Upsert all prescreened listings up front so next-batch can pop without
+  // refetching Zillow.
+  const zpidToListingId = await upsertListings(zillowListings)
+  const firstBatchZpids = orderedZpids.slice(0, FIRST_BATCH_SIZE)
+  const listingIds = firstBatchZpids
+    .map(z => zpidToListingId.get(z))
     .filter((v): v is string => !!v)
 
   await enqueueAnalyzeListings(

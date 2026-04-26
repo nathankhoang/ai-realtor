@@ -202,10 +202,11 @@ async function handleSearch(req: Request) {
 
   // Strict price ceiling: form input wins over prose extraction. The
   // prose ceiling is a fallback for users who forget to fill in the
-  // numeric field. We log when both are set and disagree meaningfully —
-  // a heads-up that the LLM may have misread the prompt.
+  // numeric field. We surface a hint to the user (and log) when both
+  // are set and disagree meaningfully.
   const formPriceMax: number | null = priceMax ?? null
   const prosePriceCeiling: number | null = parsedRequirements.priceCeiling
+  let priceDriftHint: { formMax: number; proseMax: number; using: number } | null = null
   if (formPriceMax != null && prosePriceCeiling != null) {
     const drift = Math.abs(formPriceMax - prosePriceCeiling) / formPriceMax
     if (drift > 0.05) {
@@ -214,6 +215,7 @@ async function handleSearch(req: Request) {
         prosePriceCeiling,
         driftPct: Number(drift.toFixed(3)),
       })
+      priceDriftHint = { formMax: formPriceMax, proseMax: prosePriceCeiling, using: formPriceMax }
     }
   }
   const strictMax: number | null = formPriceMax ?? prosePriceCeiling
@@ -278,7 +280,9 @@ async function handleSearch(req: Request) {
     .set({ totalCandidates: zillowListings.length })
     .where(eq(searches.id, search.id))
 
-  // Pre-screen → top candidates
+  // Pre-screen the full Zillow result once, store the ranked order, and
+  // pop the first batch off the head. Subsequent next-batch clicks pop
+  // from the same list — no per-batch LLM rerun.
   const rankedZpids = await prescreenListings(
     zillowListings.map(zl => ({
       zpid: zl.zpid,
@@ -289,22 +293,25 @@ async function handleSearch(req: Request) {
       sqft: zl.livingArea,
     })),
     parsedRequirements,
+    strictMax,
+    Math.min(zillowListings.length, 60),
   )
 
-  const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const firstBatchZpids = [...rankedZpids, ...remaining].slice(0, FIRST_BATCH_SIZE)
-  const firstBatch = firstBatchZpids
-    .map(z => zpidToListing.get(z))
-    .filter(Boolean) as typeof zillowListings
+  const orderedZpids = [...rankedZpids, ...remaining]
+  await db.update(searches)
+    .set({ prescreenedZpids: orderedZpids })
+    .where(eq(searches.id, search.id))
 
-  // Insert/upsert listings (with photos from search results) BEFORE
-  // enqueueing, so the worker can look up by listingId. One round-trip
-  // for the existence check, one for the bulk insert.
-  const zpidToListingId = await upsertListings(firstBatch)
-  const listingIds = firstBatch
-    .map(zl => zpidToListingId.get(zl.zpid))
+  // Upsert ALL prescreened listings (not just the first batch) so the
+  // next-batch route can look them up by zpid without re-fetching Zillow.
+  // The listings table is a shared cache by zillow_id, so this also
+  // benefits other users searching the same area.
+  const zpidToListingId = await upsertListings(zillowListings)
+  const firstBatchZpids = orderedZpids.slice(0, FIRST_BATCH_SIZE)
+  const listingIds = firstBatchZpids
+    .map(z => zpidToListingId.get(z))
     .filter((v): v is string => !!v)
 
   if (listingIds.length === 0) {
@@ -333,5 +340,8 @@ async function handleSearch(req: Request) {
       .catch(err => logger.warn('idempotency.cacheWriteFailed', { err }))
   }
 
-  return NextResponse.json({ searchId: search.id })
+  return NextResponse.json({
+    searchId: search.id,
+    ...(priceDriftHint ? { priceDriftHint } : {}),
+  })
 }

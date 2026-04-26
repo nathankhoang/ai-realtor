@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { searches, listings, listingAnalyses, searchResults, searchFailures } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, gte, count } from 'drizzle-orm'
 import { getListingDetails, type ListingContext } from '@/lib/zillow'
 import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
@@ -62,7 +62,7 @@ async function handler(req: Request) {
       durationMs: Date.now() - startedAt,
       err,
     })
-    await db
+    const failureRow = await db
       .insert(searchFailures)
       .values({ searchId, listingId, errorMessage: msg.slice(0, 500), errorType: type })
       .onConflictDoUpdate({
@@ -74,9 +74,59 @@ async function handler(req: Request) {
           occurredAt: new Date(),
         },
       })
-      .catch(dbErr => logger.error('worker.failure.recordFailed', { searchId, listingId, err: dbErr }))
+      .returning({ attemptCount: searchFailures.attemptCount })
+      .catch(dbErr => {
+        logger.error('worker.failure.recordFailed', { searchId, listingId, err: dbErr })
+        return [] as Array<{ attemptCount: number }>
+      })
+
+    // After QStash has retried at least once (attemptCount >= 2) we
+    // treat this listing as terminally-failed for completion-tick purposes.
+    // Otherwise transient failures would never let the search finalize.
+    const attemptCount = failureRow[0]?.attemptCount ?? 1
+    if (attemptCount >= 2) {
+      await tryFinalizeSearch(searchId).catch(finalizeErr =>
+        logger.error('worker.finalize.failed', { searchId, err: finalizeErr }),
+      )
+    }
     throw err
   }
+}
+
+/**
+ * Tick the search to "completed" once successes + terminally-failed listings
+ * meet the first-batch floor. Safe to call from both success and failure
+ * paths — the eq(status, 'running') guard prevents double-completion.
+ */
+async function tryFinalizeSearch(searchId: string): Promise<void> {
+  const [search] = await db
+    .select({
+      status: searches.status,
+      analyzedCount: searches.analyzedCount,
+      totalCandidates: searches.totalCandidates,
+    })
+    .from(searches)
+    .where(eq(searches.id, searchId))
+  if (!search || search.status !== 'running') return
+
+  const [{ failed }] = await db
+    .select({ failed: count() })
+    .from(searchFailures)
+    .where(and(
+      eq(searchFailures.searchId, searchId),
+      gte(searchFailures.attemptCount, 2),
+    ))
+
+  const FIRST_BATCH = 5
+  const analyzed = search.analyzedCount ?? 0
+  const total = search.totalCandidates ?? FIRST_BATCH
+  const floor = Math.min(FIRST_BATCH, total)
+  if (analyzed + Number(failed) < floor) return
+
+  await db
+    .update(searches)
+    .set({ status: 'completed', completedAt: new Date() })
+    .where(and(eq(searches.id, searchId), eq(searches.status, 'running')))
 }
 
 function classifyError(msg: string): string {
@@ -137,13 +187,19 @@ async function processJob({
   if (detailFresh) {
     listingContext = listing.detailJson as ListingContext
   } else {
-    listingContext = await getListingDetails(listing.zillowId).catch(() => undefined)
-    if (listingContext) {
+    // If the refresh fails but we still have stale detail cached, prefer
+    // that over running the analysis with no MLS context at all.
+    listingContext = await getListingDetails(listing.zillowId)
+      .catch(err => {
+        logger.warn('worker.detail.refreshFailed', { listingId: listing.id, err: err instanceof Error ? err.message : String(err) })
+        return (listing.detailJson as ListingContext | null) ?? undefined
+      })
+    if (listingContext && listingContext !== listing.detailJson) {
       // Best-effort cache write — don't fail the job if the update fails.
       await db.update(listings)
         .set({ detailJson: listingContext, detailFetchedAt: new Date() })
         .where(eq(listings.id, listing.id))
-        .catch(err => console.error('detail cache write failed', err))
+        .catch(err => logger.warn('worker.detail.cacheWriteFailed', { listingId: listing.id, err: err instanceof Error ? err.message : String(err) }))
     }
   }
 
@@ -217,13 +273,13 @@ async function processJob({
       eq(searchFailures.searchId, searchId),
       eq(searchFailures.listingId, listingId),
     ))
-    .catch(err => console.error('[worker] failed to clear prior failure:', err))
+    .catch(err => logger.warn('worker.failure.clearFailed', { searchId, listingId, err: err instanceof Error ? err.message : String(err) }))
 
   // Atomically increment analyzedCount + tokens_used on the search row.
   // visionModel is only set on the first job that runs vision (subsequent
   // jobs may hit the cache and not call vision); use COALESCE so we don't
   // overwrite an existing value with null.
-  const [updated] = await db.update(searches)
+  await db.update(searches)
     .set({
       analyzedCount: sql`${searches.analyzedCount} + 1`,
       tokensUsed: sql`COALESCE(${searches.tokensUsed}, 0) + ${totalTokensThisJob}`,
@@ -232,24 +288,11 @@ async function processJob({
         : searches.visionModel,
     })
     .where(eq(searches.id, searchId))
-    .returning({ analyzedCount: searches.analyzedCount, totalCandidates: searches.totalCandidates, status: searches.status })
 
-  // If this was the last listing in the batch (or all candidates), mark
-  // the search as completed. We use a generous "5 listings analyzed" floor
-  // so first-batch completion ticks status to 'completed' even when the
-  // user hasn't asked for more batches.
-  const FIRST_BATCH = 5
-  const newCount = updated?.analyzedCount ?? 0
-  const totalCandidatesNow = updated?.totalCandidates ?? FIRST_BATCH
-  if (
-    updated &&
-    updated.status === 'running' &&
-    newCount >= Math.min(FIRST_BATCH, totalCandidatesNow)
-  ) {
-    await db.update(searches)
-      .set({ status: 'completed', completedAt: new Date() })
-      .where(and(eq(searches.id, searchId), eq(searches.status, 'running')))
-  }
+  // Tick search to 'completed' when successes + terminally-failed listings
+  // meet the first-batch floor. tryFinalizeSearch handles both success and
+  // failure paths consistently.
+  await tryFinalizeSearch(searchId)
 
   return NextResponse.json({ ok: true, score })
 }

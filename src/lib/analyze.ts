@@ -4,6 +4,7 @@ import type {
   ParsedRequirements,
   RequirementsChecklist,
   RequirementEvaluation,
+  RequirementVerdict,
 } from '@/types'
 import type { ListingContext } from '@/lib/zillow'
 
@@ -57,6 +58,8 @@ function buildListingContextBlock(ctx: ListingContext): string {
     : ''
 }
 
+const PHOTO_SAMPLE_LIMIT = 8
+
 export async function analyzeListingPhotos(
   photoUrls: string[],
   listingContext?: ListingContext,
@@ -65,9 +68,9 @@ export async function analyzeListingPhotos(
     return { features: getUnknownFeatures(), tokensUsed: 0, model: visionModel() }
   }
 
-  // 5 photos covers the vast majority of feature detection at meaningfully
-  // lower cost than 8. Each photo is ~1.5–2k input tokens.
-  const photoContent: Anthropic.ImageBlockParam[] = photoUrls.slice(0, 5).map((url) => ({
+  // 8 photos balances coverage of kitchen/bath/floors against per-listing
+  // cost; each photo is ~1.5–2k input tokens.
+  const photoContent: Anthropic.ImageBlockParam[] = photoUrls.slice(0, PHOTO_SAMPLE_LIMIT).map((url) => ({
     type: 'image',
     source: { type: 'url', url },
   }))
@@ -76,7 +79,7 @@ export async function analyzeListingPhotos(
 
   const prompt = `You are analyzing real estate listing photos to extract specific features.
 ${contextBlock}
-Analyze these ${photoUrls.length} listing photos and respond with a JSON object (no markdown, just raw JSON).
+Analyze these ${Math.min(photoUrls.length, PHOTO_SAMPLE_LIMIT)} listing photos and respond with a JSON object (no markdown, just raw JSON).
 
 For each feature, provide:
 - condition: "updated" | "original" | "poor" | "unknown"
@@ -129,32 +132,46 @@ export async function prescreenListings(
     sqft: number | null
   }>,
   requirements: ParsedRequirements,
+  /** Strict price ceiling — used to deprioritize soft-budget listings
+   *  when the buyer set a strict number. Pass null/undefined to skip. */
+  strictPriceMax?: number | null,
+  /** Cap on how many ranked zpids to return. Caller pops from this list,
+   *  so it pays to return more than the first batch size. */
+  topN: number = 50,
 ): Promise<string[]> {
   if (listings.length === 0) return []
-  if (listings.length <= 10) return listings.map(l => l.zpid)
+  if (listings.length <= topN) return listings.map(l => l.zpid)
 
-  const rows = listings.map(l =>
-    `${l.zpid} | ${l.address} | ${l.price ? '$' + l.price.toLocaleString() : 'N/A'} | ${l.beds ?? '?'}bd | ${l.baths ?? '?'}ba | ${l.sqft ? l.sqft.toLocaleString() + ' sqft' : 'N/A'}`
-  ).join('\n')
+  const rows = listings.map(l => {
+    const overBudget =
+      strictPriceMax != null && l.price != null && l.price > strictPriceMax
+        ? ` [OVER BUDGET by $${(l.price - strictPriceMax).toLocaleString()}]`
+        : ''
+    return `${l.zpid} | ${l.address} | ${l.price ? '$' + l.price.toLocaleString() : 'N/A'}${overBudget} | ${l.beds ?? '?'}bd | ${l.baths ?? '?'}ba | ${l.sqft ? l.sqft.toLocaleString() + ' sqft' : 'N/A'}`
+  }).join('\n')
+
+  const budgetLine = strictPriceMax != null
+    ? `\n- Strict budget ceiling: $${strictPriceMax.toLocaleString()}. Listings marked [OVER BUDGET] should be ranked lower than equivalent in-budget options.`
+    : ''
 
   const prompt = `Rank these real estate listings by how well they match the buyer's requirements. Use only the data provided.
 
 Requirements:
 - Must have: ${requirements.required.join(', ') || 'none'}
 - Nice to have: ${requirements.niceToHave.join(', ') || 'none'}
-- Deal breakers: ${requirements.dealBreakers.join(', ') || 'none'}
+- Deal breakers: ${requirements.dealBreakers.join(', ') || 'none'}${budgetLine}
 
 Listings (zpid | address | price | beds | baths | sqft):
 ${rows}
 
-Return ONLY a JSON array of the top 15 zpids ordered best to worst. No explanation:
+Return ONLY a JSON array of the top ${topN} zpids ordered best to worst. No explanation:
 ["zpid1", "zpid2", ...]`
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
+    max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
-  }, { timeout: 12_000, maxRetries: 1 })
+  }, { timeout: 15_000, maxRetries: 1 })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : '[]'
   try {
@@ -183,6 +200,20 @@ function sanitizePriceCeiling(raw: unknown): number | null {
   return Math.round(n)
 }
 
+/**
+ * Drop checklist labels that already appear (case-insensitive substring)
+ * in the prose, so the LLM doesn't see "hardwood floors" twice. Used by
+ * the search routes before calling parseRequirements.
+ */
+export function dedupeRequirementsText(prose: string, checklistLabels: string[]): string {
+  const trimmed = prose.trim()
+  if (checklistLabels.length === 0) return trimmed
+  const lc = trimmed.toLowerCase()
+  const remaining = checklistLabels.filter(l => !lc.includes(l.toLowerCase()))
+  if (remaining.length === 0) return trimmed
+  return (trimmed ? trimmed + '\n' : '') + 'Also wants: ' + remaining.join(', ')
+}
+
 export async function parseRequirements(requirementsText: string): Promise<ParsedRequirements> {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -208,7 +239,9 @@ priceCeiling rules:
 - Always return whole dollars (400K → 400000, 1.2M → 1200000).
 - If the buyer doesn't mention a price ceiling at all, return null.
 - If they say "around 400K" or "approx 400" treat 400000 as the ceiling — strict by default.
-- Do NOT also list "price over X" in dealBreakers; the priceCeiling field replaces that.`,
+- Do NOT also list "price over X" in dealBreakers; the priceCeiling field replaces that.
+
+Deduplicate semantically — if the same feature is mentioned twice (e.g. "hardwood floors" in prose and again in a checklist), include it only once.`,
       },
     ],
   }, { timeout: 12_000, maxRetries: 1 })
@@ -230,13 +263,172 @@ priceCeiling rules:
 }
 
 /**
- * Detects free-form "price over X" / "budget over X" style entries that
- * older searches may still carry in dealBreakers. New searches put the
- * ceiling in priceCeiling instead, but we strip these here too so a
- * listing in the soft-budget band isn't double-penalized.
+ * Detects free-form "price over X" / "budget over X" entries that legacy
+ * searches still carry in dealBreakers. New searches put the ceiling in
+ * priceCeiling; the strip prevents soft-budget listings being double-
+ * penalized. Tightened to require a budget-direction signal so strings
+ * like "low maintenance cost" don't get incorrectly dropped.
  */
 function isPriceDealBreaker(s: string): boolean {
-  return /\b(price|budget|cost)\b/i.test(s) || /\bover\s+\$?\d/i.test(s)
+  const lc = s.toLowerCase()
+  // Must mention price/budget AND a directional/comparison word.
+  const isPriceTerm = /\b(price|budget|asking|listed|ask)\b/i.test(lc)
+  const isDirectional = /\b(over|above|exceed|exceeds|exceeding|max|ceiling|greater|more\s+than|>\s*=?)\b/i.test(lc)
+  if (isPriceTerm && isDirectional) return true
+  // "over $400k" pattern with explicit dollar amount.
+  if (/\bover\s+\$\d/i.test(lc)) return true
+  return false
+}
+
+// ---------- MLS-derived deterministic checklist seeding ----------
+
+function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+const FLOOR_KEYWORDS = ['hardwood', 'carpet', 'tile', 'vinyl', 'laminate', 'concrete', 'bamboo', 'engineered']
+
+type SeedVerdict = {
+  verdict: Exclude<RequirementVerdict, 'unclear'>
+  evidence: string
+  source: 'mls'
+  photoIndex: null
+}
+
+function mlsVerdict(req: string, ctx: ListingContext): SeedVerdict | null {
+  const negated = /\b(no|not|without|avoid)\b/i.test(req)
+
+  // HOA — explicit hasHoa flag covers both directions.
+  if (/\bhoa\b/i.test(req)) {
+    const wantsNoHoa = negated || /\bhoa[-\s]?free\b/i.test(req)
+    if (wantsNoHoa) {
+      return ctx.resoFacts.hasHoa
+        ? {
+            verdict: 'missed',
+            evidence: `MLS lists HOA${ctx.resoFacts.hoaFee != null ? ` ($${ctx.resoFacts.hoaFee}/mo)` : ''}`,
+            source: 'mls',
+            photoIndex: null,
+          }
+        : { verdict: 'matched', evidence: 'MLS confirms no HOA', source: 'mls', photoIndex: null }
+    }
+    return null
+  }
+
+  // New construction — only confidently match positives; negatives may be implicit.
+  if (/\bnew\s+construction\b/i.test(req) && !negated) {
+    if (ctx.resoFacts.isNewConstruction) {
+      return { verdict: 'matched', evidence: 'MLS flags as new construction', source: 'mls', photoIndex: null }
+    }
+    return null
+  }
+
+  // Flooring keywords — only deterministic when MLS has flooring data.
+  for (const kw of FLOOR_KEYWORDS) {
+    const reqHasKw = new RegExp(`\\b${kw}\\b`, 'i').test(req)
+    if (!reqHasKw) continue
+    if (ctx.resoFacts.flooring.length === 0) return null
+    const inFloor = ctx.resoFacts.flooring.some(f => new RegExp(`\\b${kw}\\b`, 'i').test(f))
+    if (negated) {
+      return inFloor
+        ? { verdict: 'missed', evidence: `MLS lists ${kw} flooring`, source: 'mls', photoIndex: null }
+        : { verdict: 'matched', evidence: `MLS flooring (${ctx.resoFacts.flooring.join(', ')}) does not include ${kw}`, source: 'mls', photoIndex: null }
+    }
+    return inFloor
+      ? { verdict: 'matched', evidence: `MLS lists ${kw} flooring`, source: 'mls', photoIndex: null }
+      : null  // positive want not in MLS — defer to LLM in case photos show it
+  }
+
+  // Generic interior-features substring match (e.g. "open floor plan").
+  const reqNorm = normalizeForMatch(req)
+  if (reqNorm.length >= 4) {
+    const matchInt = ctx.resoFacts.interiorFeatures.find(f => normalizeForMatch(f).includes(reqNorm))
+    if (matchInt && !negated) {
+      return { verdict: 'matched', evidence: `MLS interior features list "${matchInt}"`, source: 'mls', photoIndex: null }
+    }
+  }
+
+  return null
+}
+
+interface SeededEvaluation {
+  requirement: string
+  category: 'required' | 'niceToHave' | 'dealBreaker'
+  verdict: 'matched' | 'missed'
+  evidence: string
+  source: 'mls'
+  photoIndex: null
+}
+
+function seedChecklistFromMls(
+  reqs: ParsedRequirements,
+  ctx: ListingContext | undefined,
+): SeededEvaluation[] {
+  if (!ctx) return []
+  const out: SeededEvaluation[] = []
+  const groups: Array<[string[], 'required' | 'niceToHave' | 'dealBreaker']> = [
+    [reqs.required, 'required'],
+    [reqs.niceToHave, 'niceToHave'],
+    [reqs.dealBreakers, 'dealBreaker'],
+  ]
+  for (const [items, category] of groups) {
+    for (const item of items) {
+      const v = mlsVerdict(item, ctx)
+      if (v) {
+        out.push({
+          requirement: item,
+          category,
+          verdict: v.verdict,
+          evidence: v.evidence,
+          source: 'mls',
+          photoIndex: null,
+        })
+      }
+    }
+  }
+  return out
+}
+
+// ---------- Deterministic score from checklist ----------
+
+/**
+ * Compute a 0..1 score from the resolved checklist. Replaces the LLM's
+ * free-form "score" field — explainable, monotonic, identical for the
+ * same inputs.
+ *
+ * Bands (rough):
+ *   - All required matched + niceToHaves matched: ~0.95
+ *   - All required matched: ~0.85
+ *   - 75% required matched: ~0.69
+ *   - 50% required matched: ~0.53
+ *   - 1+ deal-breaker present: ≤0.20
+ */
+export function computeScoreFromChecklist(checklist: RequirementsChecklist): number {
+  const evals = checklist.evaluations
+  const reqMatched = evals.filter(e => e.category === 'required' && e.verdict === 'matched').length
+  const reqMissed = evals.filter(e => e.category === 'required' && e.verdict === 'missed').length
+  const reqUnclear = evals.filter(e => e.category === 'required' && e.verdict === 'unclear').length
+  const reqTotal = reqMatched + reqMissed + reqUnclear
+
+  const niceMatched = evals.filter(e => e.category === 'niceToHave' && e.verdict === 'matched').length
+  const niceTotal = evals.filter(e => e.category === 'niceToHave').length
+
+  // dealBreaker "matched" = absent (good). "missed" = present (bad).
+  const dbHits = evals.filter(e => e.category === 'dealBreaker' && e.verdict === 'missed').length
+  if (dbHits > 0) {
+    return Math.max(0.05, 0.20 - 0.05 * dbHits)
+  }
+
+  if (reqTotal === 0) {
+    if (niceTotal === 0) return 0.55
+    return 0.55 + 0.30 * (niceMatched / niceTotal)
+  }
+
+  const reqRate = reqMatched / reqTotal
+  const unclearRate = reqUnclear / reqTotal
+  let score = 0.20 + 0.65 * reqRate
+  score -= 0.05 * unclearRate
+  if (niceTotal > 0) score += 0.10 * (niceMatched / niceTotal)
+  return Math.max(0, Math.min(1, score))
 }
 
 export async function scoreListingAgainstRequirements(
@@ -267,6 +459,14 @@ export async function scoreListingAgainstRequirements(
     dealBreakers: filteredDealBreakers,
   }
 
+  // Pre-compute MLS-derived deterministic verdicts. The LLM sees these as
+  // hints; we override its evaluations with these after parsing.
+  const seeded = seedChecklistFromMls(requirementsForPrompt, listingContext)
+  const seededHints = seeded.length > 0
+    ? '\nMLS-confirmed verdicts (these are authoritative — repeat them in your evaluations):\n' +
+      seeded.map(s => `- "${s.requirement}" → ${s.verdict}: ${s.evidence}`).join('\n') + '\n'
+    : ''
+
   const contextLines: string[] = []
   if (listingContext?.description) {
     contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
@@ -288,28 +488,21 @@ export async function scoreListingAgainstRequirements(
     ? `\nListing data from MLS:\n${contextLines.join('\n')}\n`
     : ''
 
-  const prompt = `You are a real estate AI assistant scoring how well a home matches client requirements.
-
-SCORING SCALE — use the full range:
-- 0.85–1.0: All or nearly all required features clearly present; no deal breakers
-- 0.65–0.85: Most required features present; 1 minor gap or uncertainty
-- 0.45–0.65: Several required features present; 2+ gaps but no deal breakers
-- 0.25–0.45: Few required features confirmed; significant gaps
-- 0.0–0.25: Deal breakers present OR almost nothing from requirements is met
+  // We compute the numeric score ourselves from the checklist, so the
+  // prompt only needs the explanation + per-requirement evaluations.
+  const prompt = `You are a real estate AI assistant evaluating how well a home matches client requirements.
 
 CRITICAL RULES:
-- "unknown" means the feature wasn't visible in photos — do NOT penalize for unknown. Treat as neutral.
-- Only penalize features that are clearly absent or visibly poor quality.
-- Nice-to-haves never lower the score — only raise it when present.
-- If requirements are minimal (1–3 items) and most are met, score should be 0.65+.
-- If the listing description or MLS data confirms a requirement, that counts even if photos are unclear.
+- "unknown" means the feature wasn't visible in photos — do NOT penalize for unknown. Default to "unclear" verdict, not "missed".
+- Only mark "missed" when a feature is clearly absent or visibly poor quality.
+- If the listing description or MLS data confirms a requirement, mark it "matched" even if photos are unclear.
 
 Client requirements:
 - Must have: ${requirementsForPrompt.required.join(', ') || 'none specified'}
 - Nice to have: ${requirementsForPrompt.niceToHave.join(', ') || 'none'}
 - Doesn't care about: ${requirementsForPrompt.dontCare.join(', ') || 'none'}
 - Deal breakers: ${requirementsForPrompt.dealBreakers.join(', ') || 'none'}
-
+${seededHints}
 Home at ${listing.address}:
 - Price: ${listing.price ? '$' + listing.price.toLocaleString() : 'unknown'}
 - Beds: ${listing.beds ?? 'unknown'}, Baths: ${listing.baths ?? 'unknown'}
@@ -323,14 +516,14 @@ Home at ${listing.address}:
 - HOA: ${listingContext?.resoFacts?.hasHoa ? `Yes${listingContext.resoFacts.hoaFee != null ? ` ($${listingContext.resoFacts.hoaFee}/month)` : ' (fee unknown)'}` : listingContext ? 'None' : 'unknown (no MLS data)'}
 - Notes: ${features.notes ?? ''}
 ${contextSection}
-Write a 2-sentence explanation. Sentence 1: state the score rationale and which key requirements are met or missing. Sentence 2: cite renovation dates if any (e.g. "Kitchen remodeled 2022 per listing") and the source for each claim ("per listing description", "per MLS data", or "photo [N]").
+Write a 2-sentence explanation. Sentence 1: state which key requirements are met or missing. Sentence 2: cite renovation dates if any (e.g. "Kitchen remodeled 2022 per listing") and the source for each claim ("per listing description", "per MLS data", or "photo [N]").
 
-ALSO produce a per-requirement evaluation. For EACH item in the requirements lists above (required + niceToHave + dealBreakers), output one entry. For each:
+Produce a per-requirement evaluation. For EACH item in the requirements lists above (required + niceToHave + dealBreakers), output one entry. For each:
 - requirement: the original phrase, verbatim
 - category: "required" | "niceToHave" | "dealBreaker"
 - verdict: "matched" | "missed" | "unclear"
   - matched: the listing clearly satisfies it (note: "no HOA" + listing has no HOA = matched; for dealBreakers, "matched" means the dealbreaker is ABSENT, i.e. good)
-  - missed: the listing clearly does NOT satisfy it
+  - missed: the listing clearly does NOT satisfy it (for dealBreakers, "missed" means the dealbreaker IS present)
   - unclear: not enough info to tell (default to this when in doubt; do NOT mark missed for things you can't verify)
 - evidence: ONE sentence citing the source. Examples: "Photo 2 shows quartz countertops, not granite" / "MLS lists HOA fee of $120/month" / "Listing description mentions hardwood throughout"
 - source: "photo" | "mls" | "description" | "none"
@@ -338,32 +531,44 @@ ALSO produce a per-requirement evaluation. For EACH item in the requirements lis
 
 Respond ONLY with valid JSON:
 {
-  "score": 0.85,
   "explanation": "...",
   "evaluations": [
-    {"requirement": "granite countertops", "category": "required", "verdict": "missed", "evidence": "Photo 2 shows quartz, not granite", "source": "photo", "photoIndex": 1},
-    ...
+    {"requirement": "granite countertops", "category": "required", "verdict": "missed", "evidence": "Photo 2 shows quartz, not granite", "source": "photo", "photoIndex": 1}
   ]
 }`
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1500, // bumped from 256 to fit the per-requirement evaluations
+    max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   }, { timeout: 18_000, maxRetries: 1 })
 
   const tokensUsed = tokenCount(response.usage)
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
-  try {
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned) as {
-      score: number
-      explanation: string
-      evaluations?: RequirementEvaluation[]
-    }
 
-    const evaluations: RequirementEvaluation[] = (parsed.evaluations ?? []).map(e => ({
-      requirement: String(e.requirement ?? ''),
+  // Throw on parse failure so the worker writes a searchFailures row
+  // instead of inserting a misleading 0.5 "low match" result.
+  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  const parsed = JSON.parse(cleaned) as {
+    explanation?: string
+    evaluations?: RequirementEvaluation[]
+  }
+
+  if (!Array.isArray(parsed.evaluations)) {
+    throw new Error('Scoring response missing evaluations array')
+  }
+
+  const allRequirements = new Set([
+    ...requirementsForPrompt.required,
+    ...requirementsForPrompt.niceToHave,
+    ...requirementsForPrompt.dealBreakers,
+  ])
+
+  // Normalize LLM evaluations.
+  const llmEvaluations: RequirementEvaluation[] = parsed.evaluations
+    .filter(e => e && typeof e.requirement === 'string')
+    .map(e => ({
+      requirement: String(e.requirement),
       category: e.category === 'niceToHave' || e.category === 'dealBreaker' ? e.category : 'required',
       verdict: ['matched', 'missed', 'unclear'].includes(e.verdict) ? e.verdict : 'unclear',
       evidence: String(e.evidence ?? ''),
@@ -371,26 +576,70 @@ Respond ONLY with valid JSON:
       photoIndex: typeof e.photoIndex === 'number' ? e.photoIndex : null,
     }))
 
-    const summary = {
-      matched: evaluations.filter(e => e.verdict === 'matched').length,
-      missed: evaluations.filter(e => e.verdict === 'missed').length,
-      unclear: evaluations.filter(e => e.verdict === 'unclear').length,
-      total: evaluations.length,
-    }
+  // Override with deterministic MLS verdicts where we have one — they're
+  // more reliable than the LLM's photo-based judgement for facts MLS states.
+  const llmByRequirement = new Map<string, RequirementEvaluation>()
+  for (const e of llmEvaluations) {
+    if (allRequirements.has(e.requirement)) llmByRequirement.set(e.requirement, e)
+  }
+  for (const s of seeded) {
+    llmByRequirement.set(s.requirement, {
+      requirement: s.requirement,
+      category: s.category,
+      verdict: s.verdict,
+      evidence: s.evidence,
+      source: 'mls',
+      photoIndex: null,
+    })
+  }
 
-    return {
-      score: Math.max(0, Math.min(1, parsed.score)),
-      explanation: parsed.explanation,
-      checklist: { evaluations, summary },
-      tokensUsed,
+  // Ensure every original requirement has an evaluation row, even if the
+  // LLM omitted it — default to "unclear" so it doesn't disappear.
+  for (const req of requirementsForPrompt.required) {
+    if (!llmByRequirement.has(req)) {
+      llmByRequirement.set(req, defaultEvaluation(req, 'required'))
     }
-  } catch {
-    return {
-      score: 0.5,
-      explanation: 'Unable to score this listing.',
-      checklist: { evaluations: [], summary: { matched: 0, missed: 0, unclear: 0, total: 0 } },
-      tokensUsed,
+  }
+  for (const req of requirementsForPrompt.niceToHave) {
+    if (!llmByRequirement.has(req)) {
+      llmByRequirement.set(req, defaultEvaluation(req, 'niceToHave'))
     }
+  }
+  for (const req of requirementsForPrompt.dealBreakers) {
+    if (!llmByRequirement.has(req)) {
+      llmByRequirement.set(req, defaultEvaluation(req, 'dealBreaker'))
+    }
+  }
+
+  const finalEvaluations = Array.from(llmByRequirement.values())
+  const summary = {
+    matched: finalEvaluations.filter(e => e.verdict === 'matched').length,
+    missed: finalEvaluations.filter(e => e.verdict === 'missed').length,
+    unclear: finalEvaluations.filter(e => e.verdict === 'unclear').length,
+    total: finalEvaluations.length,
+  }
+  const checklist: RequirementsChecklist = { evaluations: finalEvaluations, summary }
+  const score = computeScoreFromChecklist(checklist)
+
+  return {
+    score,
+    explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '',
+    checklist,
+    tokensUsed,
+  }
+}
+
+function defaultEvaluation(
+  requirement: string,
+  category: 'required' | 'niceToHave' | 'dealBreaker',
+): RequirementEvaluation {
+  return {
+    requirement,
+    category,
+    verdict: 'unclear',
+    evidence: '',
+    source: 'none',
+    photoIndex: null,
   }
 }
 

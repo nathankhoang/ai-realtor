@@ -4,9 +4,10 @@ import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { db } from '@/lib/db'
 import { searches, searchResults, listings, listingAnalyses, users, clients, savedListings } from '@/lib/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import type { ListingFeatures, RequirementsChecklist } from '@/types'
+import { budgetContext } from '@/lib/budget'
 import NextBatchButton from './NextBatchButton'
 import AnalysisStepper from './AnalysisStepper'
 import ResultsClient from './ResultsClient'
@@ -27,50 +28,69 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   })
   if (!search) notFound()
 
-  const rows = await db
-    .select({
-      result: searchResults,
-      listing: listings,
-      analysis: listingAnalyses,
-    })
-    .from(searchResults)
-    .innerJoin(listings, eq(searchResults.listingId, listings.id))
-    .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
-    .where(eq(searchResults.searchId, searchId))
+  // Two parallel queries: results-with-listing-and-analysis, and the
+  // user's full saved-listings set (joined to clients to scope by user).
+  // Saves the previous "fetch clients, then fetch saved by clientId" hop.
+  const [baseRows, userSavedRows] = await Promise.all([
+    db
+      .select({
+        result: searchResults,
+        listing: listings,
+        analysis: listingAnalyses,
+      })
+      .from(searchResults)
+      .innerJoin(listings, eq(searchResults.listingId, listings.id))
+      .leftJoin(listingAnalyses, eq(listingAnalyses.listingId, listings.id))
+      .where(eq(searchResults.searchId, searchId)),
+    db
+      .select({ listingId: savedListings.listingId, clientId: savedListings.clientId })
+      .from(savedListings)
+      .innerJoin(clients, eq(clients.id, savedListings.clientId))
+      .where(eq(clients.userId, dbUser.id)),
+  ])
 
-  rows.sort((a, b) => b.result.matchScore - a.result.matchScore)
-
-  const userClients = await db.query.clients.findMany({ where: eq(clients.userId, dbUser.id) })
-  const clientIds = userClients.map(c => c.id)
-  const savedRows = clientIds.length > 0
-    ? await db.select().from(savedListings)
-        .where(and(
-          inArray(savedListings.clientId, clientIds),
-          inArray(savedListings.listingId, rows.map(r => r.listing.id)),
-        ))
-    : []
   const savedByListing = new Map<string, string[]>()
-  for (const s of savedRows) {
+  for (const s of userSavedRows) {
     const existing = savedByListing.get(s.listingId) ?? []
     existing.push(s.clientId)
     savedByListing.set(s.listingId, existing)
   }
+  const rows = baseRows.map(r => ({
+    ...r,
+    savedClientIds: savedByListing.get(r.listing.id) ?? [],
+  }))
+
+  const budget = budgetContext(search.priceMax)
+
+  // Sort by displayScore = matchScore - over-budget penalty (capped at 0.15).
+  // A 0.85 listing $50k over a $400k budget loses 0.125 → ranks below an
+  // in-budget 0.78. Raw score is still shown on the card.
+  function displayScore(row: typeof rows[number]): number {
+    const over = budget.overBudgetBy(row.listing.price)
+    if (over === 0 || budget.strictMax == null) return row.result.matchScore
+    const penalty = Math.min(0.15, over / budget.strictMax)
+    return row.result.matchScore - penalty
+  }
+  rows.sort((a, b) => displayScore(b) - displayScore(a))
 
   const analyzed = search.analyzedCount ?? 0
   const total = search.totalCandidates ?? 0
 
-  const SCORE_THRESHOLD = 0.55
-  const goodMatches = rows.filter(r => r.result.matchScore >= SCORE_THRESHOLD)
-  const displayed = goodMatches.length >= 3 ? goodMatches : rows.slice(0, 3)
+  // Threshold: top 25% of analyzed listings, floor of 3, min absolute 0.30.
+  // Tough searches (rural, picky) used to look empty under a fixed 0.55.
+  const STRONG_FLOOR = 3
+  const ABS_MIN = 0.30
+  const targetTopN = Math.max(STRONG_FLOOR, Math.ceil(rows.length * 0.25))
+  const goodMatches = rows
+    .filter(r => r.result.matchScore >= ABS_MIN)
+    .slice(0, targetTopN)
+  const hasStrongMatches = goodMatches.length >= STRONG_FLOOR
+  const displayed = hasStrongMatches ? goodMatches : rows.slice(0, STRONG_FLOOR)
   const hiddenRows = rows.filter(r => !displayed.includes(r))
   const needsMoreBatches = displayed.length < 5 && total > analyzed
 
-  const strictBudget = search.priceMax
   const displayedData = displayed.map((row, index) => {
-    const overBudgetBy =
-      strictBudget != null && row.listing.price != null && row.listing.price > strictBudget
-        ? row.listing.price - strictBudget
-        : 0
+    const overBudgetBy = budget.overBudgetBy(row.listing.price)
     return {
       resultId: row.result.id,
       listingId: row.listing.id,
@@ -88,7 +108,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
       features: row.analysis?.featuresJson as ListingFeatures | null,
       checklist: (row.result.requirementsChecklist ?? null) as RequirementsChecklist | null,
       zillowId: row.listing.zillowId,
-      savedClientIds: savedByListing.get(row.listing.id) ?? [],
+      savedClientIds: row.savedClientIds,
       overBudgetBy,
     }
   })
@@ -124,7 +144,11 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
               {search.priceMax && <span className="text-muted-foreground">≤ ${search.priceMax.toLocaleString()}</span>}
               {search.bedsMin && <span className="text-muted-foreground">{search.bedsMin}+ bd</span>}
               {search.bathsMin && <span className="text-muted-foreground">{search.bathsMin}+ ba</span>}
-              <span className="font-medium text-foreground">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
+              {hasStrongMatches ? (
+                <span className="font-medium text-foreground">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
+              ) : displayed.length > 0 ? (
+                <span className="font-medium text-foreground">no strong matches yet · showing top {displayed.length}</span>
+              ) : null}
               <span className="text-muted-foreground">{analyzed} analyzed</span>
               {hiddenRows.length > 0 && <span className="text-muted-foreground">{hiddenRows.length} filtered out</span>}
               {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
