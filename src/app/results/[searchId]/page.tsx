@@ -159,7 +159,27 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
           </Card>
         )}
 
-        {rows.length === 0 ? (
+        {rows.length === 0 && search.status === 'completed' ? (
+          <Card className="border-border">
+            <CardContent className="py-10 px-6 text-center space-y-4">
+              <p className="text-[15.5px] font-medium text-foreground">
+                No matches to show
+              </p>
+              <p className="text-[13.5px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+                {search.errorMessage ??
+                  'No listings came back for this search. Try broadening the location or relaxing your filters.'}
+              </p>
+              <div className="pt-2">
+                <Link
+                  href={`/search?from=${searchId}`}
+                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-[13.5px] font-medium text-background hover:-translate-y-0.5 transition-transform"
+                >
+                  Edit & try again
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ) : rows.length === 0 ? (
           <Card className="border-border">
             <CardContent className="py-12 px-6">
               <AnalysisStepper searchId={searchId} initialAnalyzed={analyzed} initialTotal={total} />

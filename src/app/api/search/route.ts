@@ -221,12 +221,29 @@ async function handleSearch(req: Request) {
   let zillowListings
   try {
     zillowListings = await searchZillow({ location, priceMin, priceMax, bedsMin, bathsMin })
-  } catch {
-    await db.update(searches).set({ totalCandidates: 0 }).where(eq(searches.id, search.id))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    logger.warn('api.search.zillowFailed', { searchId: search.id, err: msg })
+    await db.update(searches).set({
+      totalCandidates: 0,
+      status: 'completed',
+      completedAt: new Date(),
+      errorMessage: 'Zillow search failed. Try again in a moment, or contact support if it keeps happening.',
+    }).where(eq(searches.id, search.id))
     return NextResponse.json({
       searchId: search.id,
-      error: 'Zillow search failed. RAPIDAPI_KEY may not be configured yet.',
+      error: 'Zillow search failed.',
     }, { status: 207 })
+  }
+
+  if (zillowListings.length === 0) {
+    await db.update(searches).set({
+      totalCandidates: 0,
+      status: 'completed',
+      completedAt: new Date(),
+      errorMessage: 'No listings found for that location with the filters you set. Try a broader area or relax the filters.',
+    }).where(eq(searches.id, search.id))
+    return NextResponse.json({ searchId: search.id, totalCandidates: 0 })
   }
 
   await db.update(searches)
@@ -262,8 +279,16 @@ async function handleSearch(req: Request) {
     .map(zl => zpidToListingId.get(zl.zpid))
     .filter((v): v is string => !!v)
 
-  // Enqueue one job per listing. Workers run independently in their own
-  // function invocations, so they aren't bound by this 30s budget.
+  if (listingIds.length === 0) {
+    logger.warn('api.search.noListingsAfterUpsert', { searchId: search.id, zillowCount: zillowListings.length })
+    await db.update(searches).set({
+      status: 'completed',
+      completedAt: new Date(),
+      errorMessage: 'Could not load any listings to analyze. Please try again.',
+    }).where(eq(searches.id, search.id))
+    return NextResponse.json({ searchId: search.id, totalCandidates: zillowListings.length })
+  }
+
   await enqueueAnalyzeListings(
     listingIds.map(listingId => ({
       searchId: search.id,
