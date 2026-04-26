@@ -147,8 +147,12 @@ function RevealLine({
   hidden?: boolean
 }) {
   if (hidden) return null
+  // pb-[0.18em] keeps descenders (y, g, p) visible despite the tight
+  // leading + overflow-hidden the slide-up animation depends on.
+  // The negative margin between RevealLines compensates so the visual
+  // line gap matches the parent h1's leading-[0.92].
   return (
-    <span className="block overflow-hidden leading-[0.92]">
+    <span className="block overflow-hidden leading-[0.92] pb-[0.18em] -mb-[0.18em]">
       {words.map((w, i) => (
         <motion.span
           key={`${w}-${i}`}
