@@ -14,6 +14,8 @@ function toListingValues(zl: ZillowListing) {
     city: zl.city,
     state: zl.state,
     zipCode: zl.zipcode,
+    latitude: zl.latitude,
+    longitude: zl.longitude,
     price: zl.price,
     beds: zl.bedrooms,
     baths: zl.bathrooms,
@@ -32,7 +34,14 @@ export async function upsertListing(zl: ZillowListing): Promise<string> {
     .values(toListingValues(zl))
     .onConflictDoUpdate({
       target: listings.zillowId,
-      set: { updatedAt: sql`now()` },
+      set: {
+        updatedAt: sql`now()`,
+        // Backfill lat/lng on existing rows that don't have them yet.
+        // COALESCE keeps the existing value when present, so re-runs don't
+        // clobber coords with a fresh-but-null fetch.
+        latitude: sql`coalesce(${listings.latitude}, excluded.latitude)`,
+        longitude: sql`coalesce(${listings.longitude}, excluded.longitude)`,
+      },
     })
     .returning({ id: listings.id })
   return row.id
@@ -60,7 +69,14 @@ export async function upsertListings(zls: ZillowListing[]): Promise<Map<string, 
     .values(unique.map(toListingValues))
     .onConflictDoUpdate({
       target: listings.zillowId,
-      set: { updatedAt: sql`now()` },
+      set: {
+        updatedAt: sql`now()`,
+        // Backfill lat/lng on existing rows that don't have them yet.
+        // COALESCE keeps the existing value when present, so re-runs don't
+        // clobber coords with a fresh-but-null fetch.
+        latitude: sql`coalesce(${listings.latitude}, excluded.latitude)`,
+        longitude: sql`coalesce(${listings.longitude}, excluded.longitude)`,
+      },
     })
 
   // Look up ids for every requested zpid (covers both inserted-now and

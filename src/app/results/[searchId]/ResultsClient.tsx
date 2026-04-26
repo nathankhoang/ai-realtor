@@ -12,6 +12,7 @@ import ListingCard from './ListingCard'
 import BulkSaveBar from './BulkSaveBar'
 import FocusMode from './FocusMode'
 import ComparisonView from './ComparisonView'
+import ResultsMap from './ResultsMap'
 
 interface ListingRow {
   resultId: string
@@ -35,6 +36,8 @@ interface ListingRow {
   overBudgetBy: number
   note: string | null
   tag: ListingTag | null
+  latitude: number | null
+  longitude: number | null
 }
 
 interface HiddenRow {
@@ -52,7 +55,7 @@ interface Props {
   hidden: HiddenRow[]
 }
 
-type ViewMode = 'overview' | 'focus'
+type ViewMode = 'overview' | 'map' | 'focus'
 
 const INITIAL_PAGE_SIZE = 12
 const PAGE_INCREMENT = 12
@@ -164,6 +167,12 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
               Overview
             </span>
           </ToggleSegment>
+          <ToggleSegment active={view === 'map'} onClick={() => setView('map')} layoutId="results-view-pill">
+            <span className="flex items-center gap-1.5">
+              <MapIcon className="h-3.5 w-3.5" />
+              Map
+            </span>
+          </ToggleSegment>
           <ToggleSegment active={view === 'focus'} onClick={() => setView('focus')} layoutId="results-view-pill">
             <span className="flex items-center gap-1.5">
               <FocusIcon className="h-3.5 w-3.5" />
@@ -231,6 +240,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
             {visibleDisplayed.map((row, i) => (
               <motion.div
                 key={row.resultId}
+                data-listing-card-id={row.listingId}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
@@ -391,6 +401,38 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
               </div>
             )}
           </motion.div>
+        ) : view === 'map' ? (
+          <motion.div
+            key="map"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ResultsMap
+              listings={enriched.map(r => ({
+                resultId: r.resultId,
+                listingId: r.listingId,
+                rank: r.rank,
+                score: r.score,
+                address: r.address,
+                city: r.city,
+                state: r.state,
+                price: r.price,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                photo: r.photos[0] ?? null,
+              }))}
+              onSelect={(listingId) => {
+                setView('overview')
+                // Wait for the overview to render before scrolling.
+                setTimeout(() => {
+                  const el = document.querySelector(`[data-listing-card-id="${listingId}"]`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }, 50)
+              }}
+            />
+          </motion.div>
         ) : (
           <motion.div
             key="focus"
@@ -515,6 +557,15 @@ function FocusIcon({ className = '' }: { className?: string }) {
     <svg viewBox="0 0 14 14" fill="none" className={className}>
       <rect x="2.5" y="3" width="9" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
       <path d="M5 6.5h4M5 8.5h2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function MapIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 14 14" fill="none" className={className}>
+      <path d="M2.2 4.5l3.3-1.5 3 1.5 3.3-1.5v6.5l-3.3 1.5-3-1.5-3.3 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M5.5 3v8M8.5 4.5v8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   )
 }

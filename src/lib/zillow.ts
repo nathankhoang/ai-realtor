@@ -9,6 +9,9 @@ export interface ZillowListing {
   bathrooms: number | null
   livingArea: number | null
   photos: string[]
+  /** Decimal degrees, WGS-84. Null when Zillow didn't include them. */
+  latitude: number | null
+  longitude: number | null
 }
 
 const SEARCH_TIMEOUT_MS = 12_000
@@ -40,6 +43,33 @@ function toFiniteNumber(v: unknown): number | null {
   if (v == null) return null
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Extract lat/lng from a Zillow property record. The byaddress endpoint
+ * has shipped at least three different shapes over time — try each so we
+ * stay robust to upstream variations.
+ */
+function extractCoords(p: Record<string, unknown>): { latitude: number | null; longitude: number | null } {
+  // Top-level latitude / longitude (most common in current responses).
+  const top = { latitude: toFiniteNumber(p.latitude), longitude: toFiniteNumber(p.longitude) }
+  if (top.latitude != null && top.longitude != null) return top
+
+  // Nested location object.
+  const loc = p.location as Record<string, unknown> | undefined
+  if (loc) {
+    const fromLoc = { latitude: toFiniteNumber(loc.latitude), longitude: toFiniteNumber(loc.longitude) }
+    if (fromLoc.latitude != null && fromLoc.longitude != null) return fromLoc
+  }
+
+  // Address sub-object (legacy shape).
+  const addr = p.address as Record<string, unknown> | undefined
+  if (addr) {
+    const fromAddr = { latitude: toFiniteNumber(addr.latitude), longitude: toFiniteNumber(addr.longitude) }
+    if (fromAddr.latitude != null && fromAddr.longitude != null) return fromAddr
+  }
+
+  return { latitude: null, longitude: null }
 }
 
 export async function searchZillow(params: {
@@ -116,6 +146,7 @@ export async function searchZillow(params: {
     const price = p.price as Record<string, unknown> | undefined
     const media = p.media as Record<string, unknown> | undefined
     const allPhotos = media?.allPropertyPhotos as Record<string, unknown> | undefined
+    const { latitude, longitude } = extractCoords(p)
     return {
       zpid: String(p.zpid ?? ''),
       address: String(addr?.streetAddress ?? ''),
@@ -127,6 +158,8 @@ export async function searchZillow(params: {
       bathrooms: toFiniteNumber(p.bathrooms),
       livingArea: toFiniteNumber(p.livingArea),
       photos: (allPhotos?.highResolution as string[] | undefined) ?? [],
+      latitude,
+      longitude,
     }
   })
 }

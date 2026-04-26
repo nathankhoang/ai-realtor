@@ -134,6 +134,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
       overBudgetBy,
       note: row.note,
       tag: row.tag,
+      latitude: row.listing.latitude,
+      longitude: row.listing.longitude,
     }
   })
 

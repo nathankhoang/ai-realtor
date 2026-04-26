@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean, index } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, integer, jsonb, real, uuid, unique, boolean, index, doublePrecision } from 'drizzle-orm/pg-core'
 import type { ParsedRequirements, ListingFeatures, RequirementsChecklist } from '@/types'
 
 export const users = pgTable('users', {
@@ -77,6 +77,10 @@ export const listings = pgTable('listings', {
   city: text('city'),
   state: text('state'),
   zipCode: text('zip_code'),
+  // Coordinates from Zillow's response — used by the results map view.
+  // Nullable for legacy rows; backfilled on next refresh.
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
   price: integer('price'),
   beds: real('beds'),
   baths: real('baths'),
