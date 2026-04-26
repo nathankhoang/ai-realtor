@@ -26,6 +26,7 @@ interface ListingRow {
   checklist: Checklist | null
   zillowId: string
   savedClientIds: string[]
+  overBudgetBy: number
 }
 
 export default function FocusMode({ listings }: { listings: ListingRow[] }) {
@@ -216,6 +217,13 @@ function FocusCard({ listing }: { listing: ListingRow }) {
           <div className="absolute bottom-3 right-3 rounded-xl bg-black/65 backdrop-blur-md px-4 py-2 text-white">
             <p className="text-[10.5px] font-medium uppercase tracking-[0.16em] text-white/60">List price</p>
             <p className="mt-0.5 text-2xl font-semibold tabular-nums">${listing.price.toLocaleString()}</p>
+            {listing.overBudgetBy > 0 && (
+              <span className="mt-1.5 inline-flex items-center rounded-full bg-amber-500/25 ring-1 ring-amber-300/40 px-2.5 py-0.5 text-[11.5px] font-medium text-amber-100">
+                {listing.overBudgetBy >= 1000
+                  ? `$${Math.round(listing.overBudgetBy / 1000)}K over`
+                  : `$${listing.overBudgetBy.toLocaleString()} over`} budget
+              </span>
+            )}
           </div>
         )}
       </div>

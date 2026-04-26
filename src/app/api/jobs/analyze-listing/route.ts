@@ -122,7 +122,7 @@ async function processJob({
   if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
   const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
-    required: [], niceToHave: [], dontCare: [], dealBreakers: [],
+    required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null,
   }
 
   // Listing detail (description, MLS facts) — cached per listing for
@@ -188,6 +188,7 @@ async function processJob({
     features,
     { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
     listingContext,
+    search.priceMax,
   )
 
   const totalTokensThisJob = visionTokens + scoreTokens

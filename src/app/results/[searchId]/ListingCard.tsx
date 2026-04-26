@@ -25,14 +25,21 @@ interface Props {
   zillowId: string
   listingId: string
   savedClientIds: string[]
+  /** Dollar amount over the search's strict budget; 0 when in budget. */
+  overBudgetBy: number
   isSelected: boolean
   onToggleSelect: () => void
+}
+
+function formatBudgetDelta(over: number): string {
+  if (over >= 1000) return `$${Math.round(over / 1000)}K over`
+  return `$${over.toLocaleString()} over`
 }
 
 export default function ListingCard({
   rank, score, address, city, state, price, beds, baths, sqft,
   photos, explanation, features, checklist, zillowId, listingId, savedClientIds,
-  isSelected, onToggleSelect,
+  overBudgetBy, isSelected, onToggleSelect,
 }: Props) {
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [photoIdx, setPhotoIdx] = useState(0)
@@ -155,6 +162,18 @@ export default function ListingCard({
                 <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
                   ${price.toLocaleString()}
                 </p>
+                {overBudgetBy > 0 && (
+                  <span
+                    className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-500/20 ring-1 ring-amber-300/40 px-2.5 py-0.5 text-[11.5px] font-medium text-amber-100 backdrop-blur-md"
+                    title="This home is over the strict budget you set, but within 10% — shown so you can decide if it's worth a stretch."
+                  >
+                    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
+                      <path d="M6 2v4M6 8.5v.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                    </svg>
+                    {formatBudgetDelta(overBudgetBy)} budget
+                  </span>
+                )}
               </div>
             )}
           </div>

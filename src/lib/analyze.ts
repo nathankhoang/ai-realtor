@@ -167,6 +167,22 @@ Return ONLY a JSON array of the top 15 zpids ordered best to worst. No explanati
   }
 }
 
+/**
+ * Sanity bounds for prose-extracted price ceiling. Anything outside this
+ * range is treated as a parse error and dropped — protects against the
+ * LLM hallucinating "400" → 400 (instead of $400,000) or absurd values.
+ */
+const PRICE_CEILING_MIN = 50_000
+const PRICE_CEILING_MAX = 50_000_000
+
+function sanitizePriceCeiling(raw: unknown): number | null {
+  if (raw == null) return null
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return null
+  if (n < PRICE_CEILING_MIN || n > PRICE_CEILING_MAX) return null
+  return Math.round(n)
+}
+
 export async function parseRequirements(requirementsText: string): Promise<ParsedRequirements> {
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -183,8 +199,16 @@ Respond with:
   "required": ["features they must have"],
   "niceToHave": ["features they'd like but aren't dealbreakers"],
   "dontCare": ["features explicitly mentioned as unimportant"],
-  "dealBreakers": ["things they definitely don't want"]
-}`,
+  "dealBreakers": ["things they definitely don't want — but DO NOT include price/budget here, it goes in priceCeiling instead"],
+  "priceCeiling": 400000
+}
+
+priceCeiling rules:
+- Extract the numeric maximum budget the buyer states (e.g. "max 400K", "under $500,000", "budget of 300k").
+- Always return whole dollars (400K → 400000, 1.2M → 1200000).
+- If the buyer doesn't mention a price ceiling at all, return null.
+- If they say "around 400K" or "approx 400" treat 400000 as the ceiling — strict by default.
+- Do NOT also list "price over X" in dealBreakers; the priceCeiling field replaces that.`,
       },
     ],
   }, { timeout: 12_000, maxRetries: 1 })
@@ -192,10 +216,27 @@ Respond with:
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    return JSON.parse(cleaned) as ParsedRequirements
+    const raw = JSON.parse(cleaned) as Partial<ParsedRequirements> & { priceCeiling?: unknown }
+    return {
+      required: Array.isArray(raw.required) ? raw.required.map(String) : [],
+      niceToHave: Array.isArray(raw.niceToHave) ? raw.niceToHave.map(String) : [],
+      dontCare: Array.isArray(raw.dontCare) ? raw.dontCare.map(String) : [],
+      dealBreakers: Array.isArray(raw.dealBreakers) ? raw.dealBreakers.map(String) : [],
+      priceCeiling: sanitizePriceCeiling(raw.priceCeiling),
+    }
   } catch {
-    return { required: [], niceToHave: [], dontCare: [], dealBreakers: [] }
+    return { required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null }
   }
+}
+
+/**
+ * Detects free-form "price over X" / "budget over X" style entries that
+ * older searches may still carry in dealBreakers. New searches put the
+ * ceiling in priceCeiling instead, but we strip these here too so a
+ * listing in the soft-budget band isn't double-penalized.
+ */
+function isPriceDealBreaker(s: string): boolean {
+  return /\b(price|budget|cost)\b/i.test(s) || /\bover\s+\$?\d/i.test(s)
 }
 
 export async function scoreListingAgainstRequirements(
@@ -203,12 +244,29 @@ export async function scoreListingAgainstRequirements(
   features: ListingFeatures,
   listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null },
   listingContext?: ListingContext,
+  /** Strict price ceiling for this search — used to decide whether to
+   *  strip price-related dealBreakers from the prompt. */
+  strictPriceMax?: number | null,
 ): Promise<{
   score: number
   explanation: string
   checklist: RequirementsChecklist
   tokensUsed: number
 }> {
+  // Soft-budget rule: if a listing is over the strict ceiling but came
+  // through (Zillow filter allows up to softMax = strictMax * 1.10),
+  // remove price-flavored dealBreakers so the AI scores purely on
+  // features. The "Over budget" badge in the UI carries that signal.
+  const filteredDealBreakers =
+    strictPriceMax != null && listing.price != null && listing.price > strictPriceMax
+      ? requirements.dealBreakers.filter(d => !isPriceDealBreaker(d))
+      : requirements.dealBreakers
+
+  const requirementsForPrompt: ParsedRequirements = {
+    ...requirements,
+    dealBreakers: filteredDealBreakers,
+  }
+
   const contextLines: string[] = []
   if (listingContext?.description) {
     contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
@@ -247,10 +305,10 @@ CRITICAL RULES:
 - If the listing description or MLS data confirms a requirement, that counts even if photos are unclear.
 
 Client requirements:
-- Must have: ${requirements.required.join(', ') || 'none specified'}
-- Nice to have: ${requirements.niceToHave.join(', ') || 'none'}
-- Doesn't care about: ${requirements.dontCare.join(', ') || 'none'}
-- Deal breakers: ${requirements.dealBreakers.join(', ') || 'none'}
+- Must have: ${requirementsForPrompt.required.join(', ') || 'none specified'}
+- Nice to have: ${requirementsForPrompt.niceToHave.join(', ') || 'none'}
+- Doesn't care about: ${requirementsForPrompt.dontCare.join(', ') || 'none'}
+- Deal breakers: ${requirementsForPrompt.dealBreakers.join(', ') || 'none'}
 
 Home at ${listing.address}:
 - Price: ${listing.price ? '$' + listing.price.toLocaleString() : 'unknown'}

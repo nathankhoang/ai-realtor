@@ -9,6 +9,7 @@ import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
+import { softBudget } from '@/lib/budget'
 import { searchRatelimit } from '@/lib/ratelimit'
 import { upsertListings } from '@/lib/listings'
 import { logger } from '@/lib/logger'
@@ -199,7 +200,27 @@ async function handleSearch(req: Request) {
     return NextResponse.json({ error: `AI service error: ${msg.slice(0, 200)}` }, { status: 502 })
   }
 
-  // Insert search row
+  // Strict price ceiling: form input wins over prose extraction. The
+  // prose ceiling is a fallback for users who forget to fill in the
+  // numeric field. We log when both are set and disagree meaningfully —
+  // a heads-up that the LLM may have misread the prompt.
+  const formPriceMax: number | null = priceMax ?? null
+  const prosePriceCeiling: number | null = parsedRequirements.priceCeiling
+  if (formPriceMax != null && prosePriceCeiling != null) {
+    const drift = Math.abs(formPriceMax - prosePriceCeiling) / formPriceMax
+    if (drift > 0.05) {
+      logger.warn('search.priceCeiling.formProseDrift', {
+        formPriceMax,
+        prosePriceCeiling,
+        driftPct: Number(drift.toFixed(3)),
+      })
+    }
+  }
+  const strictMax: number | null = formPriceMax ?? prosePriceCeiling
+  const softMax = softBudget(strictMax)
+
+  // Insert search row — store the strict ceiling so the results page
+  // can compute "over budget" against the canonical number.
   const [search] = await db.insert(searches).values({
     userId: dbUser.id,
     clientId: resolvedClientId,
@@ -207,7 +228,7 @@ async function handleSearch(req: Request) {
     requirementsJson: parsedRequirements,
     location,
     priceMin: priceMin ?? null,
-    priceMax: priceMax ?? null,
+    priceMax: strictMax,
     bedsMin: bedsMin ?? null,
     bathsMin: bathsMin ?? null,
     inputHash: hash,
@@ -217,10 +238,17 @@ async function handleSearch(req: Request) {
     .set({ searchesUsedThisMonth: dbUser.searchesUsedThisMonth + 1 })
     .where(eq(users.id, dbUser.id))
 
-  // Zillow search
+  // Zillow search — uses softMax so we get +10% over-budget candidates,
+  // not strictMax. Over-budget homes get badged in the UI.
   let zillowListings
   try {
-    zillowListings = await searchZillow({ location, priceMin, priceMax, bedsMin, bathsMin })
+    zillowListings = await searchZillow({
+      location,
+      priceMin,
+      priceMax: softMax,
+      bedsMin,
+      bathsMin,
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     logger.warn('api.search.zillowFailed', { searchId: search.id, err: msg })

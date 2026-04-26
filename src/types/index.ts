@@ -31,6 +31,12 @@ export interface ParsedRequirements {
   niceToHave: string[]
   dontCare: string[]
   dealBreakers: string[]
+  /**
+   * Strict numeric price ceiling pulled from the prose ("max 400K",
+   * "under $400,000", etc.) — null if not mentioned. The form's priceMax
+   * still wins when both are present.
+   */
+  priceCeiling: number | null
 }
 
 export type RequirementVerdict = 'matched' | 'missed' | 'unclear'

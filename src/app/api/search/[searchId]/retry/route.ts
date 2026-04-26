@@ -9,6 +9,7 @@ import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
+import { softBudget } from '@/lib/budget'
 import type { ParsedRequirements } from '@/types'
 
 const FIRST_BATCH_SIZE = 5
@@ -32,7 +33,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   if (!search) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
 
   const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
-    required: [], niceToHave: [], dontCare: [], dealBreakers: [],
+    required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null,
   }
 
   // Re-fetch the same Zillow page-1 candidates the first batch used
@@ -41,7 +42,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     zillowListings = await searchZillow({
       location: search.location,
       priceMin: search.priceMin ?? undefined,
-      priceMax: search.priceMax ?? undefined,
+      priceMax: softBudget(search.priceMax),
       bedsMin: search.bedsMin ?? undefined,
       bathsMin: search.bathsMin ?? undefined,
     })

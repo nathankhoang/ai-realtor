@@ -307,6 +307,9 @@ function SearchPageContent() {
               <div className="space-y-1.5">
                 <Label htmlFor="priceMax" className="text-[13px]">Max price</Label>
                 <Input id="priceMax" type="number" placeholder="600,000" value={priceMax} onChange={e => setPriceMax(e.target.value)} />
+                <p className="text-[11.5px] text-muted-foreground leading-tight">
+                  Strict ceiling. Homes up to 10% over still show with an &ldquo;Over budget&rdquo; badge.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="bedsMin" className="text-[13px]">Min beds</Label>

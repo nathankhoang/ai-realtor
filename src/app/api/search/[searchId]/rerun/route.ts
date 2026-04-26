@@ -10,6 +10,7 @@ import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
+import { softBudget } from '@/lib/budget'
 import type { ParsedRequirements } from '@/types'
 
 const FIRST_BATCH_SIZE = 5
@@ -75,7 +76,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     zillowListings = await searchZillow({
       location: original.location,
       priceMin: original.priceMin ?? undefined,
-      priceMax: original.priceMax ?? undefined,
+      priceMax: softBudget(original.priceMax),
       bedsMin: original.bedsMin ?? undefined,
       bathsMin: original.bathsMin ?? undefined,
     })

@@ -9,6 +9,7 @@ import { searchZillow } from '@/lib/zillow'
 import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
+import { softBudget } from '@/lib/budget'
 import type { ParsedRequirements } from '@/types'
 
 const NEXT_BATCH_SIZE = 10
@@ -34,7 +35,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   }
 
   const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
-    required: [], niceToHave: [], dontCare: [], dealBreakers: [],
+    required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null,
   }
 
   // Zillow returns 200 results/page; figure out which page covers our offset
@@ -47,7 +48,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     zillowListings = await searchZillow({
       location: search.location,
       priceMin: search.priceMin ?? undefined,
-      priceMax: search.priceMax ?? undefined,
+      priceMax: softBudget(search.priceMax),
       bedsMin: search.bedsMin ?? undefined,
       bathsMin: search.bathsMin ?? undefined,
       page: pageNumber,

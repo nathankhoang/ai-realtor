@@ -29,6 +29,8 @@ interface ListingRow {
   checklist: RequirementsChecklist | null
   zillowId: string
   savedClientIds: string[]
+  /** Dollar amount over the search's strict budget; 0 when in budget. */
+  overBudgetBy: number
 }
 
 interface HiddenRow {
@@ -160,6 +162,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                   zillowId={row.zillowId}
                   listingId={row.listingId}
                   savedClientIds={row.savedClientIds}
+                  overBudgetBy={row.overBudgetBy}
                   isSelected={selected.has(row.listingId)}
                   onToggleSelect={() => toggleSelect(row.listingId)}
                 />

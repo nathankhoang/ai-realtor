@@ -65,25 +65,33 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
   const hiddenRows = rows.filter(r => !displayed.includes(r))
   const needsMoreBatches = displayed.length < 5 && total > analyzed
 
-  const displayedData = displayed.map((row, index) => ({
-    resultId: row.result.id,
-    listingId: row.listing.id,
-    rank: index + 1,
-    score: Math.round(row.result.matchScore * 100),
-    address: row.listing.address,
-    city: row.listing.city ?? '',
-    state: row.listing.state ?? '',
-    price: row.listing.price,
-    beds: row.listing.beds,
-    baths: row.listing.baths,
-    sqft: row.listing.sqft,
-    photos: (row.listing.photoUrls ?? []) as string[],
-    explanation: row.result.matchExplanation ?? '',
-    features: row.analysis?.featuresJson as ListingFeatures | null,
-    checklist: (row.result.requirementsChecklist ?? null) as RequirementsChecklist | null,
-    zillowId: row.listing.zillowId,
-    savedClientIds: savedByListing.get(row.listing.id) ?? [],
-  }))
+  const strictBudget = search.priceMax
+  const displayedData = displayed.map((row, index) => {
+    const overBudgetBy =
+      strictBudget != null && row.listing.price != null && row.listing.price > strictBudget
+        ? row.listing.price - strictBudget
+        : 0
+    return {
+      resultId: row.result.id,
+      listingId: row.listing.id,
+      rank: index + 1,
+      score: Math.round(row.result.matchScore * 100),
+      address: row.listing.address,
+      city: row.listing.city ?? '',
+      state: row.listing.state ?? '',
+      price: row.listing.price,
+      beds: row.listing.beds,
+      baths: row.listing.baths,
+      sqft: row.listing.sqft,
+      photos: (row.listing.photoUrls ?? []) as string[],
+      explanation: row.result.matchExplanation ?? '',
+      features: row.analysis?.featuresJson as ListingFeatures | null,
+      checklist: (row.result.requirementsChecklist ?? null) as RequirementsChecklist | null,
+      zillowId: row.listing.zillowId,
+      savedClientIds: savedByListing.get(row.listing.id) ?? [],
+      overBudgetBy,
+    }
+  })
 
   const hiddenData = hiddenRows.map(row => ({
     score: row.result.matchScore,
