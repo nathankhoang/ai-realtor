@@ -8,7 +8,7 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="bg-background py-28 md:py-36">
+    <section id="faq" className="py-28 md:py-36" style={{ background: 'var(--card)' }}>
       <div className="mx-auto max-w-3xl px-6">
         <div className="mb-14 text-center">
           <div className="eyebrow mx-auto mb-5">

@@ -17,60 +17,49 @@ const FEATURES = [
   'Two-car garage',
 ]
 
+/**
+ * Single-row marquee that mirrors the design's `.marquee-track` exactly:
+ * plain text, separated by 6px sage `.sep` dots, on a white surface with
+ * fading edges. The list is duplicated to enable the seamless -50% scroll.
+ */
 export function FeatureMarquee() {
   return (
-    <section className="relative overflow-hidden border-y border-brand-line bg-surface py-10">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 bg-gradient-to-r from-[var(--surface)] to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 bg-gradient-to-l from-[var(--surface)] to-transparent" />
+    <section
+      className="relative overflow-hidden border-y border-brand-line py-8 z-[5]"
+      style={{ background: 'var(--card)' }}
+    >
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32"
+        style={{ background: 'linear-gradient(to right, var(--card), transparent)' }}
+      />
+      <div
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32"
+        style={{ background: 'linear-gradient(to left, var(--card), transparent)' }}
+      />
 
-      <div className="mb-4 flex items-center justify-center gap-3">
-        <span className="text-xs font-mono uppercase tracking-[0.18em] text-brand-slate">
-          A few of the 40+ features Eifara detects
-        </span>
-        <span className="h-px w-8 bg-brand-line" />
+      <div className="mb-[18px] text-center font-display text-[11px] font-bold uppercase tracking-[0.14em] text-brand-slate-light">
+        A few of the 40+ features Eifara detects
       </div>
 
-      <Row direction="left" />
-      <Row direction="right" offset />
-    </section>
-  )
-}
-
-function Row({ direction, offset = false }: { direction: 'left' | 'right'; offset?: boolean }) {
-  const items = offset ? [...FEATURES.slice(6), ...FEATURES.slice(0, 6)] : FEATURES
-  const dup = [...items, ...items]
-
-  return (
-    <div className="overflow-hidden py-1.5">
-      <motion.div
-        className="flex gap-2.5"
-        animate={{ x: direction === 'left' ? ['0%', '-50%'] : ['-50%', '0%'] }}
-        transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-      >
-        {dup.map((f, i) => {
-          const flag = f.includes('(flag)')
-          return (
-            <span
-              key={i}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm whitespace-nowrap ${
-                flag
-                  ? 'border-amber-300 bg-amber-50 text-amber-800'
-                  : 'border-emerald-200 bg-white text-stone-700'
-              }`}
-            >
-              {flag ? (
-                <>
-                  <span className="text-amber-600">⚑</span> {f.replace(' (flag)', '')}
-                </>
-              ) : (
-                <>
-                  <span className="text-emerald-600">✓</span> {f}
-                </>
-              )}
+      <div className="overflow-hidden">
+        <motion.div
+          className="flex items-center whitespace-nowrap"
+          style={{ gap: '60px' }}
+          animate={{ x: ['0%', '-50%'] }}
+          transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
+        >
+          {[...FEATURES, ...FEATURES].map((f, i) => (
+            <span key={i} className="flex items-center" style={{ gap: '60px' }}>
+              <span className="text-[15px] text-foreground">{f}</span>
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                style={{ background: 'var(--brand)', opacity: 0.5 }}
+              />
             </span>
-          )
-        })}
-      </motion.div>
-    </div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
   )
 }

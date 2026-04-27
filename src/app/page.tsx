@@ -60,16 +60,17 @@ function Stats() {
   ]
   return (
     <section className="bg-surface border-y border-brand-line">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 px-4 py-14 gap-6 sm:px-6 sm:py-20 md:grid-cols-4 md:gap-6">
-        {items.map((s) => (
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-4 py-20 sm:px-6 sm:py-[120px] sm:pb-20 md:grid-cols-4">
+        {items.map((s, i) => (
           <div
             key={s.label}
-            className="group relative rounded-3xl border border-brand-line bg-card px-6 py-8 sm:px-7 sm:py-10 transition-all duration-500 hover:-translate-y-[3px] hover:shadow-[0_20px_60px_-20px_rgba(122,148,121,0.22)] overflow-hidden"
+            className="group relative rounded-[24px] border border-brand-line bg-card px-7 py-9 transition-all duration-500 hover:-translate-y-[3px] hover:shadow-[0_20px_60px_-20px_rgba(122,148,121,0.22)] overflow-hidden reveal"
+            style={{ transitionDelay: `${i * 0.1}s` }}
           >
             {/* Sage gradient border that fades in on hover */}
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              className="pointer-events-none absolute inset-0 rounded-[24px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
               style={{
                 padding: '1.5px',
                 background:
@@ -79,7 +80,7 @@ function Stats() {
                 maskComposite: 'exclude',
               }}
             />
-            <p className="relative font-display font-black tracking-[-0.04em] text-[44px] sm:text-[56px] md:text-[64px] leading-none text-brand-gradient">
+            <p className="relative font-display font-black tracking-[-0.04em] text-[clamp(42px,6vw,64px)] leading-none text-brand-gradient">
               <StatCounter value={s.value} suffix="" />
               <span className="text-[28px] sm:text-[32px] align-top ml-0.5">{s.suffix}</span>
             </p>
@@ -110,7 +111,7 @@ function ProblemStrip() {
           The honest truth
         </div>
         <h2 className="font-display font-extrabold leading-[1.05] tracking-[-0.03em] text-foreground text-[clamp(2.25rem,5.5vw,4.5rem)] max-w-[1100px]">
-          Your client wants <em className="not-italic text-brand-gradient">hardwood</em>, an updated <em className="not-italic text-brand-gradient">kitchen</em>,{' '}
+          Your client wants <em className="not-italic text-brand-gradient">hardwood</em>, an updated <em className="not-italic text-brand-gradient">kitchen</em>, and{' '}
           <span
             className="inline"
             style={{
@@ -118,9 +119,9 @@ function ProblemStrip() {
               padding: '0 4px',
             }}
           >
-            and no HOA.
-          </span>{' '}
-          Zillow can&rsquo;t read photos.
+            no HOA
+          </span>
+          . Zillow can&rsquo;t read photos.
         </h2>
         <p className="mt-10 max-w-[780px] text-[20px] leading-[1.55] text-brand-slate">
           So you do — <strong className="font-semibold text-foreground">for hours.</strong> You open dozens of listings, eyeball every kitchen, squint at the
@@ -173,7 +174,7 @@ function FinalCTA() {
           Ready when you are
         </div>
         <h2 className="font-display font-black leading-[1.05] tracking-[-0.035em] text-foreground text-[clamp(2.75rem,7vw,5.25rem)]">
-          Get your <span className="text-brand-gradient">weekends</span> back.
+          Get your <em className="italic text-brand-gradient">weekends</em> back.
         </h2>
         <p className="mx-auto mt-6 max-w-[640px] text-[18px] sm:text-[19px] leading-[1.55] text-brand-slate">
           Start with three free searches. No credit card. A few minutes from sign-up to your first ranked shortlist.

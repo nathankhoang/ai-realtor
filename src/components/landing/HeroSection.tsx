@@ -37,13 +37,16 @@ interface Particle {
 }
 
 function generateParticles(): Particle[] {
+  // Distribute starting positions across the visible hero so particles are
+  // always present somewhere drifting upward — earlier we started them
+  // below 100% which clipped them under the section's overflow:hidden.
   return Array.from({ length: PARTICLE_COUNT }, () => ({
     left: Math.random() * 100,
-    top: 100 + Math.random() * 20,
+    top: 20 + Math.random() * 80,
     duration: 8 + Math.random() * 12,
-    delay: Math.random() * 8,
-    opacity: 0.2 + Math.random() * 0.5,
-    scale: 0.5 + Math.random() * 1.2,
+    delay: -Math.random() * 12,
+    opacity: 0.45 + Math.random() * 0.4,
+    scale: 0.6 + Math.random() * 1.0,
   }))
 }
 
@@ -58,7 +61,7 @@ export default function HeroSection() {
 
   return (
     <section className="relative overflow-hidden bg-background">
-      {/* Animated mesh background */}
+      {/* Animated mesh background — three blurred radial blobs that drift */}
       <div
         aria-hidden
         className="absolute -inset-[20%] -z-10 pointer-events-none"
@@ -102,7 +105,7 @@ export default function HeroSection() {
         />
       </div>
 
-      {/* Grid backdrop with radial mask */}
+      {/* Grid backdrop with radial mask + pulse */}
       <div
         aria-hidden
         className="absolute inset-0 -z-10 pointer-events-none"
@@ -112,6 +115,7 @@ export default function HeroSection() {
           backgroundSize: '60px 60px',
           maskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%,black,transparent 80%)',
           WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%,black,transparent 80%)',
+          animation: prefersReducedMotion ? undefined : 'eifaraGridPulse 8s ease-in-out infinite',
         }}
       />
 
@@ -282,9 +286,13 @@ export default function HeroSection() {
         }
         @keyframes eifaraFloatUp {
           0% { transform: translateY(0) translateX(0); opacity: 0; }
-          10% { opacity: 0.6; }
-          90% { opacity: 0.4; }
+          10% { opacity: 0.7; }
+          90% { opacity: 0.45; }
           100% { transform: translateY(-110vh) translateX(40px); opacity: 0; }
+        }
+        @keyframes eifaraGridPulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
           .eifara-hero-particle { display: none; }

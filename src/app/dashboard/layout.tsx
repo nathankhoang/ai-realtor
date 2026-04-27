@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
-import { users, searches, clients, savedListings } from '@/lib/db/schema'
-import { eq, count, and } from 'drizzle-orm'
+import { searches, clients, savedListings } from '@/lib/db/schema'
+import { eq, count } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { getOrCreateUser } from '@/lib/user'
 import Sidebar from './Sidebar'
@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { userId } = await auth()
   if (!userId) redirect('/')
 
-  let dbUser = await getOrCreateUser(userId)
+  const dbUser = await getOrCreateUser(userId)
   if (!dbUser) redirect('/')
 
   // Counts driving the sidebar nav badges. Three lightweight aggregates.
@@ -46,9 +46,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Pull a friendly greeting name + brokerage badge for the sidebar foot.
   const clerkUser = await currentUser()
   const firstName = (dbUser.displayName?.trim() || clerkUser?.firstName?.trim() || '') ?? ''
-
-  // Suppress unused-var if `and` ends up not getting used elsewhere.
-  void and
 
   return (
     <div className="flex min-h-screen w-full bg-background">

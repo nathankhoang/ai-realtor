@@ -11,10 +11,11 @@ interface RecentPost {
 /**
  * Shared site-wide footer with the grand-foot CTA + newsletter card,
  * multi-column nav, mega EIFARA wordmark, and the base copyright bar.
- * Receives a small slice of recent posts so the Resources column can
- * surface a couple of fresh articles.
+ * Resources links are static now (mirroring the design); the recentPosts
+ * prop is kept for back-compat with existing call sites but unused.
  */
-export default function Footer({ recentPosts }: { recentPosts: RecentPost[] }) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function Footer({ recentPosts: _recentPosts }: { recentPosts: RecentPost[] }) {
   return (
     <footer className="relative bg-card border-t border-brand-line overflow-hidden">
       {/* GRAND FOOT — final CTA + newsletter coming-soon */}
@@ -77,7 +78,7 @@ export default function Footer({ recentPosts }: { recentPosts: RecentPost[] }) {
       </div>
 
       {/* Mid-foot multi-column nav */}
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-16 pb-8 grid gap-12 grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-16 pb-8 grid gap-12 grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr]">
         <div className="col-span-2 md:col-span-1 md:pr-6">
           <div className="flex items-center gap-2.5 mb-4">
             <Logo />
@@ -108,10 +109,17 @@ export default function Footer({ recentPosts }: { recentPosts: RecentPost[] }) {
         ]} />
 
         <FooterCol heading="Resources" links={[
-          ['Blog', '/blog'],
-          ['Learn', '/learn'],
+          ['Blog · field notes', '/blog'],
+          ['Agent playbook', '/learn'],
           ['FAQ', '/#faq'],
-          ...recentPosts.slice(0, 2).map(p => [p.title, `/blog/${p.slug}`] as [string, string]),
+          ['Help center', '/help'],
+          ['Changelog', '/changelog'],
+        ]} />
+
+        <FooterCol heading="Company" links={[
+          ['About', '/about'],
+          ['Press kit', '/press'],
+          ['hello@eifara.com', 'mailto:hello@eifara.com'],
         ]} />
 
         <FooterCol heading="Account" links={[
@@ -119,11 +127,53 @@ export default function Footer({ recentPosts }: { recentPosts: RecentPost[] }) {
           ['Sign in', '/sign-in'],
         ]} />
 
-        <FooterCol heading="Trust" links={[
-          ['Privacy', '/privacy'],
-          ['Terms', '/terms'],
-          ['Sitemap', '/sitemap.xml'],
-        ]} />
+        <div>
+          <p className="mb-3.5 font-display text-[13px] font-extrabold tracking-[0.04em] text-foreground">Trust</p>
+          <ul className="space-y-2.5">
+            <li>
+              <span className="inline-flex items-center gap-2 text-[14px] text-brand-slate">
+                Status
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                  style={{
+                    background: 'color-mix(in srgb, var(--brand) 15%, transparent)',
+                    color: 'var(--brand-deep)',
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{
+                      background: 'var(--brand)',
+                      animation: 'eifaraStatusPulse 2s infinite',
+                    }}
+                  />
+                  All systems
+                </span>
+              </span>
+            </li>
+            <li>
+              <Link href="/security" className="line-clamp-2 text-[14px] text-brand-slate transition-colors hover:text-brand-deep">
+                Security
+              </Link>
+            </li>
+            <li>
+              <Link href="/privacy" className="line-clamp-2 text-[14px] text-brand-slate transition-colors hover:text-brand-deep">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link href="/terms" className="line-clamp-2 text-[14px] text-brand-slate transition-colors hover:text-brand-deep">
+                Terms
+              </Link>
+            </li>
+            <li>
+              <Link href="/sitemap.xml" className="line-clamp-2 text-[14px] text-brand-slate transition-colors hover:text-brand-deep">
+                Sitemap
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
 
       {/* Mega EIFARA wordmark */}

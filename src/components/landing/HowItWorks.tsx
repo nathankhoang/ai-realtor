@@ -111,7 +111,7 @@ function StepRow({ step, index }: { step: Step; index: number }) {
         className="hidden md:flex md:col-start-2 md:row-start-1 items-center justify-center"
       >
         <div
-          className="relative grid h-20 w-20 place-items-center rounded-full text-white font-display text-[28px] font-black z-[2] shadow-[0_12px_30px_-8px_color-mix(in_srgb,var(--brand)_50%,transparent)] transition-transform duration-500 hover:scale-110 hover:rotate-[8deg]"
+          className="relative grid h-[60px] w-[60px] place-items-center rounded-full text-white font-display text-[22px] font-black z-[2] shadow-[0_12px_30px_-8px_color-mix(in_srgb,var(--brand)_50%,transparent)] transition-transform duration-500 hover:scale-110 hover:rotate-[8deg]"
           style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))' }}
         >
           {step.n}

@@ -26,7 +26,7 @@ export function BentoGrid() {
           </p>
         </div>
 
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-[1.3fr_1fr_1fr] md:auto-rows-min">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-3 md:auto-rows-min">
           {/* TALL: photo-level vision */}
           <FeatureCard className="md:row-span-2" delay={0} icon={<EyeIcon />} title="Photo-level vision">
             <p>
@@ -108,8 +108,8 @@ function FeatureCard({
       />
       <div className="relative">
         <div
-          className="grid h-14 w-14 place-items-center rounded-2xl mb-6 text-white shadow-[0_12px_24px_-8px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
-          style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))' }}
+          className="grid h-10 w-10 place-items-center rounded-full mb-6 text-brand-deep border border-brand-line"
+          style={{ background: 'var(--background)' }}
         >
           {icon}
         </div>

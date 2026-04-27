@@ -11,7 +11,7 @@ import { SignUpTrigger } from './AuthButtons'
  */
 export function Gallery() {
   return (
-    <section id="gallery" className="relative overflow-hidden bg-card py-32 md:py-36">
+    <section id="gallery" className="relative overflow-hidden py-32 md:py-36" style={{ background: 'var(--card)' }}>
       <div
         aria-hidden
         className="pointer-events-none absolute top-0 -right-48 h-[600px] w-[600px] rounded-full"
@@ -128,7 +128,7 @@ function Tile({
         <div className="absolute inset-0">
           {children}
         </div>
-        <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between pointer-events-none z-10">
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
           <span className="rounded-full bg-card/92 backdrop-blur-md px-3 py-1.5 font-display text-[11px] font-bold text-foreground">
             {room}
           </span>
