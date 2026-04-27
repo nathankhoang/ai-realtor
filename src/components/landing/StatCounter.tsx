@@ -1,8 +1,7 @@
 'use client'
 
-import { animate, useInView, useMotionValue, useTransform } from 'motion/react'
-import { motion } from 'motion/react'
-import { useEffect, useRef } from 'react'
+import { animate, useInView } from 'motion/react'
+import { useState, useEffect, useRef } from 'react'
 
 export function StatCounter({
   value,
@@ -17,24 +16,33 @@ export function StatCounter({
 }) {
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, { once: true, margin: '-20%' })
-  const count = useMotionValue(0)
-  const display = useTransform(count, (latest) => {
-    const rounded = Math.round(latest)
-    if (rounded === 0 && value > 0) return value.toString()
-    return decimals === 0
-      ? rounded.toLocaleString()
-      : latest.toFixed(decimals)
-  })
+  const hasAnimated = useRef(false)
+
+  // Initialize with the real target value so SSR and initial paint are always correct.
+  // (The previous MotionValue-as-children approach rendered "0" on the server because
+  // motion.span bypasses useTransform during SSR.)
+  const [display, setDisplay] = useState(() =>
+    decimals === 0 ? value.toLocaleString() : value.toFixed(decimals)
+  )
 
   useEffect(() => {
-    if (!inView) return
-    const controls = animate(count, value, { duration, ease: [0.16, 1, 0.3, 1] })
+    if (!inView || hasAnimated.current) return
+    hasAnimated.current = true
+    const controls = animate(0, value, {
+      duration,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: (latest) => {
+        setDisplay(
+          decimals === 0 ? Math.round(latest).toLocaleString() : latest.toFixed(decimals)
+        )
+      },
+    })
     return () => controls.stop()
-  }, [inView, value, duration, count])
+  }, [inView, value, duration, decimals])
 
   return (
     <span ref={ref} className="tabular-nums">
-      <motion.span>{display}</motion.span>
+      {display}
       {suffix}
     </span>
   )
