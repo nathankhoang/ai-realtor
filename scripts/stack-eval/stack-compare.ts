@@ -58,11 +58,14 @@ interface TaskResult extends RunResult {
 }
 
 interface VisionFeatures {
-  floors?: { type?: string; condition?: string; detail?: string }
-  kitchenCountertops?: { type?: string; condition?: string; detail?: string }
-  kitchenAppliances?: { type?: string; condition?: string; detail?: string }
-  ceilings?: { height?: string; condition?: string; detail?: string }
-  naturalLight?: { condition?: string; detail?: string }
+  floors?: { type?: string; condition?: string; detail?: string; photoIndex?: number | null }
+  kitchenCountertops?: { type?: string; condition?: string; detail?: string; photoIndex?: number | null }
+  kitchenAppliances?: { type?: string; condition?: string; detail?: string; photoIndex?: number | null }
+  kitchenCabinets?: { condition?: string; detail?: string; photoIndex?: number | null }
+  bathrooms?: { condition?: string; detail?: string; photoIndex?: number | null }
+  ceilings?: { height?: string; condition?: string; detail?: string; photoIndex?: number | null }
+  windows?: { condition?: string; detail?: string; photoIndex?: number | null }
+  naturalLight?: { condition?: string; detail?: string; photoIndex?: number | null }
   overallAge?: string
   notes?: string
 }
@@ -869,13 +872,15 @@ const SCORING_CASES: ScoringCase[] = [
     beds: 3,
     baths: 2,
     features: {
-      floors: { type: 'hardwood', condition: 'updated', detail: 'Refinished hardwood throughout', photoIndex: 0 },
-      kitchenCountertops: { type: 'quartz', condition: 'updated', detail: 'Quartz countertops, 2022 remodel', photoIndex: 1 },
-      kitchenAppliances: { type: 'stainless', condition: 'updated', detail: 'Stainless steel appliances', photoIndex: 1 },
-      bathrooms: { condition: 'updated', detail: 'Marble tiles', photoIndex: 3 },
-      ceilings: { height: 'high', condition: 'updated', detail: '10ft vaulted ceilings', photoIndex: 2 },
-      naturalLight: { condition: 'bright', detail: 'Large windows throughout' },
-      overallAge: 'updated',
+      floors: { type: 'hardwood', condition: 'updated' as const, detail: 'Refinished hardwood throughout', photoIndex: 0 },
+      kitchenCountertops: { type: 'quartz', condition: 'updated' as const, detail: 'Quartz countertops, 2022 remodel', photoIndex: 1 },
+      kitchenAppliances: { type: 'stainless', condition: 'updated' as const, detail: 'Stainless steel appliances', photoIndex: 1 },
+      kitchenCabinets: { condition: 'updated' as const, detail: 'Custom cabinets', photoIndex: 1 },
+      bathrooms: { condition: 'updated' as const, detail: 'Marble tiles', photoIndex: 3 },
+      ceilings: { height: 'high', condition: 'updated' as const, detail: '10ft vaulted ceilings', photoIndex: 2 },
+      windows: { condition: 'updated' as const, detail: 'New windows', photoIndex: null },
+      naturalLight: { condition: 'updated' as const, detail: 'Large windows throughout', photoIndex: 2 },
+      overallAge: 'updated' as const,
       notes: 'Recently renovated, move-in ready',
     },
     requirementsText: `
@@ -892,13 +897,15 @@ const SCORING_CASES: ScoringCase[] = [
     beds: 4,
     baths: 2,
     features: {
-      floors: { type: 'carpet', condition: 'original', detail: 'Worn carpet, original from 1995', photoIndex: 0 },
-      kitchenCountertops: { type: 'laminate', condition: 'original', detail: 'Laminate counters, original', photoIndex: 1 },
-      kitchenAppliances: { type: 'white', condition: 'original', detail: 'White appliances from 1990s', photoIndex: 1 },
-      bathrooms: { condition: 'poor', detail: 'Needs update', photoIndex: 2 },
-      ceilings: { height: 'standard', condition: 'original', detail: 'Standard popcorn ceiling', photoIndex: null },
-      naturalLight: { condition: 'moderate', detail: 'Small windows' },
-      overallAge: 'dated',
+      floors: { type: 'carpet', condition: 'original' as const, detail: 'Worn carpet, original from 1995', photoIndex: 0 },
+      kitchenCountertops: { type: 'laminate', condition: 'original' as const, detail: 'Laminate counters, original', photoIndex: 1 },
+      kitchenAppliances: { type: 'white', condition: 'original' as const, detail: 'White appliances from 1990s', photoIndex: 1 },
+      kitchenCabinets: { condition: 'original' as const, detail: 'Original cabinets', photoIndex: 1 },
+      bathrooms: { condition: 'poor' as const, detail: 'Needs update', photoIndex: 2 },
+      ceilings: { height: 'standard', condition: 'original' as const, detail: 'Standard popcorn ceiling', photoIndex: null },
+      windows: { condition: 'original' as const, detail: 'Original windows', photoIndex: null },
+      naturalLight: { condition: 'original' as const, detail: 'Small windows', photoIndex: 0 },
+      overallAge: 'dated' as const,
       notes: 'Good bones, needs cosmetic updates',
     },
     requirementsText: `
