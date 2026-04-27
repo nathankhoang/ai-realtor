@@ -139,7 +139,7 @@ export default async function PricingPage() {
               </h1>
             </div>
             <p className="text-[16px] sm:text-lg text-brand-slate max-w-2xl mx-auto leading-relaxed">
-              Start free, upgrade when you're ready. All plans include AI-powered listing analysis with detailed photo evidence. Scale your client base without scaling your costs.
+              Start free, upgrade when you&rsquo;re ready. All plans include AI-powered listing analysis with detailed photo evidence. Scale your client base without scaling your costs.
             </p>
           </div>
         </div>
@@ -159,7 +159,7 @@ export default async function PricingPage() {
                 Common questions
               </h2>
               <p className="text-muted-foreground">
-                Can't find the answer you're looking for? Contact our support team.
+                Can&rsquo;t find the answer you&rsquo;re looking for? Contact our support team.
               </p>
             </div>
 

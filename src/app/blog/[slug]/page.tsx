@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getPost, getAllSlugs, getRelatedPosts, categorySlug } from '@/lib/blog'
+import { getPost, getAllSlugs, getRelatedPosts, getAllPosts, categorySlug } from '@/lib/blog'
 import {
   SITE_NAME,
   SITE_URL,
@@ -10,6 +10,9 @@ import {
   howToJsonLd,
 } from '@/lib/seo'
 import StructuredData from '@/components/StructuredData'
+import Header from '@/components/landing/Header'
+import Footer from '@/components/landing/Footer'
+import { SignUpTrigger } from '@/components/landing/AuthButtons'
 
 export async function generateStaticParams() {
   return getAllSlugs().map(slug => ({ slug }))
@@ -70,143 +73,157 @@ export default async function BlogPostPage({
     ? howToJsonLd({ ...HOWTO_POSTS[post.slug]!, url: `${SITE_URL}/blog/${post.slug}` })
     : null
   const related = getRelatedPosts(post.slug, 3)
+  const recentPostsForFooter = getAllPosts().slice(0, 4).map(p => ({ slug: p.slug, title: p.title }))
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <StructuredData data={articleJsonLd} />
       <StructuredData data={breadcrumbs} />
       {howTo && <StructuredData data={howTo} />}
 
-      <header className="sticky top-0 z-10 border-b border-stone-900/8 bg-[#F1EEE7]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 h-14">
-          <Link href="/" className="text-[17px] font-medium tracking-tight">
-            Eifara
-          </Link>
-          <nav className="flex items-center gap-5 text-[14px] text-stone-600">
-            <Link href="/blog" className="hover:text-stone-950 transition-colors">
-              Blog
-            </Link>
-            <Link href="/pricing" className="hover:text-stone-950 transition-colors">
-              Pricing
-            </Link>
+      <Header />
+
+      <main className="relative flex-1">
+        {/* Soft sage backdrop blob, top-right */}
+        <div
+          aria-hidden
+          className="absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-light) 14%, transparent), transparent 70%)',
+            filter: 'blur(40px)',
+          }}
+        />
+
+        <div className="relative mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
+          {/* Breadcrumb */}
+          <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-[13px] text-brand-slate flex-wrap">
+            <Link href="/" className="hover:text-brand-deep transition-colors">Eifara</Link>
+            <ChevronRight />
+            <Link href="/blog" className="hover:text-brand-deep transition-colors">Blog</Link>
+            <ChevronRight />
+            <span className="text-foreground font-semibold truncate">{post.title}</span>
           </nav>
-        </div>
-      </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
-        <Link
-          href="/blog"
-          className="mb-5 inline-block text-[13px] text-stone-500 hover:text-stone-900 transition-colors"
-        >
-          ← All posts
-        </Link>
+          {/* White article panel — gives prose contrast against the sage page */}
+          <article className="rounded-[24px] border border-brand-line bg-card px-6 py-10 shadow-[0_30px_80px_-40px_rgba(122,148,121,0.20)] sm:px-12 sm:py-14 md:px-16 md:py-16">
+            <header className="mb-10 sm:mb-12 border-b border-brand-line pb-8 sm:pb-10">
+              {post.category && (
+                <Link
+                  href={`/blog/category/${categorySlug(post.category)}`}
+                  className="inline-flex items-center gap-2 mb-4 font-display text-[11px] font-bold uppercase tracking-[0.14em] text-brand-deep transition-colors hover:text-foreground"
+                >
+                  <span
+                    aria-hidden
+                    className="h-[6px] w-[6px] rounded-full"
+                    style={{ background: 'var(--brand)' }}
+                  />
+                  {post.category}
+                </Link>
+              )}
+              <h1 className="font-display text-[28px] sm:text-[40px] md:text-[44px] font-black leading-[1.08] tracking-[-0.03em] text-foreground">
+                {post.title}
+              </h1>
+              <p className="mt-5 text-[16.5px] sm:text-[18px] leading-[1.55] text-brand-slate">
+                {post.description}
+              </p>
+              <div className="mt-6 flex items-center gap-3 text-[13px] text-brand-slate-light">
+                <span>{formatDate(post.date)}</span>
+                <span className="h-[3px] w-[3px] rounded-full bg-brand-slate-light" aria-hidden />
+                <span>{post.readingTime}</span>
+              </div>
+            </header>
 
-        {/* White article panel — gives prose proper contrast against the cream page */}
-        <article className="rounded-3xl border border-stone-900/8 bg-white px-6 py-10 shadow-[0_30px_80px_-40px_rgba(15,14,10,0.18)] sm:px-12 sm:py-14 md:px-16 md:py-16">
-          <header className="mb-10 sm:mb-12 border-b border-stone-900/8 pb-8 sm:pb-10">
-            {post.category && (
-              <Link
-                href={`/blog/category/${categorySlug(post.category)}`}
-                className="mb-3 inline-block text-[11.5px] uppercase tracking-[0.2em] text-stone-500 hover:text-stone-900 transition-colors"
-              >
-                {post.category}
-              </Link>
-            )}
-            <h1 className="text-[28px] sm:text-[40px] md:text-[44px] font-medium leading-[1.12] tracking-[-0.025em] text-stone-950">
-              {post.title}
-            </h1>
-            <p className="mt-4 text-[16px] sm:text-[17.5px] leading-relaxed text-stone-600">
-              {post.description}
-            </p>
-            <div className="mt-5 flex items-center gap-3 text-[12.5px] text-stone-500">
-              <span>{formatDate(post.date)}</span>
-              <span aria-hidden>·</span>
-              <span>{post.readingTime}</span>
-            </div>
-          </header>
+            <div
+              className="prose-eifara"
+              dangerouslySetInnerHTML={{ __html: post.html }}
+            />
 
-          <div
-            className="prose-eifara"
-            dangerouslySetInnerHTML={{ __html: post.html }}
-          />
-
-          <div className="mt-14 sm:mt-16 rounded-2xl border border-stone-900/10 bg-[#F8F6F1] p-6 sm:p-8">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Try Eifara
-            </p>
-            <h2 className="mt-2 text-[22px] sm:text-2xl font-medium tracking-[-0.018em] text-stone-950 leading-tight">
-              See every home through your client&rsquo;s eyes.
-            </h2>
-            <p className="mt-2 text-[15px] text-stone-600 leading-relaxed">
-              AI photo analysis for real estate agents. Three free searches, no credit card.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Link
-                href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-full bg-stone-950 px-5 py-2.5 text-[14.5px] font-medium text-white transition-transform hover:-translate-y-0.5"
-              >
-                Start free
-              </Link>
-              <Link
-                href="/pricing"
-                className="text-[14px] text-stone-700 hover:text-stone-950 underline-offset-4 hover:underline"
-              >
-                See pricing
-              </Link>
-            </div>
-          </div>
-        </article>
-
-        {related.length > 0 && (
-          <section aria-labelledby="read-next" className="mt-14 sm:mt-16">
-            <h2
-              id="read-next"
-              className="mb-5 text-[12px] font-semibold uppercase tracking-[0.18em] text-stone-500"
+            {/* End-of-post CTA card — sage gradient surface */}
+            <div
+              className="mt-14 sm:mt-16 relative overflow-hidden rounded-[20px] p-7 sm:p-9 text-white"
+              style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
             >
-              Read next
-            </h2>
-            <ul className="grid gap-3 sm:grid-cols-3">
-              {related.map(r => (
-                <li key={r.slug}>
-                  <Link
-                    href={`/blog/${r.slug}`}
-                    className="group block h-full rounded-2xl border border-stone-900/8 bg-white p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-900/15 hover:shadow-[0_18px_40px_-20px_rgba(15,14,10,0.20)]"
-                  >
-                    {r.category && (
-                      <p className="text-[10.5px] uppercase tracking-[0.18em] text-stone-400">
-                        {r.category}
-                      </p>
-                    )}
-                    <h3 className="mt-2 text-[15.5px] font-medium leading-snug text-stone-950 group-hover:text-[#2952FF] transition-colors">
-                      {r.title}
-                    </h3>
-                    <p className="mt-1.5 text-[12.5px] text-stone-500">{r.readingTime}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+              <span
+                aria-hidden
+                className="absolute -top-24 -right-24 h-[280px] w-[280px] rounded-full"
+                style={{
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.16), transparent 70%)',
+                  filter: 'blur(20px)',
+                }}
+              />
+              <p className="relative font-display text-[11px] font-bold uppercase tracking-[0.14em] text-white/75">
+                Try Eifara
+              </p>
+              <h2 className="relative mt-2 font-display text-[24px] sm:text-[28px] font-extrabold tracking-[-0.02em] leading-[1.2]">
+                See every home through your client&rsquo;s eyes.
+              </h2>
+              <p className="relative mt-2.5 max-w-lg text-[15px] leading-[1.55] text-white/85">
+                AI photo analysis for real-estate agents. Three free searches, no credit card.
+              </p>
+              <div className="relative mt-6 flex flex-wrap items-center gap-3.5">
+                <SignUpTrigger size="sm" tone="light">
+                  Start free
+                </SignUpTrigger>
+                <Link
+                  href="/pricing"
+                  className="text-[14px] font-medium text-white/85 transition-colors hover:text-white underline-offset-4 hover:underline"
+                >
+                  See pricing
+                </Link>
+              </div>
+            </div>
+          </article>
 
-        <div className="mt-10 flex items-center justify-between text-[13px] text-stone-500">
-          <Link href="/blog" className="hover:text-stone-900 transition-colors">
-            ← All posts
-          </Link>
-          <Link href="/" className="hover:text-stone-900 transition-colors">
-            eifara.com →
-          </Link>
+          {related.length > 0 && (
+            <section aria-labelledby="read-next" className="mt-14 sm:mt-16">
+              <div className="eyebrow mb-6">
+                <span className="dot" />
+                Read next
+              </div>
+              <ul className="grid gap-4 sm:grid-cols-3">
+                {related.map(r => (
+                  <li key={r.slug}>
+                    <Link
+                      href={`/blog/${r.slug}`}
+                      className="group block h-full rounded-[18px] border border-brand-line bg-card p-5 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[3px] hover:border-brand/30 hover:shadow-[0_20px_60px_-20px_rgba(122,148,121,0.22)]"
+                    >
+                      {r.category && (
+                        <p className="text-[10.5px] uppercase tracking-[0.18em] text-brand-slate-light">
+                          {r.category}
+                        </p>
+                      )}
+                      <h3 className="mt-2 font-display text-[16px] font-extrabold leading-[1.3] tracking-[-0.015em] text-foreground transition-colors group-hover:text-brand-deep">
+                        {r.title}
+                      </h3>
+                      <p className="mt-2 text-[12.5px] text-brand-slate-light">{r.readingTime}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <div className="mt-12 flex items-center justify-between text-[13px] text-brand-slate">
+            <Link href="/blog" className="inline-flex items-center gap-1.5 transition-colors hover:text-brand-deep">
+              <span aria-hidden>←</span> All posts
+            </Link>
+            <Link href="/" className="inline-flex items-center gap-1.5 transition-colors hover:text-brand-deep">
+              eifara.com <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
       </main>
 
-      <footer className="border-t border-stone-900/8 bg-[#F1EEE7] px-4 sm:px-6 py-8 mt-12">
-        <div className="mx-auto flex max-w-5xl items-center justify-between text-[13px] text-stone-500">
-          <span>© {new Date().getFullYear()} Eifara</span>
-          <Link href="/" className="hover:text-stone-900 transition-colors">
-            ← Back to home
-          </Link>
-        </div>
-      </footer>
+      <Footer recentPosts={recentPostsForFooter} />
     </div>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-slate-light)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   )
 }
 
