@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { PhotoScanDemo } from './PhotoScanDemo'
+import { DemoCard } from './DemoCard'
 import { SignUpTrigger } from './AuthButtons'
 import { SecondaryButton } from './PrimaryButton'
 
@@ -185,27 +185,6 @@ export default function HeroSection() {
               </SignUpTrigger>
               <SecondaryButton href="#how">See how it works</SecondaryButton>
             </motion.div>
-
-            {/* Trust strip */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.5, duration: 1 }}
-              className="mt-9 flex items-center gap-4 flex-wrap"
-            >
-              <div className="flex">
-                <div className="h-9 w-9 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand-light to-brand-2">M</div>
-                <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand-light to-brand-deep">L</div>
-                <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-amber-400 to-amber-600">S</div>
-                <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-violet-400 to-violet-700">+</div>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <div className="flex gap-0.5 text-amber-500 text-[14px]" aria-hidden>★★★★★</div>
-                <p className="text-[13px] text-brand-slate leading-tight">
-                  <span className="font-semibold text-foreground">1,200+ agents</span> turning Saturday-morning Zillow runs into 5-minute shortlists
-                </p>
-              </div>
-            </motion.div>
           </div>
 
           {/* Demo card with float cards */}
@@ -268,10 +247,10 @@ export default function HeroSection() {
             <div
               className="relative"
               style={{
-                transform: prefersReducedMotion ? undefined : 'perspective(1200px) rotateY(-6deg) rotateX(3deg)',
+                transform: prefersReducedMotion ? undefined : 'perspective(1200px) rotateY(-8deg) rotateX(4deg)',
               }}
             >
-              <PhotoScanDemo />
+              <DemoCard />
             </div>
           </div>
         </div>

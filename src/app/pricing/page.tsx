@@ -1,8 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
-import { Button } from '@/components/ui/button'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -14,6 +11,9 @@ import {
   softwareApplicationJsonLd,
   breadcrumbJsonLd,
 } from '@/lib/seo'
+import Header from '@/components/landing/Header'
+import Footer from '@/components/landing/Footer'
+import { getAllPosts } from '@/lib/blog'
 
 export const metadata: Metadata = {
   title: 'Pricing — Free, Starter, Pro, and Premier plans',
@@ -103,6 +103,8 @@ export default async function PricingPage() {
     currentTier = (dbUser?.tier as Tier) ?? 'free'
   }
 
+  const recentPostsForFooter = getAllPosts().slice(0, 4).map(p => ({ slug: p.slug, title: p.title }))
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <StructuredData data={softwareApplicationJsonLd()} />
@@ -113,33 +115,31 @@ export default async function PricingPage() {
         ])}
       />
 
-      <header className="sticky top-0 z-10 border-b border-brand-line bg-background/95 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-[17px] font-display font-bold tracking-tight text-foreground">
-            Eifara
-          </Link>
-          {userId ? <UserButton /> : (
-            <Link href="/sign-in">
-              <Button variant="outline" size="sm">Sign in</Button>
-            </Link>
-          )}
-        </div>
-      </header>
+      <Header />
 
-      <main className="flex-1 w-full">
+      <main className="relative flex-1 w-full">
+        {/* Sage radial blob in the top-right — same trick the landing pages use */}
+        <div
+          aria-hidden
+          className="absolute -top-48 -right-48 h-[600px] w-[600px] rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-light) 18%, transparent), transparent 70%)',
+            filter: 'blur(40px)',
+          }}
+        />
+
         {/* Hero section */}
-        <div className="px-4 sm:px-6 py-12 sm:py-20">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            <div className="space-y-2">
-              <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-brand-slate">
-                Pricing Plans
-              </p>
-              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.02em] text-foreground leading-[1.1]">
-                Choose your perfect fit
-              </h1>
+        <div className="relative px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-16">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="eyebrow mb-6 mx-auto">
+              <span className="dot" />
+              Pricing
             </div>
-            <p className="text-[16px] sm:text-lg text-brand-slate max-w-2xl mx-auto leading-relaxed">
-              Start free, upgrade when you&rsquo;re ready. All plans include AI-powered listing analysis with detailed photo evidence. Scale your client base without scaling your costs.
+            <h1 className="font-display font-black leading-[1.05] tracking-[-0.03em] text-foreground text-[clamp(2.5rem,6vw,4.5rem)]">
+              Plain pricing. <span className="text-brand-gradient">Start free.</span>
+            </h1>
+            <p className="mt-6 text-[17px] sm:text-[19px] text-brand-slate max-w-2xl mx-auto leading-[1.55]">
+              No credit card to begin. No per-photo fees. Cancel any time, keep your client profiles.
             </p>
           </div>
         </div>
@@ -152,13 +152,17 @@ export default async function PricingPage() {
         </div>
 
         {/* FAQ section */}
-        <div className="px-4 sm:px-6 py-12 sm:py-16 bg-white border-t border-brand-line">
+        <div className="relative px-4 sm:px-6 py-16 sm:py-20 bg-card border-t border-brand-line">
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              <div className="eyebrow mb-5 mx-auto">
+                <span className="dot" />
+                Questions
+              </div>
+              <h2 className="font-display text-[clamp(2rem,4vw,2.75rem)] font-black leading-[1.1] tracking-[-0.025em] text-foreground">
                 Common questions
               </h2>
-              <p className="text-muted-foreground">
+              <p className="mt-4 text-brand-slate text-[16px]">
                 Can&rsquo;t find the answer you&rsquo;re looking for? Contact our support team.
               </p>
             </div>
@@ -191,7 +195,7 @@ export default async function PricingPage() {
                 },
               ].map((item) => (
                 <div key={item.q} className="border-b border-brand-line pb-6 last:border-0">
-                  <h3 className="font-semibold text-foreground mb-2">{item.q}</h3>
+                  <h3 className="font-display text-[17px] font-extrabold tracking-[-0.01em] text-foreground mb-2">{item.q}</h3>
                   <p className="text-brand-slate leading-relaxed">{item.a}</p>
                 </div>
               ))}
@@ -199,6 +203,8 @@ export default async function PricingPage() {
           </div>
         </div>
       </main>
+
+      <Footer recentPosts={recentPostsForFooter} />
     </div>
   )
 }
