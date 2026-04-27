@@ -61,12 +61,12 @@ export default function Sidebar({
     {
       label: 'Dashboard',
       href: '/dashboard',
-      match: p => p === '/dashboard',
+      match: p => p === '/dashboard' || p.startsWith('/dashboard/clients'),
       icon: <DashboardIcon />,
     },
     {
       label: 'Searches',
-      href: '/dashboard',
+      href: '/search',
       count: counts.searches,
       match: p => p.startsWith('/results'),
       icon: <SearchIcon />,
@@ -75,7 +75,7 @@ export default function Sidebar({
       label: 'Clients',
       href: '/dashboard',
       count: counts.clients,
-      match: p => p.startsWith('/dashboard/clients'),
+      match: () => false,
       icon: <UsersIcon />,
     },
     {
