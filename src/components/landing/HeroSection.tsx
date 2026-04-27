@@ -136,7 +136,7 @@ export default function HeroSection() {
         ))}
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1320px] px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32 md:px-8">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 pt-6 pb-20 sm:px-6 sm:pt-10 sm:pb-28 md:pt-16 md:pb-32 md:px-8">
         {/* Eyebrow chip */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}

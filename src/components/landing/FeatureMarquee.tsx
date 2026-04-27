@@ -17,11 +17,6 @@ const FEATURES = [
   'Two-car garage',
 ]
 
-/**
- * Single-row marquee that mirrors the design's `.marquee-track` exactly:
- * plain text, separated by 6px sage `.sep` dots, on a white surface with
- * fading edges. The list is duplicated to enable the seamless -50% scroll.
- */
 export function FeatureMarquee() {
   return (
     <section

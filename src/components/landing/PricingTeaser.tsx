@@ -22,7 +22,7 @@ const TIERS: Tier[] = [
     free: true,
     description: 'For trying it on a real listing',
     monthly: 0,
-    features: ['3 searches / month', 'AI photo analysis', 'Feature evidence grid', 'Client management'],
+    features: ['3 searches / month', 'AI analysis', 'Photo match evidence', 'Client management'],
     cta: 'Start free',
   },
   {
@@ -34,9 +34,9 @@ const TIERS: Tier[] = [
     features: [
       '60 searches / month',
       'Everything in Starter',
-      'Early access to new features',
+      '40 listings per search',
       'Priority support',
-      'Shareable client reports',
+      'Early access to features',
       'Priority analysis queue',
     ],
     cta: 'Start free trial',
@@ -47,7 +47,7 @@ const TIERS: Tier[] = [
     free: false,
     description: 'A few searches a week',
     monthly: 50,
-    features: ['20 searches / month', 'Everything in Free', 'Priority analysis', 'Shareable client reports', 'Email support'],
+    features: ['20 searches / month', 'Everything in Free', '30 listings per search', 'Reports', 'Email support'],
     cta: 'Choose Starter',
   },
 ]
