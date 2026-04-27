@@ -103,7 +103,7 @@ export default function AnalysisStepper({ searchId, initialAnalyzed, initialTota
       // More accurate copy: it's actually N parallel listings being
       // analyzed, not one long photo-reading task.
       title: step3Active
-        ? `Analyzing listings (${resultCount} of ${Math.min(total, 5)})`
+        ? `Analyzing listings (${resultCount} of ${total})`
         : 'Analyzing listings',
       done: step3Done,
       active: step3Active,

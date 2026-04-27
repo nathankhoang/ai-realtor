@@ -62,6 +62,7 @@ export default function NextBatchButton({
     )
   }
 
+  if (analyzedCount === 0) return null
   if (!hasMore && analyzedCount > 0) return null
 
   return (

@@ -10,6 +10,7 @@ import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
 import { softBudget } from '@/lib/budget'
+import { logger } from '@/lib/logger'
 import type { ParsedRequirements } from '@/types'
 
 const FIRST_BATCH_SIZE = 5
@@ -58,17 +59,24 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   }
 
   // Pre-screen → top first-batch candidates
-  const rankedZpids = await prescreenListings(
-    zillowListings.map(zl => ({
-      zpid: zl.zpid,
-      address: zl.address,
-      price: zl.price,
-      beds: zl.bedrooms,
-      baths: zl.bathrooms,
-      sqft: zl.livingArea,
-    })),
-    parsedRequirements,
-  )
+  let rankedZpids: string[] = []
+  try {
+    rankedZpids = await prescreenListings(
+      zillowListings.map(zl => ({
+        zpid: zl.zpid,
+        address: zl.address,
+        price: zl.price,
+        beds: zl.bedrooms,
+        baths: zl.bathrooms,
+        sqft: zl.livingArea,
+      })),
+      parsedRequirements,
+      search.priceMax ?? undefined,
+      Math.min(zillowListings.length, 60),
+    )
+  } catch (err) {
+    logger.warn('retry.prescreenFailed', { searchId, err: err instanceof Error ? err.message : String(err) })
+  }
 
   const zpidToListing = new Map(zillowListings.map(zl => [zl.zpid, zl]))
   const allZpids = zillowListings.map(zl => zl.zpid)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { Button } from '@/components/ui/button'
@@ -423,14 +423,14 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                 longitude: r.longitude,
                 photo: r.photos[0] ?? null,
               }))}
-              onSelect={(listingId) => {
+              onSelect={useCallback((listingId: string) => {
                 setView('overview')
                 // Wait for the overview to render before scrolling.
                 setTimeout(() => {
                   const el = document.querySelector(`[data-listing-card-id="${listingId}"]`)
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }, 50)
-              }}
+              }, [])}
             />
           </motion.div>
         ) : (

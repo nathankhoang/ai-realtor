@@ -31,7 +31,13 @@ interface Props {
  */
 export default function ResultsMap({ listings, onSelect }: Props) {
   const mapEl = useRef<HTMLDivElement | null>(null)
+  const onSelectRef = useRef(onSelect)
   const [ready, setReady] = useState(false)
+
+  // Update the ref whenever onSelect changes so handlers always call the latest version.
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
 
   // Geo-located subset — listings missing coords just don't appear on the map.
   const geoListings = listings.filter(
@@ -125,7 +131,7 @@ export default function ResultsMap({ listings, onSelect }: Props) {
         const btn = target.closest('.eifara-popup-detail') as HTMLElement | null
         if (!btn) return
         const id = btn.getAttribute('data-listing-id')
-        if (id) onSelect(id)
+        if (id) onSelectRef.current(id)
       }
       container.addEventListener('click', onClick)
 
@@ -146,8 +152,9 @@ export default function ResultsMap({ listings, onSelect }: Props) {
     }
     // Re-render when listings shape changes (e.g., filter applied upstream).
     // We use a stable key list so we don't tear down on every parent state update.
+    // onSelect is captured in onSelectRef instead, so it's not in deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoListings.map(l => l.listingId).join('|'), onSelect])
+  }, [geoListings.map(l => l.listingId).join('|')])
 
   if (geoListings.length === 0) {
     return (

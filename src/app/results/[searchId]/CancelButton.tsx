@@ -35,7 +35,10 @@ export default function CancelButton({
       if (!res.ok) {
         toast.error('Could not cancel — try again')
       } else {
-        toast.success('Search cancelled')
+        const data = await res.json()
+        if (data.status === 'cancelled') {
+          toast.success('Search cancelled')
+        }
         router.refresh()
       }
     } finally {

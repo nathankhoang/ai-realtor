@@ -36,6 +36,8 @@ export async function upsertListing(zl: ZillowListing): Promise<string> {
       target: listings.zillowId,
       set: {
         updatedAt: sql`now()`,
+        price: sql`excluded.price`,
+        photoUrls: sql`excluded.photo_urls`,
         // Backfill lat/lng on existing rows that don't have them yet.
         // COALESCE keeps the existing value when present, so re-runs don't
         // clobber coords with a fresh-but-null fetch.
@@ -71,6 +73,8 @@ export async function upsertListings(zls: ZillowListing[]): Promise<Map<string, 
       target: listings.zillowId,
       set: {
         updatedAt: sql`now()`,
+        price: sql`excluded.price`,
+        photoUrls: sql`excluded.photo_urls`,
         // Backfill lat/lng on existing rows that don't have them yet.
         // COALESCE keeps the existing value when present, so re-runs don't
         // clobber coords with a fresh-but-null fetch.

@@ -582,7 +582,11 @@ Respond ONLY with valid JSON:
     .filter(e => e && typeof e.requirement === 'string')
     .map(e => ({
       requirement: String(e.requirement),
-      category: e.category === 'niceToHave' || e.category === 'dealBreaker' ? e.category : 'required',
+      category: e.category === 'niceToHave'
+        ? 'niceToHave'
+        : (e.category === 'dealBreaker' || e.category === 'dealbreaker')
+          ? 'dealBreaker'
+          : 'required',
       verdict: ['matched', 'missed', 'unclear'].includes(e.verdict) ? e.verdict : 'unclear',
       evidence: String(e.evidence ?? ''),
       source: ['photo', 'mls', 'description', 'none'].includes(e.source) ? e.source : 'none',

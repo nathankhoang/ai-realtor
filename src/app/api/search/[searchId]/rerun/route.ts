@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { users, searches, searchResults } from '@/lib/db/schema'
-import { eq, and, desc, gte, count } from 'drizzle-orm'
+import { eq, and, desc, gte, count, sql } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
@@ -72,10 +72,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   const tier = dbUser.tier as Tier
   const limit = TIER_LIMITS[tier]
   if (limit !== Infinity && dbUser.searchesUsedThisMonth >= limit) {
+    const msg = tier === 'free'
+      ? "You've used all 3 free searches this month. Upgrade to Starter, Pro, or Premier to continue."
+      : tier === 'starter'
+        ? "You've used all 20 searches this month. Upgrade to Pro or Premier for more."
+        : tier === 'pro'
+          ? "You've used all 60 searches this month. Upgrade to Premier for more."
+          : "You've reached 150 searches this month. Contact us for higher limits."
     return NextResponse.json({
-      error: tier === 'starter'
-        ? "You've used all 20 searches this month. Upgrade to Pro for unlimited."
-        : "You've used all 3 free searches this month. Upgrade to continue.",
+      error: msg,
       tier,
     }, { status: 403 })
   }
@@ -99,7 +104,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
   }).returning()
 
   await db.update(users)
-    .set({ searchesUsedThisMonth: dbUser.searchesUsedThisMonth + 1 })
+    .set({ searchesUsedThisMonth: sql`${users.searchesUsedThisMonth} + 1` })
     .where(eq(users.id, dbUser.id))
 
   let zillowListings
@@ -121,19 +126,24 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     .set({ totalCandidates: zillowListings.length })
     .where(eq(searches.id, newSearch.id))
 
-  const rankedZpids = await prescreenListings(
-    zillowListings.map(zl => ({
-      zpid: zl.zpid,
-      address: zl.address,
-      price: zl.price,
-      beds: zl.bedrooms,
-      baths: zl.bathrooms,
-      sqft: zl.livingArea,
-    })),
-    parsedRequirements,
-    original.priceMax,
-    Math.min(zillowListings.length, 60),
-  )
+  let rankedZpids: string[] = []
+  try {
+    rankedZpids = await prescreenListings(
+      zillowListings.map(zl => ({
+        zpid: zl.zpid,
+        address: zl.address,
+        price: zl.price,
+        beds: zl.bedrooms,
+        baths: zl.bathrooms,
+        sqft: zl.livingArea,
+      })),
+      parsedRequirements,
+      original.priceMax,
+      Math.min(zillowListings.length, 60),
+    )
+  } catch (err) {
+    logger.warn('rerun.prescreenFailed', { searchId: newSearch.id, err: err instanceof Error ? err.message : String(err) })
+  }
 
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))

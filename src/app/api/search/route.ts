@@ -298,19 +298,24 @@ async function handleSearch(req: Request) {
   // Pre-screen the full Zillow result once, store the ranked order, and
   // pop the first batch off the head. Subsequent next-batch clicks pop
   // from the same list — no per-batch LLM rerun.
-  const rankedZpids = await prescreenListings(
-    zillowListings.map(zl => ({
-      zpid: zl.zpid,
-      address: zl.address,
-      price: zl.price,
-      beds: zl.bedrooms,
-      baths: zl.bathrooms,
-      sqft: zl.livingArea,
-    })),
-    parsedRequirements,
-    strictMax,
-    Math.min(zillowListings.length, 60),
-  )
+  let rankedZpids: string[] = []
+  try {
+    rankedZpids = await prescreenListings(
+      zillowListings.map(zl => ({
+        zpid: zl.zpid,
+        address: zl.address,
+        price: zl.price,
+        beds: zl.bedrooms,
+        baths: zl.bathrooms,
+        sqft: zl.livingArea,
+      })),
+      parsedRequirements,
+      strictMax,
+      Math.min(zillowListings.length, 60),
+    )
+  } catch (err) {
+    logger.warn('api.search.prescreenFailed', { searchId: search.id, err: err instanceof Error ? err.message : String(err) })
+  }
 
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))

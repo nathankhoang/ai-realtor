@@ -160,7 +160,7 @@ async function processJob({
   }
 
   const search = await db.query.searches.findFirst({ where: eq(searches.id, searchId) })
-  if (!search) return NextResponse.json({ error: 'Search not found' }, { status: 404 })
+  if (!search) return NextResponse.json({ skipped: true, reason: 'search_not_found' })
 
   // If the user cancelled the search before this job started, exit cheaply
   // without burning Anthropic / Zillow credits.
@@ -169,7 +169,7 @@ async function processJob({
   }
 
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) })
-  if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
+  if (!listing) return NextResponse.json({ skipped: true, reason: 'listing_not_found' })
 
   const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null,
