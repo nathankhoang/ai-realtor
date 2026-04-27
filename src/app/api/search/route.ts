@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
 import { users, searches, searchResults, clients } from '@/lib/db/schema'
-import { eq, and, desc, gte, count, sql, or } from 'drizzle-orm'
+import { eq, and, desc, gte, count, sql, or, type SQL } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
 import { TIER_LIMITS, LISTINGS_PER_SEARCH, type Tier } from '@/types'
@@ -321,7 +321,7 @@ async function handleSearch(req: Request) {
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
   const orderedZpids = [...rankedZpids, ...remaining]
   await db.update(searches)
-    .set({ prescreenedZpids: orderedZpids })
+    .set({ prescreenedZpids: sql`${JSON.stringify(orderedZpids)}::jsonb` })
     .where(eq(searches.id, search.id))
 
   // Upsert ALL prescreened listings (not just the first batch) so the
