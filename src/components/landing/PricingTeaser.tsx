@@ -185,70 +185,112 @@ function PricingCard({ tier, annual }: { tier: Tier; annual: boolean }) {
 
   return (
     <div
-      className={`relative flex flex-col rounded-3xl border p-7 ${
+      className={`group relative flex flex-col gap-6 rounded-[24px] p-8 sm:p-10 transition-all duration-500 hover:-translate-y-[8px] ${
         tier.highlight
-          ? 'border-brand bg-white shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
-          : 'border-brand-line bg-white/55'
+          ? 'text-white shadow-[0_40px_100px_-30px_rgba(122,148,121,0.32)]'
+          : 'border border-brand-line bg-card hover:scale-[1.02]'
       }`}
+      style={
+        tier.highlight
+          ? { background: 'linear-gradient(180deg, var(--foreground), #233022)' }
+          : undefined
+      }
     >
+      {/* Animated sage gradient border on the featured card */}
+      {tier.highlight && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-0.5 -z-10 rounded-[26px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--brand), var(--brand-light), var(--brand))',
+            backgroundSize: '200% 200%',
+            animation: 'eifaraFeatureGlow 3s ease infinite',
+          }}
+        />
+      )}
+
       {tier.highlight && (
         <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[12.5px] font-medium text-white"
-          style={{ backgroundColor: 'var(--brand-deep)' }}
+          className="absolute -top-3 right-8 rounded-full px-3.5 py-[5px] font-display text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_8px_20px_-6px_rgba(122,148,121,0.5)]"
+          style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))' }}
         >
           Most popular
         </div>
       )}
 
-      <p className="text-[15px] font-medium text-foreground">{tier.name}</p>
+      <p className={`font-display text-[22px] font-extrabold tracking-[-0.02em] ${tier.highlight ? 'text-white' : 'text-foreground'}`}>
+        {tier.name}
+      </p>
 
-      <div className="mt-2 flex items-baseline gap-1.5">
+      <div className="flex items-baseline gap-1">
+        <span className={`font-display text-[20px] font-bold tabular-nums self-start mt-2 ${tier.highlight ? 'text-white/90' : 'text-foreground'}`}>$</span>
         <motion.span
           key={`${tier.name}-${annual}`}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="text-5xl font-medium tracking-[-0.025em] text-foreground tabular-nums"
+          className={`font-display text-[60px] font-black leading-none tracking-[-0.04em] tabular-nums ${tier.highlight ? 'text-white' : 'text-foreground'}`}
         >
-          ${displayPrice}
+          {displayPrice}
         </motion.span>
-        <span className="text-[15px] text-brand-slate">{period}</span>
+        <span className={`text-[14px] ml-1.5 ${tier.highlight ? 'text-white/70' : 'text-brand-slate'}`}>{period}</span>
       </div>
 
       {/* Reserved space — keeps card heights stable across toggle */}
-      <div className="mt-1.5 h-5 text-[13px]">
+      <div className={`-mt-3 h-5 text-[13px] ${tier.highlight ? 'text-white/70' : 'text-brand-slate'}`}>
         {showAnnualPrice ? (
           <motion.p
             key={`${tier.name}-annual-note`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.25, delay: 0.05 }}
-            className="text-brand-slate"
           >
-            <span className="font-medium text-foreground tabular-nums">${tier.annualTotal}</span>{' '}
+            <span className={`font-medium tabular-nums ${tier.highlight ? 'text-white/90' : 'text-foreground'}`}>${tier.annualTotal}</span>{' '}
             billed annually
           </motion.p>
         ) : null}
       </div>
 
-      <p className="mt-2 text-[13px] font-medium" style={{ color: 'var(--brand-deep)' }}>
+      <p className={`-mt-2 text-[13px] font-semibold ${tier.highlight ? 'text-white' : 'text-brand-deep'}`}>
         {tier.searches}
       </p>
 
-      <ul className="mt-6 space-y-3">
-        {tier.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5 text-[15px] leading-snug text-foreground">
-            <span style={{ color: 'var(--brand-deep)' }} className="mt-[3px]">
-              ✓
+      <ul className="flex flex-col flex-1">
+        {tier.features.map((f, i) => (
+          <li
+            key={f}
+            className={`flex items-center gap-2.5 py-3.5 text-[14px] leading-[1.4] ${
+              tier.highlight ? 'text-white/85' : 'text-foreground'
+            } ${i > 0 ? (tier.highlight ? 'border-t border-white/10' : 'border-t border-brand-line') : ''}`}
+          >
+            <span
+              className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-white"
+              style={{
+                background: tier.highlight
+                  ? 'var(--brand-light)'
+                  : 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                <path d="M4 8l3 3 5-6" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </span>
             {f}
           </li>
         ))}
       </ul>
 
-      <div className="mt-7">
+      <div className="mt-2">
         <PricingCTA highlighted={tier.highlight}>{tier.cta}</PricingCTA>
       </div>
+
+      <style>{`
+        @keyframes eifaraFeatureGlow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      `}</style>
     </div>
   )
 }
