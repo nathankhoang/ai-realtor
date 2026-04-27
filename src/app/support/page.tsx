@@ -11,42 +11,6 @@ export const metadata = {
 export default function SupportPage() {
   const recentPostsForFooter = getAllPosts().slice(0, 4).map(p => ({ slug: p.slug, title: p.title }))
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      const response = await fetch('/api/support', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        toast.error(data.error || 'Failed to submit support ticket')
-        setIsSubmitting(false)
-        return
-      }
-
-      toast.success('Your ticket has been submitted. We\'ll be in touch soon.')
-      setFormData({ name: '', email: '', category: 'Feedback', subject: '', message: '' })
-
-      // Redirect to home after 2 seconds
-      setTimeout(() => router.push('/'), 2000)
-    } catch (error) {
-      toast.error('An error occurred. Please try again.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
