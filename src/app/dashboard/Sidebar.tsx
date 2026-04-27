@@ -85,6 +85,12 @@ export default function Sidebar({
       match: () => false,
       icon: <BookmarkIcon />,
     },
+    {
+      label: 'Shared reports',
+      href: '/dashboard',
+      match: () => false,
+      icon: <ShareIcon />,
+    },
   ]
   const accountItems: NavItem[] = [
     {
@@ -94,15 +100,15 @@ export default function Sidebar({
       icon: <SettingsIcon />,
     },
     {
-      label: 'Pricing',
-      href: '/pricing',
+      label: 'Help & FAQ',
+      href: '/#faq',
       match: () => false,
       icon: <HelpIcon />,
     },
   ]
 
   return (
-    <aside className="hidden md:flex sticky top-0 h-screen w-[260px] flex-col gap-6 border-r border-brand-line bg-card px-4 py-6 shrink-0">
+    <aside className="hidden md:flex sticky top-0 h-screen w-[260px] flex-col gap-6 border-r border-brand-line bg-card px-[18px] py-6 shrink-0">
       {/* Logo */}
       <Link href="/dashboard" className="flex items-center gap-2.5 px-2 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground">
         <span
@@ -168,10 +174,13 @@ export default function Sidebar({
             {initials}
           </div>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[13px] font-semibold text-foreground">{firstName || 'You'}</p>
+            <p className="truncate font-display text-[13px] font-bold text-foreground">{firstName || 'You'}</p>
             <p className="truncate text-[11px] text-brand-slate">{brokerage || tierLabel + ' tier'}</p>
           </div>
           <UserButton appearance={{ elements: { avatarBox: { width: 22, height: 22 } } }} />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-slate)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
       </div>
     </aside>
@@ -215,7 +224,7 @@ function NavSection({
             {active && (
               <span
                 aria-hidden
-                className="absolute -left-4 top-2 bottom-2 w-[3px] rounded-r"
+                className="absolute -left-[18px] top-2 bottom-2 w-[3px] rounded-r-[3px]"
                 style={{ background: 'linear-gradient(180deg, var(--brand-deep), var(--brand))' }}
               />
             )}
@@ -311,6 +320,17 @@ function BookmarkIcon() {
   return (
     <svg {...I_PROPS}>
       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+function ShareIcon() {
+  return (
+    <svg {...I_PROPS}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+      <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
     </svg>
   )
 }

@@ -13,7 +13,6 @@ import { SignInTrigger, SignUpTrigger } from '@/components/landing/AuthButtons'
 import HeroSection from '@/components/landing/HeroSection'
 import TopMarquee from '@/components/landing/TopMarquee'
 import { FeatureMarquee } from '@/components/landing/FeatureMarquee'
-import SectionCTA from '@/components/landing/SectionCTA'
 import TryItDemo from '@/components/landing/TryItDemo'
 import NewsletterForm from '@/components/landing/NewsletterForm'
 import StructuredData from '@/components/StructuredData'
@@ -34,72 +33,14 @@ export default async function Home() {
       <HeroSection />
       <FeatureMarquee />
       <Stats />
-
-      {/* CTA after the stat strip */}
-      <SectionCTA
-        variant="minimal"
-        headline="Three free searches. No credit card needed —"
-        ctaLabel="Start free"
-      />
-
       <ProblemStrip />
-
-      {/* Live demo — preset briefs run a fake-but-believable analysis */}
       <TryItDemo />
-
-      {/* CTA after the problem agitation */}
-      <SectionCTA
-        variant="inline"
-        headline="Skip the Saturday-morning Zillow rabbit hole."
-        sub="Your first three searches are free. Five minutes from sign-up to a ranked shortlist."
-        ctaLabel="Try it on a real client"
-        secondary={{ label: 'See the flow', href: '#how' }}
-      />
-
       <HowItWorks />
-
-      {/* CTA after the how-it-works walkthrough */}
-      <SectionCTA
-        variant="inline"
-        headline="See it on your next client search."
-        sub="No card, no commitment — pull a real shortlist in under five minutes."
-        ctaLabel="Run my first search"
-        secondary={{ label: 'Browse features', href: '#features' }}
-      />
-
       <BentoGrid />
-
       <Gallery />
-
-      {/* CTA after the bento feature grid */}
-      <SectionCTA
-        variant="inline"
-        headline="Stop guessing what's behind the listing description."
-        sub="Eifara reads every photo and shows the evidence. Three free searches to prove it."
-        ctaLabel="Start free"
-      />
-
       <Comparison />
-
-      {/* CTA after the comparison table — full attention-block treatment */}
-      <SectionCTA
-        variant="full"
-        headline="Hours of photo-scrolling, in five minutes."
-        sub="Three free searches, no credit card. Cancel anytime."
-        ctaLabel="Start free"
-        secondary={{ label: 'See pricing', href: '/pricing' }}
-      />
-
       <Manifesto />
       <PricingTeaser />
-
-      {/* CTA after pricing — minimal, lets the FAQ flow next */}
-      <SectionCTA
-        variant="minimal"
-        headline="Still unsure? Three searches are on us —"
-        ctaLabel="Try free"
-      />
-
       <FAQ />
       <FinalCTA />
       <Footer recentPosts={getAllPosts().slice(0, 4)} />
@@ -226,28 +167,36 @@ function ProblemStrip() {
           filter: 'blur(40px)',
         }}
       />
-      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         <div className="eyebrow mb-6">
           <span className="dot" />
           The honest truth
         </div>
-        <h2 className="font-display font-extrabold leading-[1.05] tracking-[-0.03em] text-foreground text-[clamp(2rem,5vw,4.5rem)] max-w-5xl">
-          Your client wants hardwood, an updated kitchen,{' '}
+        <h2 className="font-display font-extrabold leading-[1.05] tracking-[-0.03em] text-foreground text-[clamp(2.25rem,5.5vw,4.5rem)] max-w-[1100px]">
+          Your client wants <em className="not-italic text-brand-gradient">hardwood</em>, an updated <em className="not-italic text-brand-gradient">kitchen</em>,{' '}
           <span
             className="inline"
             style={{
-              background: 'linear-gradient(180deg, transparent 60%, color-mix(in srgb, var(--brand-light) 40%, transparent) 60%)',
+              background: 'linear-gradient(180deg, transparent 60%, color-mix(in srgb, var(--brand-soft) 40%, transparent) 60%)',
               padding: '0 4px',
             }}
           >
             and no HOA.
           </span>{' '}
-          <span className="text-brand-gradient">Zillow can&rsquo;t read photos.</span>
+          Zillow can&rsquo;t read photos.
         </h2>
-        <p className="mt-8 max-w-2xl text-[20px] leading-[1.55] text-brand-slate">
-          So you do — for hours. You open dozens of listings, eyeball every kitchen, squint at the
-          floors, and try to remember which house had what. <span className="font-semibold text-foreground">By the time the shortlist is ready, your weekend is gone.</span>
+        <p className="mt-10 max-w-[780px] text-[20px] leading-[1.55] text-brand-slate">
+          So you do — <strong className="font-semibold text-foreground">for hours.</strong> You open dozens of listings, eyeball every kitchen, squint at the
+          floors, and try to remember which house had what. By the time the shortlist is ready, your weekend is gone.
         </p>
+        <div className="mt-12 flex flex-wrap items-center gap-5">
+          <SignUpTrigger size="lg" tone="dark">
+            Start free — 3 searches included
+          </SignUpTrigger>
+          <span className="text-[13px] italic text-brand-slate">
+            No credit card · ~5 min from sign-up to first shortlist
+          </span>
+        </div>
       </div>
     </section>
   )
@@ -281,28 +230,27 @@ function FinalCTA() {
         }}
       />
 
-      <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
+      <div className="relative mx-auto max-w-[900px] px-4 sm:px-6">
         <div className="eyebrow mb-6">
           <span className="dot" />
           Ready when you are
         </div>
         <h2 className="font-display font-black leading-[1.05] tracking-[-0.035em] text-foreground text-[clamp(2.75rem,7vw,5.25rem)]">
-          Get your weekends back.
-          <br />
-          <span className="text-brand-gradient">Start with three free searches.</span>
+          Get your <span className="text-brand-gradient">weekends</span> back.
         </h2>
-        <p className="mx-auto mt-6 max-w-md text-[18px] sm:text-[19px] leading-[1.55] text-brand-slate">
-          No credit card. A few minutes from sign-up to your first ranked shortlist.
+        <p className="mx-auto mt-6 max-w-[640px] text-[18px] sm:text-[19px] leading-[1.55] text-brand-slate">
+          Start with three free searches. No credit card. A few minutes from sign-up to your first ranked shortlist.
         </p>
-        <div className="mt-10 flex justify-center gap-3 flex-wrap">
+        <div className="mt-10 flex justify-center gap-3.5 flex-wrap">
           <SignUpTrigger size="lg" tone="accent">
             Start free
           </SignUpTrigger>
           <Link
-            href="/pricing"
+            href="#how"
             className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-card px-7 py-4 text-[15px] font-semibold text-foreground transition-all hover:border-brand hover:text-brand-deep hover:-translate-y-[1px]"
           >
-            See pricing
+            See how it works
+            <span className="transition-transform" aria-hidden>→</span>
           </Link>
         </div>
       </div>

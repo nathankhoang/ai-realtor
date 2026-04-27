@@ -4,32 +4,32 @@ import { motion } from 'motion/react'
 
 const ROWS = [
   {
-    label: 'Reading every listing description',
+    label: 'Reading listings',
     before: 'Hours of tab-switching',
     after: 'Read once, AI handles the rest',
   },
   {
-    label: 'Catching outdated kitchens & carpet',
-    before: 'Easy to miss in 30 listings',
+    label: 'Catching outdated kitchens',
+    before: 'Easy to miss',
     after: 'Flagged with photo evidence',
   },
   {
-    label: 'Justifying picks to clients',
-    before: '"Trust me, this is good"',
+    label: 'Justifying picks',
+    before: '"Trust me"',
     after: '"Photo 2: confirmed quartz"',
   },
   {
-    label: 'Filtering by client wishlist',
+    label: 'Filtering wishlist',
     before: 'Zillow filters miss nuance',
     after: 'Plain-English requirements',
   },
   {
-    label: 'Sharing a curated shortlist',
+    label: 'Sharing shortlist',
     before: 'Email blast of 12 links',
     after: 'One ranked report, one link',
   },
   {
-    label: 'Time per client search',
+    label: 'Time per search',
     before: 'Hours of work',
     after: 'About 5 minutes',
   },
@@ -40,19 +40,21 @@ export function Comparison() {
     <section className="bg-surface py-28">
       <div className="mx-auto max-w-5xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="mb-4 text-[13px] font-medium uppercase tracking-[0.16em] text-brand-slate">
-            Before / After
-          </p>
+          <div className="eyebrow mx-auto mb-5">
+            <span className="dot" />
+            The difference
+          </div>
           <h2 className="text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
-            What changes when AI reads
-            <br />
-            <span className="text-brand-slate-light">every photo, every time.</span>
+            Saturday morning, <span className="text-brand-gradient">solved.</span>
           </h2>
+          <p className="mt-5 mx-auto max-w-xl text-[16px] text-brand-slate leading-relaxed">
+            Every row is a thing you used to do alone, with too many tabs open.
+          </p>
         </div>
 
         <div className="mt-14 overflow-hidden rounded-3xl border border-brand-line bg-white">
           <div className="grid grid-cols-[1.2fr_1fr_1fr] bg-background font-mono text-[12.5px] uppercase tracking-[0.14em] text-brand-slate">
-            <div className="p-5">Task</div>
+            <div className="p-5">What you&rsquo;re doing</div>
             <div className="border-l border-brand-line p-5">Without Eifara</div>
             <div className="border-l border-brand-line p-5" style={{ color: 'var(--brand-deep)' }}>
               With Eifara

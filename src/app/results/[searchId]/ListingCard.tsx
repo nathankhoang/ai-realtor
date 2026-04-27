@@ -78,10 +78,10 @@ export default function ListingCard({
 
   return (
     <Card
-      className={`group/card relative overflow-hidden border bg-card p-0 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-[2px] hover:shadow-[0_30px_70px_-30px_rgba(15,14,10,0.32)] ${
+      className={`group/card relative overflow-hidden rounded-[20px] border bg-card p-0 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-[4px] hover:shadow-[0_20px_60px_-20px_rgba(122,148,121,0.22)] ${
         isSelected
           ? 'border-primary ring-2 ring-primary/20'
-          : 'border-border hover:border-foreground/15'
+          : 'border-brand-line hover:border-brand/30'
       }`}
     >
       {/* ────── HERO PHOTO ────── */}
@@ -259,20 +259,9 @@ export default function ListingCard({
           </div>
         </div>
 
-        {/* Action row: Save + Zillow */}
+        {/* Save action — wraps the multi-client save dialog */}
         <div className="flex items-center gap-3 flex-wrap">
           <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
-          <a
-            href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full border border-brand-line bg-card px-3.5 py-1.5 text-[13px] font-medium hover:border-brand hover:text-brand-deep transition-colors"
-          >
-            Zillow
-            <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3">
-              <path d="M3 11L11 3M11 3H4.5M11 3V9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
         </div>
 
         {/* Evidence quick-scan: top hits/misses from the requirements checklist */}
@@ -376,16 +365,47 @@ export default function ListingCard({
           </div>
         )}
       </div>
-    </Card>
-  )
-}
 
-function SpecPair({ value, label }: { value: string; label: string }) {
-  return (
-    <span>
-      <span className="font-semibold tabular-nums text-foreground">{value}</span>
-      <span className="ml-1 text-muted-foreground">{label}</span>
-    </span>
+      {/* Listing footer — meta on left, action buttons on right */}
+      <div
+        className="flex items-center justify-between gap-3 px-5 sm:px-6 py-3.5 border-t border-brand-line"
+        style={{ background: 'var(--background)' }}
+      >
+        <span className="inline-flex items-center gap-1.5 text-[12px] text-brand-slate min-w-0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span className="truncate">
+            {savedClientIds.length > 0
+              ? <>Saved to <strong className="font-bold text-foreground">{savedClientIds.length}</strong>&nbsp;{savedClientIds.length === 1 ? 'client list' : 'client lists'}</>
+              : 'Not saved yet'}
+          </span>
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <a
+            href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-line bg-card px-3 py-1.5 font-display text-[12.5px] font-semibold text-foreground transition-all hover:border-brand hover:text-brand-deep"
+          >
+            View on Zillow
+            <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3">
+              <path d="M3 11L11 3M11 3H4.5M11 3V9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+          <button
+            type="button"
+            onClick={() => setEvidenceOpen(o => !o)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-1.5 font-display text-[12.5px] font-semibold text-white transition-transform hover:-translate-y-px"
+            style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
+          >
+            See full evidence
+            <span aria-hidden>→</span>
+          </button>
+        </div>
+      </div>
+    </Card>
   )
 }
 

@@ -516,7 +516,7 @@ function ToggleSegment({
 function FilterChip({
   active,
   onClick,
-  accent,
+  accent: _accent,
   muted,
   children,
 }: {
@@ -526,18 +526,23 @@ function FilterChip({
   muted?: boolean
   children: React.ReactNode
 }) {
-  const base = 'shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors'
+  void _accent
+  const base = 'shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium transition-all'
   if (active) {
-    if (accent === 'amber')
-      return <button onClick={onClick} className={`${base} border-amber-400 bg-amber-100 text-amber-900`}>{children}</button>
-    if (accent === 'primary')
-      return <button onClick={onClick} className={`${base} border-primary bg-primary text-primary-foreground`}>{children}</button>
-    return <button onClick={onClick} className={`${base} border-foreground bg-foreground text-background`}>{children}</button>
+    return (
+      <button
+        onClick={onClick}
+        className={`${base} text-white border border-transparent shadow-[0_4px_10px_-4px_rgba(74,98,73,0.5)]`}
+        style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
+      >
+        {children}
+      </button>
+    )
   }
   return (
     <button
       onClick={onClick}
-      className={`${base} border-border bg-card hover:border-foreground/30 ${muted ? 'text-muted-foreground' : 'text-foreground/80'}`}
+      className={`${base} border border-brand-line bg-card hover:border-brand hover:bg-background hover:text-brand-deep ${muted ? 'text-brand-slate' : 'text-foreground'}`}
     >
       {children}
     </button>

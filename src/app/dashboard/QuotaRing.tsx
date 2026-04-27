@@ -114,7 +114,7 @@ export default function QuotaRing({
         </p>
         {isUnlimited ? (
           <p className="text-[15px] leading-snug text-foreground">
-            You're on the <span className="font-semibold">Pro</span> plan — go run as many searches
+            You&rsquo;re on the <span className="font-semibold">Pro</span> plan — go run as many searches
             as you need.
           </p>
         ) : remaining != null ? (

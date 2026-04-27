@@ -3,47 +3,18 @@
 import { motion } from 'motion/react'
 
 const FEATURES = [
+  'Hardwood vs vinyl',
   'Quartz countertops',
-  'Hardwood floors',
-  'Updated kitchen',
-  'High ceilings',
-  'Open floor plan',
-  'Natural light',
-  'Walk-in closets',
+  'Updated kitchens',
   'Stainless appliances',
-  'Granite counters',
-  'Vaulted ceiling',
-  'Hardwood throughout',
-  'Renovated bath',
-  'Carpet (flag)',
-  'Popcorn ceiling (flag)',
-  'Outdated kitchen (flag)',
-  'Tile backsplash',
-  'Crown molding',
+  'Open floor plans',
+  'Tile showers',
+  'Walk-in closets',
+  'Crown moulding',
   'Recessed lighting',
-  'Bay window',
-  'French doors',
-  'Subway tile',
-  'Shaker cabinets',
-  'Kitchen island',
-  'Breakfast bar',
-  'Soaking tub',
-  'Double vanity',
-  'Walk-in shower',
-  'Fenced yard',
-  'Covered patio',
+  'Granite vs laminate',
+  'Pool detection',
   'Two-car garage',
-  'Mature trees',
-  'Updated HVAC',
-  'New roof',
-  'Energy efficient',
-  'Smart home',
-  'Wood burning fireplace',
-  'Built-in shelving',
-  'Mudroom',
-  'Home office',
-  'Flex room',
-  'Bonus room',
 ]
 
 export function FeatureMarquee() {
@@ -54,7 +25,7 @@ export function FeatureMarquee() {
 
       <div className="mb-4 flex items-center justify-center gap-3">
         <span className="text-xs font-mono uppercase tracking-[0.18em] text-brand-slate">
-          Detects 40+ features per listing
+          A few of the 40+ features Eifara detects
         </span>
         <span className="h-px w-8 bg-brand-line" />
       </div>
@@ -66,7 +37,7 @@ export function FeatureMarquee() {
 }
 
 function Row({ direction, offset = false }: { direction: 'left' | 'right'; offset?: boolean }) {
-  const items = offset ? [...FEATURES.slice(15), ...FEATURES.slice(0, 15)] : FEATURES
+  const items = offset ? [...FEATURES.slice(6), ...FEATURES.slice(0, 6)] : FEATURES
   const dup = [...items, ...items]
 
   return (

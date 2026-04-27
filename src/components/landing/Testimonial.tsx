@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'motion/react'
+import { SignUpTrigger } from './AuthButtons'
 
 export function Manifesto() {
   return (
@@ -12,17 +14,23 @@ export function Manifesto() {
           viewport={{ once: true, margin: '-15%' }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="eyebrow mx-auto mb-6">
-            <span className="dot" />
-            Why we built this
-          </div>
           <p className="font-display font-bold leading-[1.25] tracking-[-0.02em] text-foreground text-[clamp(1.75rem,3.6vw,2.875rem)]">
-            Listing descriptions stretch the truth. Filters miss the things clients actually care
-            about. And the answer to <span className="text-brand-slate font-medium">"is this kitchen really updated?"</span> is sitting{' '}
-            <span className="text-brand-gradient">right there in photo two</span> — if someone takes
-            the time to look. Eifara looks at every photo, every time, so you don&rsquo;t have to.
+            <span className="text-brand-slate font-medium">Listing descriptions stretch the truth.</span> Filters miss the things clients <em>actually care about.</em> And the answer to &ldquo;is this kitchen really updated?&rdquo; is sitting right there in <em>photo two</em> — if someone takes the time to look. <span className="text-brand-slate font-medium">Eifara looks at every photo, every time, so you don&rsquo;t have to.</span>
           </p>
         </motion.div>
+
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-3.5">
+          <SignUpTrigger size="lg" tone="dark">
+            Start free
+          </SignUpTrigger>
+          <Link
+            href="#try"
+            className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-card px-7 py-4 text-[15px] font-semibold text-foreground transition-all hover:border-brand hover:text-brand-deep hover:-translate-y-[1px]"
+          >
+            Try the demo
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
       </div>
     </section>
   )

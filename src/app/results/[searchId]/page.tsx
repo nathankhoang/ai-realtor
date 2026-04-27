@@ -148,64 +148,115 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
     explanation: row.result.matchExplanation ?? '',
   }))
 
+  // Lookup linked client for breadcrumb / header tag
+  const linkedClient = search.clientId
+    ? await db.query.clients.findFirst({ where: eq(clients.id, search.clientId) })
+    : null
+  const breadcrumbCurrent = linkedClient
+    ? `${linkedClient.name} · ${search.location}`
+    : search.location
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-brand-line bg-card/85 backdrop-blur-xl saturate-150">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="font-display text-[17px] font-extrabold tracking-[-0.02em]">Eifara</Link>
-          <UserButton />
+      <header
+        className="sticky top-0 z-10 border-b border-brand-line backdrop-blur-xl saturate-150"
+        style={{ background: 'color-mix(in srgb, var(--background) 85%, transparent)' }}
+      >
+        <div className="max-w-[1480px] mx-auto px-4 sm:px-6 md:px-8 h-14 flex items-center gap-6">
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-display text-[18px] font-extrabold tracking-[-0.02em] shrink-0">
+            <span
+              className="relative grid h-[30px] w-[30px] place-items-center overflow-hidden rounded-lg text-white shadow-[0_6px_14px_-6px_rgba(74,98,73,0.5)]"
+              style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))' }}
+            >
+              <span aria-hidden className="absolute inset-0" style={{ background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.5), transparent 50%)' }} />
+              <svg viewBox="0 0 18 18" className="relative h-4 w-4" fill="none">
+                <path d="M3 9.5c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="9" cy="11" r="2.5" fill="white" />
+              </svg>
+            </span>
+            <span className="hidden sm:inline">Eifara</span>
+          </Link>
+          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2.5 text-[13px] text-brand-slate ml-3.5 pl-3.5 border-l border-brand-line min-w-0">
+            <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
+            <ChevronRight />
+            <Link href="/dashboard" className="hover:text-foreground transition-colors">Searches</Link>
+            <ChevronRight />
+            <span className="text-foreground font-semibold truncate">{breadcrumbCurrent}</span>
+          </nav>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2.5 shrink-0">
+            <RefreshButton searchId={searchId} />
+            <UserButton />
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-3 sm:px-5 py-6 sm:py-10 space-y-6">
+      <main className="flex-1 max-w-[1480px] mx-auto w-full px-4 sm:px-6 md:px-8 py-6 sm:py-8 space-y-6">
         {/* Page head — client tag, big title, meta strip */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <Link href="/dashboard" className="text-[13px] text-brand-slate hover:text-foreground transition-colors">← Dashboard</Link>
-            <h1 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-extrabold tracking-[-0.025em] leading-[1.1] mt-2">
-              {displayed.length || '—'} ranked match{displayed.length !== 1 ? 'es' : ''} in <em className="not-italic text-brand-gradient">{search.location}</em>.
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="min-w-0 flex-1">
+            {linkedClient && (
+              <span
+                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-3.5 font-display text-[11px] font-bold uppercase tracking-[0.06em]"
+                style={{ background: 'var(--brand-pale)', color: 'var(--brand-deep)' }}
+              >
+                <span
+                  className="grid h-[18px] w-[18px] place-items-center rounded-full text-white text-[9px] font-extrabold"
+                  style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
+                >
+                  {linkedClient.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                </span>
+                {linkedClient.name}
+              </span>
+            )}
+            <h1 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-black tracking-[-0.025em] leading-[1.05] text-foreground">
+              {displayed.length || '—'} ranked match{displayed.length !== 1 ? 'es' : ''} in <em className="not-italic text-brand-gradient">{search.location}</em>
             </h1>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[13px]">
-              <span className="inline-flex items-center gap-1.5 text-brand-slate">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3.5 text-[14px] text-brand-slate">
+              <span className="inline-flex items-center gap-1.5">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" />
                   <path d="M21 21l-4.3-4.3" />
                 </svg>
-                <strong className="font-semibold text-foreground tabular-nums">{total}</strong>&nbsp;listings scanned
+                <strong className="font-bold text-foreground tabular-nums">{total}</strong>&nbsp;listings scanned
               </span>
-              <span className="text-brand-line">·</span>
-              <span className="inline-flex items-center gap-1.5 text-brand-slate">
+              <span className="h-[3px] w-[3px] rounded-full bg-brand-slate-light" />
+              <span className="inline-flex items-center gap-1.5">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-                <strong className="font-semibold text-foreground tabular-nums">{analyzed}</strong>&nbsp;analyzed
+                <strong className="font-bold text-foreground tabular-nums">{analyzed}</strong>&nbsp;photos analyzed
               </span>
+              {search.status === 'completed' && (
+                <>
+                  <span className="h-[3px] w-[3px] rounded-full bg-brand-slate-light" />
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Completed
+                  </span>
+                </>
+              )}
               {hiddenRows.length > 0 && (
                 <>
-                  <span className="text-brand-line">·</span>
-                  <span className="text-brand-slate">{hiddenRows.length} filtered out</span>
+                  <span className="h-[3px] w-[3px] rounded-full bg-brand-slate-light" />
+                  <span>{hiddenRows.length} filtered out</span>
                 </>
               )}
               {total > analyzed && (
                 <>
-                  <span className="text-brand-line">·</span>
-                  <span className="text-brand-slate">{total - analyzed} more available</span>
+                  <span className="h-[3px] w-[3px] rounded-full bg-brand-slate-light" />
+                  <span>{total - analyzed} more available</span>
                 </>
               )}
             </div>
-            <Link
-              href={`/search?from=${searchId}`}
-              className="text-[13px] font-semibold text-brand-deep hover:text-foreground transition-colors mt-3 inline-block"
-            >
-              Edit & re-search →
-            </Link>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             <MonitorToggle searchId={searchId} initialEnabled={search.isMonitored ?? false} />
             <CancelButton searchId={searchId} status={search.status} />
-            <RefreshButton searchId={searchId} />
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
           </div>
         </div>
@@ -315,5 +366,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
         )}
       </main>
     </div>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-slate-light)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
   )
 }

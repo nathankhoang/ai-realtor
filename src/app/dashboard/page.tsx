@@ -215,6 +215,27 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              aria-label="Notifications"
+              className="relative grid h-10 w-10 place-items-center rounded-[11px] border border-brand-line bg-card text-brand-slate transition-all hover:border-brand hover:text-brand-deep hover:bg-background"
+            >
+              <span aria-hidden className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-card" style={{ background: 'var(--warn)' }} />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Search"
+              className="grid h-10 w-10 place-items-center rounded-[11px] border border-brand-line bg-card text-brand-slate transition-all hover:border-brand hover:text-brand-deep hover:bg-background"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.3-4.3" />
+              </svg>
+            </button>
             <Link
               href="/search"
               className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-display text-[13px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(74,98,73,0.5)] transition-all duration-300 hover:-translate-y-[1px]"
@@ -275,7 +296,7 @@ export default async function DashboardPage() {
                 <span className="ml-2 text-[13px] text-brand-slate font-normal">last 7 days</span>
               </div>
               <Link href="/search" className="font-display inline-flex items-center gap-1 text-[13px] font-semibold text-brand-deep hover:text-foreground transition-colors">
-                New search
+                View all
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
@@ -296,15 +317,24 @@ export default async function DashboardPage() {
               </div>
             ) : (
               <div>
-                {searchesList.map(s => (
+                {searchesList.map((s, idx) => {
+                  // Cycle thumbnail gradients to add visual variety per design.
+                  const thumbStyles = [
+                    { background: 'linear-gradient(135deg, var(--brand-pale), var(--brand-pale-2))', color: 'var(--brand-deep)' },
+                    { background: 'linear-gradient(135deg, #E8E1CC, #D2C29C)', color: '#7C5F3F' },
+                    { background: 'linear-gradient(135deg, #D4DDE8, #A0B0C5)', color: '#3D5670' },
+                    { background: 'linear-gradient(135deg, var(--brand-pale), var(--brand-pale-2))', color: 'var(--brand-deep)' },
+                  ]
+                  const thumb = thumbStyles[idx % thumbStyles.length]
+                  return (
                   <Link
                     key={s.id}
                     href={`/results/${s.id}`}
                     className="grid grid-cols-[42px_1fr_auto_auto] gap-4 items-center px-6 py-4 border-b border-brand-line/50 last:border-b-0 transition-colors hover:bg-background group/row"
                   >
                     <div
-                      className="grid h-[42px] w-[42px] place-items-center rounded-[10px] text-brand-deep"
-                      style={{ background: 'linear-gradient(135deg, var(--brand-pale), color-mix(in srgb, var(--brand-pale) 80%, var(--brand-light)))' }}
+                      className="grid h-[42px] w-[42px] place-items-center rounded-[10px]"
+                      style={thumb}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -329,7 +359,8 @@ export default async function DashboardPage() {
                       </svg>
                     </span>
                   </Link>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -428,8 +459,8 @@ export default async function DashboardPage() {
                 <span className="ml-2 text-[13px] text-brand-slate font-normal">{clientRows.length} {clientRows.length === 1 ? 'client' : 'clients'}</span>
               </div>
             </div>
-            <div className="grid gap-3 p-3">
-              {clientRows.map(({ client, savedCount }, i) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 px-3 pt-2 pb-4">
+              {clientRows.map(({ client, savedCount, lastSavedAt }, i) => {
                 const initials = client.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                 const accents = [
                   'linear-gradient(135deg, #7A9479, #4A6249)',
@@ -437,6 +468,13 @@ export default async function DashboardPage() {
                   'linear-gradient(135deg, #5F7A98, #3D5670)',
                   'linear-gradient(135deg, #B45309, #7C3D08)',
                 ]
+                const lastTouch = lastSavedAt ? relativeTime(new Date(lastSavedAt)) : null
+                const status = savedCount === 0 ? 'review' : 'active'
+                const statusStyle =
+                  status === 'review'
+                    ? { background: 'color-mix(in srgb, var(--warn) 12%, transparent)', color: 'var(--warn)' }
+                    : { background: 'color-mix(in srgb, var(--brand) 15%, transparent)', color: 'var(--brand-deep)' }
+                const statusLabel = status === 'review' ? 'Needs review' : 'Active'
                 return (
                   <Link
                     key={client.id}
@@ -450,19 +488,16 @@ export default async function DashboardPage() {
                       {initials}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-display text-[13.5px] font-bold text-foreground tracking-[-0.005em]">{client.name}</p>
-                      <p className="text-[11.5px] text-brand-slate mt-0.5">
-                        {savedCount} saved · {client.email || client.phone || 'no contact'}
+                      <p className="font-display text-[13.5px] font-bold text-foreground tracking-[-0.005em] truncate">{client.name}</p>
+                      <p className="text-[11.5px] text-brand-slate mt-0.5 truncate">
+                        {Number(savedCount)} saved{lastTouch ? ` · last touch ${lastTouch}` : ''}
                       </p>
                     </div>
                     <span
-                      className="font-display text-[10px] font-bold uppercase tracking-[0.04em] px-2.5 py-1 rounded-full shrink-0"
-                      style={{
-                        background: 'color-mix(in srgb, var(--brand) 15%, transparent)',
-                        color: 'var(--brand-deep)',
-                      }}
+                      className="font-display text-[10px] font-bold uppercase tracking-[0.04em] px-2 py-1 rounded-full shrink-0"
+                      style={statusStyle}
                     >
-                      Active
+                      {statusLabel}
                     </span>
                   </Link>
                 )

@@ -88,7 +88,7 @@ export default function PreviewLanding({ scheme }: { scheme: Scheme }) {
             >
               Describe what your client wants in plain English. Eifara reads every Zillow listing
               photo with AI, ranks each home by fit, and shows the receipts —{' '}
-              <span style={{ color: scheme.fg, fontWeight: 500 }}>"quartz countertops · photo 2."</span>
+              <span style={{ color: scheme.fg, fontWeight: 500 }}>&ldquo;quartz countertops &middot; photo 2.&rdquo;</span>
             </p>
 
             <div className="mt-9 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">

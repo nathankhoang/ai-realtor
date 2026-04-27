@@ -6,8 +6,24 @@ import { PhotoScanDemo } from './PhotoScanDemo'
 import { SignUpTrigger } from './AuthButtons'
 import { SecondaryButton } from './PrimaryButton'
 
-const HEAD_LINE_1 = ['See', 'every', 'home']
-const HEAD_LINE_2 = ['through', 'your']
+type WordTone = 'default' | 'gradient' | 'muted'
+type Word = { text: string; tone?: WordTone; nbsp?: boolean }
+
+// Headline split per the design: 3 lines, gradient on "5 minutes.",
+// muted-slate on the closing "Not 5 hours."
+const HEAD_LINE_1: Word[] = [
+  { text: 'Read every' },
+  { text: 'listing' },
+  { text: 'photo' },
+]
+const HEAD_LINE_2: Word[] = [
+  { text: 'in' },
+  { text: '5 minutes.', tone: 'gradient' },
+]
+const HEAD_LINE_3: Word[] = [
+  { text: 'Not', tone: 'muted' },
+  { text: '5 hours.', tone: 'muted' },
+]
 
 const PARTICLE_COUNT = 30
 
@@ -20,8 +36,6 @@ interface Particle {
   scale: number
 }
 
-/** Generate the particle field client-side so SSR + hydration don't
- *  see two different "random" layouts. */
 function generateParticles(): Particle[] {
   return Array.from({ length: PARTICLE_COUNT }, () => ({
     left: Math.random() * 100,
@@ -33,17 +47,8 @@ function generateParticles(): Particle[] {
   }))
 }
 
-/**
- * Sage-redesigned hero. Three layered backgrounds: an animated mesh of
- * blurred radial gradients, a grid backdrop with a soft mask, and a few
- * floating particles for depth. Word-up reveal on the headline; respects
- * prefers-reduced-motion.
- */
 export default function HeroSection() {
   const prefersReducedMotion = useReducedMotion()
-  // Generate particles only on the client — Math.random differs between
-  // server and client, so seed an empty array first and populate from
-  // useEffect post-mount.
   const [particles, setParticles] = useState<Particle[]>([])
   useEffect(() => {
     if (prefersReducedMotion) return
@@ -53,14 +58,11 @@ export default function HeroSection() {
 
   return (
     <section className="relative overflow-hidden bg-background">
-      {/* Animated mesh background — three blurred radial gradients */}
+      {/* Animated mesh background */}
       <div
         aria-hidden
         className="absolute -inset-[20%] -z-10 pointer-events-none"
-        style={{
-          filter: 'blur(80px)',
-          opacity: 0.7,
-        }}
+        style={{ filter: 'blur(80px)', opacity: 0.7 }}
       >
         <div
           className="absolute"
@@ -82,7 +84,7 @@ export default function HeroSection() {
             width: '55%',
             height: '55%',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-light) 45%, transparent), transparent 60%)',
+            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-soft) 45%, transparent), transparent 60%)',
             animation: prefersReducedMotion ? undefined : 'eifaraMeshB 22s ease-in-out infinite alternate',
           }}
         />
@@ -113,7 +115,7 @@ export default function HeroSection() {
         }}
       />
 
-      {/* Floating sage particles — drift up and out */}
+      {/* Floating sage particles */}
       <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
         {particles.map((p, i) => (
           <span
@@ -130,56 +132,70 @@ export default function HeroSection() {
         ))}
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32">
-        {/* Eyebrow chip with pulsing sage dot */}
+      <div className="relative mx-auto max-w-[1320px] px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32 md:px-8">
+        {/* Eyebrow chip */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-9 inline-flex items-center gap-2.5 rounded-full border border-brand-line bg-card/70 px-4 py-2 text-[13px] font-medium text-foreground backdrop-blur-md shadow-[0_4px_24px_-8px_rgba(26,36,25,0.08)]"
+          className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-brand/20 bg-card/70 px-4 py-2 text-[13px] font-medium text-foreground backdrop-blur-md shadow-[0_4px_24px_-8px_rgba(26,36,25,0.08)]"
         >
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-light" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-soft" />
           </span>
-          <span>AI photo analysis · Built for realtors</span>
+          <span>AI photo analysis for real-estate agents</span>
         </motion.div>
 
-        {/* Headline grid: Jakarta display + sage gradient accent on the closing line */}
-        <div className="grid items-end gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+        {/* Headline grid */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
           <div>
             <h1
-              className="font-display font-black leading-[0.95] tracking-[-0.035em] text-foreground text-[clamp(3rem,8.4vw,7rem)]"
+              className="font-display font-black leading-[0.95] tracking-[-0.035em] text-foreground text-[clamp(3rem,7vw,6rem)]"
               style={{ fontWeight: 900 }}
             >
-              <span className="sr-only">See every home through your client&rsquo;s eyes.</span>
+              <span className="sr-only">Read every listing photo in 5 minutes. Not 5 hours.</span>
               <span aria-hidden>
                 <RevealLine words={HEAD_LINE_1} delay={0.05} reduced={prefersReducedMotion ?? false} />
-                <RevealLine words={HEAD_LINE_2} delay={0.18} reduced={prefersReducedMotion ?? false} />
-                <span className="block">
-                  <ClientWord reduced={prefersReducedMotion ?? false} />
-                </span>
+                <RevealLine words={HEAD_LINE_2} delay={0.22} reduced={prefersReducedMotion ?? false} />
+                <RevealLine words={HEAD_LINE_3} delay={0.4} reduced={prefersReducedMotion ?? false} />
               </span>
             </h1>
 
-            <p className="mt-9 max-w-xl text-[18px] leading-[1.55] text-brand-slate">
-              Describe what your client wants in plain English. Eifara reads every Zillow listing
-              photo with AI, scores each home against the wishlist, and shows the receipts —{' '}
-              <span className="font-semibold text-foreground">"quartz countertops · photo 2."</span>
-            </p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.1, duration: 1 }}
+              className="mt-7 max-w-[560px] text-[19px] leading-[1.55] text-brand-slate"
+            >
+              Describe what your client wants in plain English. Eifara reads{' '}
+              <span className="font-semibold text-foreground">every Zillow listing photo</span> with AI,
+              scores each home against the wishlist, and shows the receipts —{' '}
+              <span className="font-semibold text-foreground">&ldquo;quartz countertops &middot; photo 2.&rdquo;</span>
+            </motion.p>
 
-            <div className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.3, duration: 1 }}
+              className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3.5"
+            >
               <SignUpTrigger size="lg" tone="dark">
                 Start free
               </SignUpTrigger>
               <SecondaryButton href="#how">See how it works</SecondaryButton>
-            </div>
+            </motion.div>
 
-            {/* Trust strip — avatars + tally + stars */}
-            <div className="mt-9 flex items-center gap-4 flex-wrap">
+            {/* Trust strip */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5, duration: 1 }}
+              className="mt-9 flex items-center gap-4 flex-wrap"
+            >
               <div className="flex">
-                <div className="h-9 w-9 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand-light to-brand-deep">M</div>
-                <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand to-brand-deep">L</div>
+                <div className="h-9 w-9 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand-light to-brand-2">M</div>
+                <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-brand-light to-brand-deep">L</div>
                 <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-amber-400 to-amber-600">S</div>
                 <div className="h-9 w-9 -ml-2.5 rounded-full border-2 border-card font-display font-bold text-white grid place-items-center text-[12px] bg-gradient-to-br from-violet-400 to-violet-700">+</div>
               </div>
@@ -189,10 +205,10 @@ export default function HeroSection() {
                   <span className="font-semibold text-foreground">1,200+ agents</span> turning Saturday-morning Zillow runs into 5-minute shortlists
                 </p>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Demo card on the right — perspective tilt + soft halo */}
+          {/* Demo card with float cards */}
           <div className="relative">
             <div
               aria-hidden
@@ -202,10 +218,57 @@ export default function HeroSection() {
                   'radial-gradient(60% 60% at 60% 40%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 70%)',
               }}
             />
+
+            {/* Float card fc1 — top-left, sage check, "Hardwood detected" */}
+            <FloatCard
+              className="absolute -top-5 -left-7 z-10 hidden md:flex"
+              delay={0}
+              icon={
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              }
+              iconBg="var(--brand-pale)"
+              iconColor="var(--brand-deep)"
+            >
+              Hardwood detected
+            </FloatCard>
+
+            {/* Float card fc2 — bottom-left, sage search, "200 listings scanned" */}
+            <FloatCard
+              className="absolute bottom-8 -left-12 z-10 hidden md:flex"
+              delay={1.5}
+              icon={
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+              }
+              iconBg="var(--brand-pale)"
+              iconColor="var(--brand)"
+            >
+              200 listings scanned
+            </FloatCard>
+
+            {/* Float card fc3 — middle-right, amber zap, "5 min · ranked" */}
+            <FloatCard
+              className="absolute top-[35%] -right-10 z-10 hidden md:flex"
+              delay={0.8}
+              icon={
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+              }
+              iconBg="#fef3c7"
+              iconColor="#d97706"
+            >
+              5 min · ranked
+            </FloatCard>
+
             <div
               className="relative"
               style={{
-                transform: 'perspective(1200px) rotateY(-6deg) rotateX(3deg)',
+                transform: prefersReducedMotion ? undefined : 'perspective(1200px) rotateY(-6deg) rotateX(3deg)',
               }}
             >
               <PhotoScanDemo />
@@ -214,7 +277,6 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Local keyframes for the hero mesh + particles */}
       <style>{`
         @keyframes eifaraMeshA {
           0% { transform: translate(0, 0) }
@@ -260,7 +322,7 @@ function RevealLine({
   delay = 0,
   reduced = false,
 }: {
-  words: string[]
+  words: Word[]
   delay?: number
   reduced?: boolean
 }) {
@@ -268,7 +330,7 @@ function RevealLine({
     <span className="block overflow-hidden leading-[0.95] pb-[0.18em] -mb-[0.18em]">
       {words.map((w, i) => (
         <motion.span
-          key={`${w}-${i}`}
+          key={`${w.text}-${i}`}
           initial={reduced ? { y: '0%', opacity: 1 } : { y: '110%', opacity: 0 }}
           animate={{ y: '0%', opacity: 1 }}
           transition={{
@@ -276,26 +338,55 @@ function RevealLine({
             delay: reduced ? 0 : delay + i * 0.06,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="mr-[0.18em] inline-block"
+          className={[
+            'mr-[0.18em] inline-block',
+            w.tone === 'gradient' ? 'text-brand-gradient' : '',
+            w.tone === 'muted' ? 'text-brand-slate-light font-bold' : '',
+          ].filter(Boolean).join(' ')}
         >
-          {w}
+          {w.text}
         </motion.span>
       ))}
     </span>
   )
 }
 
-function ClientWord({ reduced = false }: { reduced?: boolean }) {
+/* ───────────────────── float card primitive ───────────────────── */
+
+function FloatCard({
+  children,
+  className = '',
+  delay = 0,
+  icon,
+  iconBg,
+  iconColor,
+}: {
+  children: React.ReactNode
+  className?: string
+  delay?: number
+  icon: React.ReactNode
+  iconBg: string
+  iconColor: string
+}) {
   return (
-    <span className="block overflow-hidden leading-[0.95] pb-[0.18em] -mb-[0.18em]">
-      <motion.span
-        initial={reduced ? { y: '0%', opacity: 1 } : { y: '110%', opacity: 0 }}
-        animate={{ y: '0%', opacity: 1 }}
-        transition={{ duration: reduced ? 0 : 0.95, delay: reduced ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] }}
-        className="inline-block text-brand-gradient"
+    <div
+      className={`items-center gap-2.5 rounded-[14px] bg-card px-3.5 py-3 text-[12px] font-medium text-foreground shadow-[0_20px_60px_-20px_rgba(122,148,121,0.22)] ${className}`}
+      style={{
+        animation: `eifaraFloaty 4s ease-in-out ${delay}s infinite`,
+      }}
+    >
+      <span
+        className="grid h-7.5 w-7.5 place-items-center rounded-lg flex-shrink-0"
+        style={{
+          width: '30px',
+          height: '30px',
+          background: iconBg,
+          color: iconColor,
+        }}
       >
-        client&rsquo;s eyes.
-      </motion.span>
-    </span>
+        {icon}
+      </span>
+      <span>{children}</span>
+    </div>
   )
 }

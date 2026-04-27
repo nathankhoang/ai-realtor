@@ -22,28 +22,28 @@ export const TWITTER_HANDLE = process.env.NEXT_PUBLIC_TWITTER_HANDLE ?? ''
 
 export const FAQ_ITEMS: { q: string; a: string }[] = [
   {
-    q: 'Where does the listing data come from?',
+    q: 'Where does listing data come from?',
     a: 'Eifara queries live Zillow data via a real-time API. You get the same listings your client would see browsing Zillow themselves — including price, beds, baths, sqft, photos, and renovation history.',
   },
   {
-    q: 'How does the AI photo analysis actually work?',
-    a: 'Eifara passes every listing photo to a vision AI model that\'s tuned to spot materials (hardwood, quartz, tile), conditions (updated vs dated), and layout features. For each finding it returns a specific citation — "photo 2: quartz countertops" — instead of a vague vibe score.',
+    q: 'How does AI photo analysis work?',
+    a: 'Eifara passes every listing photo to a vision AI model that spots materials (hardwood, quartz, tile), conditions (updated vs dated), and layout features. Returns specific citations — "photo 2: quartz countertops" — not vague scores.',
   },
   {
-    q: 'How accurate is the matching?',
-    a: 'Eifara pre-screens on hard filters first (price, beds, baths, location), then runs vision AI on every photo of qualifying listings. Only matches scoring 55%+ make the shortlist. Every score comes with line-item evidence — open any listing to see exactly which features were detected and in which photos.',
+    q: 'How accurate is matching?',
+    a: 'Pre-screens on hard filters first, then runs vision AI on every photo. Only matches scoring 55%+ make the shortlist. Every score has line-item evidence.',
   },
   {
-    q: 'Can I save listings and share them with clients?',
-    a: 'Yes. Save listings to a client profile, add private notes, and generate a clean shareable report link your client can review on their phone — no Eifara account needed on their side.',
+    q: 'Can I save and share listings?',
+    a: 'Yes. Save listings, add private notes, generate a shareable report link clients can review on their phone — no Eifara account needed.',
   },
   {
-    q: 'Is there a free tier?',
-    a: 'Yes — 3 free searches per month, no credit card. Starter ($50/mo) gets you 20 searches plus shareable reports. Pro ($150/mo) is unlimited.',
+    q: 'Free tier?',
+    a: '3 free searches per month, no credit card. Starter ($50/mo) = 20 searches + shareable reports. Pro ($150/mo) = unlimited.',
   },
   {
-    q: 'What about brokerage / team accounts?',
-    a: 'Multi-agent team plans are on the roadmap — one billing relationship, multiple agent logins, shared client profiles. Sign up for any plan now and we\'ll email you when team accounts go live.',
+    q: 'Team accounts?',
+    a: 'Multi-agent team plans on the roadmap — one billing, multiple agent logins, shared client profiles.',
   },
 ]
 
