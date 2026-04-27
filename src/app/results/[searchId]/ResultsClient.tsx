@@ -130,6 +130,16 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
     setMetaOverrides(prev => ({ ...prev, [listingId]: { ...prev[listingId], ...patch } }))
   }
 
+  // Memoized so the map view doesn't re-create the handler each render.
+  const onMapSelect = useCallback((listingId: string) => {
+    setView('overview')
+    // Wait for the overview to render before scrolling.
+    setTimeout(() => {
+      const el = document.querySelector(`[data-listing-card-id="${listingId}"]`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 50)
+  }, [])
+
   async function rerun() {
     setRerunning(true)
     try {
@@ -423,14 +433,7 @@ export default function ResultsClient({ searchId, displayed, hidden }: Props) {
                 longitude: r.longitude,
                 photo: r.photos[0] ?? null,
               }))}
-              onSelect={useCallback((listingId: string) => {
-                setView('overview')
-                // Wait for the overview to render before scrolling.
-                setTimeout(() => {
-                  const el = document.querySelector(`[data-listing-card-id="${listingId}"]`)
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }, 50)
-              }, [])}
+              onSelect={onMapSelect}
             />
           </motion.div>
         ) : (

@@ -584,7 +584,7 @@ Respond ONLY with valid JSON:
       requirement: String(e.requirement),
       category: e.category === 'niceToHave'
         ? 'niceToHave'
-        : (e.category === 'dealBreaker' || e.category === 'dealbreaker')
+        : (e.category === 'dealBreaker' || (e.category as string) === 'dealbreaker')
           ? 'dealBreaker'
           : 'required',
       verdict: ['matched', 'missed', 'unclear'].includes(e.verdict) ? e.verdict : 'unclear',

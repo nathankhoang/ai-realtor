@@ -64,7 +64,7 @@ export default function HeroSection() {
       {/* Animated mesh background — three blurred radial blobs that drift */}
       <div
         aria-hidden
-        className="absolute -inset-[20%] -z-10 pointer-events-none"
+        className="absolute -inset-[20%] z-0 pointer-events-none"
         style={{ filter: 'blur(80px)', opacity: 0.7 }}
       >
         <div
@@ -108,7 +108,7 @@ export default function HeroSection() {
       {/* Grid backdrop with radial mask + pulse */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage:
             'linear-gradient(rgba(122,148,121,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(122,148,121,0.06) 1px,transparent 1px)',
@@ -120,7 +120,7 @@ export default function HeroSection() {
       />
 
       {/* Floating sage particles */}
-      <div aria-hidden className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
+      <div aria-hidden className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         {particles.map((p, i) => (
           <span
             key={i}
@@ -136,7 +136,7 @@ export default function HeroSection() {
         ))}
       </div>
 
-      <div className="relative mx-auto max-w-[1320px] px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32 md:px-8">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 pt-20 pb-20 sm:px-6 sm:pt-28 sm:pb-28 md:pt-36 md:pb-32 md:px-8">
         {/* Eyebrow chip */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -195,10 +195,11 @@ export default function HeroSection() {
           <div className="relative">
             <div
               aria-hidden
-              className="absolute -inset-6 -z-10 rounded-[2rem] blur-2xl"
+              className="absolute -inset-10 rounded-[2rem] blur-3xl"
               style={{
-                backgroundImage:
-                  'radial-gradient(60% 60% at 60% 40%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 70%)',
+                background:
+                  'radial-gradient(50% 50% at 60% 40%, color-mix(in srgb, var(--brand) 35%, transparent), transparent 70%), radial-gradient(40% 40% at 30% 70%, color-mix(in srgb, var(--brand-soft) 30%, transparent), transparent 70%)',
+                zIndex: 0,
               }}
             />
 

@@ -1,66 +1,24 @@
 'use client'
 
-import { motion } from 'motion/react'
-import { useRef, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 
 type Tone = 'dark' | 'light' | 'accent'
 
-type ToneCSS = {
-  '--btn-bg': string
-  '--btn-fg': string
-  '--btn-bg-hover': string
-  '--btn-fg-hover': string
-  '--btn-dot-bg': string
-  '--btn-dot-fg': string
-  '--btn-dot-bg-hover': string
-  '--btn-dot-fg-hover': string
-  '--btn-ring': string
+const SIZE_CLASSES: Record<'sm' | 'md' | 'lg', string> = {
+  sm: 'px-5 py-2.5 text-[14px]',
+  md: 'px-6 py-3 text-[14px]',
+  lg: 'px-7 py-4 text-[15px]',
 }
 
-const TONE_VARS: Record<Tone, ToneCSS> = {
-  dark: {
-    '--btn-bg': '#1A2419',
-    '--btn-fg': '#F1F5F0',
-    '--btn-bg-hover': '#4A6249',
-    '--btn-fg-hover': '#FFFFFF',
-    '--btn-dot-bg': '#F1F5F0',
-    '--btn-dot-fg': '#1A2419',
-    '--btn-dot-bg-hover': '#FFFFFF',
-    '--btn-dot-fg-hover': '#4A6249',
-    '--btn-ring': 'transparent',
-  },
-  light: {
-    '--btn-bg': '#FFFFFF',
-    '--btn-fg': '#1A2419',
-    '--btn-bg-hover': '#1A2419',
-    '--btn-fg-hover': '#FFFFFF',
-    '--btn-dot-bg': '#1A2419',
-    '--btn-dot-fg': '#FFFFFF',
-    '--btn-dot-bg-hover': '#FFFFFF',
-    '--btn-dot-fg-hover': '#1A2419',
-    '--btn-ring': 'rgba(26,36,25,0.10)',
-  },
-  // Accent uses the sage gradient — solid-stop fallback ensures the
-  // hover sweep keeps a consistent shape even where gradients flicker.
-  accent: {
-    '--btn-bg': '#7A9479',
-    '--btn-fg': '#FFFFFF',
-    '--btn-bg-hover': '#4A6249',
-    '--btn-fg-hover': '#FFFFFF',
-    '--btn-dot-bg': '#FFFFFF',
-    '--btn-dot-fg': '#4A6249',
-    '--btn-dot-bg-hover': '#94AB93',
-    '--btn-dot-fg-hover': '#FFFFFF',
-    '--btn-ring': 'transparent',
-  },
-}
-
-const SIZES = {
-  sm: { pad: 'pl-4 pr-1 py-1', text: 'text-sm', dot: 'h-7 w-7', icon: 'h-3 w-3' },
-  md: { pad: 'pl-5 pr-1.5 py-1.5', text: 'text-[15px]', dot: 'h-9 w-9', icon: 'h-3.5 w-3.5' },
-  lg: { pad: 'pl-7 pr-2 py-2', text: 'text-base', dot: 'h-11 w-11', icon: 'h-4 w-4' },
-} as const
-
+/**
+ * Pixel-port of the design's `.btn-primary` — sage gradient pill with a
+ * soft shadow and a shine sweep that slides L→R on hover. The `tone`
+ * prop swaps surface colors but keeps the shape, shadow, and sweep.
+ *
+ * `dark` — design's primary CTA: sage gradient, white text.
+ * `light` — for use on dark backgrounds (manifesto): white surface, ink text.
+ * `accent` — alias of `dark` (kept for back-compat with existing call sites).
+ */
 export function PrimaryButton({
   children,
   onClick,
@@ -71,65 +29,53 @@ export function PrimaryButton({
   children: React.ReactNode
   onClick?: () => void
   tone?: Tone
-  size?: keyof typeof SIZES
+  size?: keyof typeof SIZE_CLASSES
   className?: string
 }) {
-  const ref = useRef<HTMLButtonElement>(null)
-  const [magnet, setMagnet] = useState({ x: 0, y: 0 })
-  const sizing = SIZES[size]
-  const styleVars = TONE_VARS[tone] as unknown as CSSProperties
-
-  function handleMove(e: React.MouseEvent<HTMLButtonElement>) {
-    const el = ref.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const cx = rect.left + rect.width / 2
-    const cy = rect.top + rect.height / 2
-    setMagnet({ x: (e.clientX - cx) * 0.18, y: (e.clientY - cy) * 0.25 })
-  }
+  const lightTone = tone === 'light'
+  const surface: CSSProperties = lightTone
+    ? {
+        background: '#FFFFFF',
+        color: '#1A2419',
+        boxShadow: '0 8px 20px -8px rgba(15,17,12,0.35)',
+      }
+    : {
+        background: 'linear-gradient(135deg, var(--brand), var(--brand-2, #5F7A5E))',
+        color: '#FFFFFF',
+        boxShadow: '0 8px 20px -8px color-mix(in srgb, var(--brand) 60%, transparent)',
+      }
 
   return (
-    <motion.button
-      ref={ref}
+    <button
+      type="button"
       onClick={onClick}
-      onMouseMove={handleMove}
-      onMouseLeave={() => setMagnet({ x: 0, y: 0 })}
-      animate={{ x: magnet.x, y: magnet.y }}
-      transition={{ type: 'spring', stiffness: 220, damping: 18, mass: 0.5 }}
-      style={styleVars}
-      className={`group/btn relative isolate inline-flex items-center gap-3 overflow-hidden rounded-full font-medium ${sizing.pad} ${sizing.text} ${className} eifara-pill-btn`}
+      style={surface}
+      className={`group/cta relative isolate inline-flex items-center gap-2 overflow-hidden rounded-full font-semibold transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[2px] hover:shadow-[0_14px_30px_-10px_color-mix(in_srgb,var(--brand)_80%,transparent)] ${SIZE_CLASSES[size]} ${className}`}
     >
-      {/* Sweep fill */}
-      <span aria-hidden className="eifara-pill-btn__sweep" />
-      <span className="relative z-10 transition-colors duration-300">{children}</span>
-      <span aria-hidden className={`eifara-pill-btn__dot ${sizing.dot}`}>
-        <span className="relative block overflow-hidden">
-          <Arrow
-            className={`${sizing.icon} eifara-pill-btn__arrow eifara-pill-btn__arrow--out`}
-          />
-          <Arrow
-            className={`${sizing.icon} eifara-pill-btn__arrow eifara-pill-btn__arrow--in`}
-          />
+      {/* Shine sweep — slides L→R on hover */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-0 left-[-100%] h-full w-3/5 transition-[left] duration-700 ease-out group-hover/cta:left-[140%]"
+        style={{
+          background: lightTone
+            ? 'linear-gradient(90deg, transparent, rgba(15,17,12,0.18), transparent)'
+            : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+        }}
+      />
+      <span className="relative z-10 inline-flex items-center gap-2">
+        {children}
+        <span className="transition-transform duration-300 group-hover/cta:translate-x-1" aria-hidden>
+          →
         </span>
       </span>
-    </motion.button>
+    </button>
   )
 }
 
-function Arrow({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 14 14" fill="none" className={className}>
-      <path
-        d="M3 11L11 3M11 3H4.5M11 3V9.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
+/**
+ * `.btn-secondary` — white pill with line border, sage hover. Used as the
+ * counterpart to PrimaryButton wherever a softer CTA is needed.
+ */
 export function SecondaryButton({
   children,
   onClick,
@@ -141,14 +87,13 @@ export function SecondaryButton({
   href?: string
   className?: string
 }) {
-  const cls = `group/sec inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium text-foreground transition-colors duration-300 hover:text-brand-deep ${className}`
+  const cls = `group/sec inline-flex items-center gap-2 rounded-full border border-brand-line bg-card px-7 py-4 text-[15px] font-semibold text-foreground transition-all duration-300 hover:-translate-y-[2px] hover:border-brand hover:text-brand-deep ${className}`
   const inner = (
     <>
-      <span className="relative">
-        {children}
-        <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-brand-gradient transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover/sec:scale-x-100" />
+      <span>{children}</span>
+      <span className="transition-transform duration-300 group-hover/sec:translate-x-1" aria-hidden>
+        →
       </span>
-      <Arrow className="h-3.5 w-3.5 transition-transform duration-300 group-hover/sec:translate-x-1" />
     </>
   )
   if (href) {
@@ -159,7 +104,7 @@ export function SecondaryButton({
     )
   }
   return (
-    <button onClick={onClick} className={cls}>
+    <button type="button" onClick={onClick} className={cls}>
       {inner}
     </button>
   )

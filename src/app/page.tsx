@@ -14,6 +14,7 @@ import { FeatureMarquee } from '@/components/landing/FeatureMarquee'
 import TryItDemo from '@/components/landing/TryItDemo'
 import Header from '@/components/landing/Header'
 import Footer from '@/components/landing/Footer'
+import RevealClient from '@/components/landing/RevealClient'
 import StructuredData from '@/components/StructuredData'
 import { organizationJsonLd, softwareApplicationJsonLd, faqPageJsonLd } from '@/lib/seo'
 import { getAllPosts } from '@/lib/blog'
@@ -28,7 +29,6 @@ export default async function Home() {
       <StructuredData data={organizationJsonLd()} />
       <StructuredData data={softwareApplicationJsonLd()} />
       <StructuredData data={faqPageJsonLd()} />
-      <TopMarquee />
       <Header />
       <HeroSection />
       <FeatureMarquee />
@@ -44,6 +44,7 @@ export default async function Home() {
       <FAQ />
       <FinalCTA />
       <Footer recentPosts={getAllPosts().slice(0, 4)} />
+      <RevealClient />
     </div>
   )
 }
