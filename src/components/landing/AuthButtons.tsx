@@ -4,10 +4,10 @@ import { useClerk } from '@clerk/nextjs'
 import { PrimaryButton } from './PrimaryButton'
 
 export function SignInTrigger({ children }: { children: React.ReactNode }) {
-  const { openSignIn } = useClerk()
+  const clerk = useClerk()
   return (
     <button
-      onClick={() => openSignIn()}
+      onClick={() => clerk?.openSignIn()}
       className="rounded-full px-4 py-1.5 text-sm font-medium text-brand-slate transition-colors duration-200 hover:bg-muted hover:text-foreground"
     >
       {children}
@@ -24,9 +24,9 @@ export function SignUpTrigger({
   tone?: 'dark' | 'light' | 'accent'
   size?: 'sm' | 'md' | 'lg'
 }) {
-  const { openSignUp } = useClerk()
+  const clerk = useClerk()
   return (
-    <PrimaryButton onClick={() => openSignUp()} tone={tone} size={size}>
+    <PrimaryButton onClick={() => clerk?.openSignUp()} tone={tone} size={size}>
       {children}
     </PrimaryButton>
   )
