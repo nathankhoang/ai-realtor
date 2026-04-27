@@ -50,7 +50,7 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-10 border-b border-brand-line bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
           <UserButton />
@@ -60,14 +60,14 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-7 sm:py-10 space-y-8 sm:space-y-10">
         {/* Client header */}
         <div>
-          <Link href="/dashboard" className="text-[13px] text-muted-foreground hover:text-foreground transition-colors">← Dashboard</Link>
+          <Link href="/dashboard" className="text-[13px] text-brand-slate hover:text-foreground transition-colors">← Dashboard</Link>
           <div className="flex items-start gap-4 mt-3">
-            <div className="w-13 h-13 rounded-full bg-primary/10 text-primary text-[18px] font-semibold flex items-center justify-center shrink-0" style={{ width: '52px', height: '52px' }}>
+            <div className="w-13 h-13 rounded-full bg-brand-pale text-brand-deep text-[18px] font-semibold flex items-center justify-center shrink-0" style={{ width: '52px', height: '52px' }}>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-3 flex-wrap">
-                <h1 className="text-2xl font-medium tracking-tight">{client.name}</h1>
+                <h1 className="font-display text-2xl font-extrabold tracking-[-0.02em] text-foreground">{client.name}</h1>
                 <div className="flex items-center gap-2 shrink-0">
                   {client.shareToken && (
                     <Link href={`/report/${client.shareToken}`} target="_blank">

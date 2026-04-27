@@ -24,10 +24,14 @@ interface Props {
   plans: PlanConfig[]
   currentTier: Tier | null
   signedIn: boolean
+  featuredTier?: Tier
+  featuredLabel?: string
 }
 
-export default function PricingCards({ plans, currentTier, signedIn }: Props) {
+export default function PricingCards({ plans, currentTier, signedIn, featuredTier, featuredLabel }: Props) {
   const [annual, setAnnual] = useState(false)
+  const defaultFeaturedTier = featuredTier ?? 'premier'
+  const defaultFeaturedLabel = featuredLabel ?? 'Most Powerful'
 
   return (
     <div className="space-y-12">
@@ -68,7 +72,7 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-3">
         {plans.map((plan, idx) => {
           const isCurrent = currentTier === plan.tier
-          const isPremier = plan.tier === 'premier'
+          const isFeatured = plan.tier === defaultFeaturedTier
           const priceId = annual ? plan.annualPriceId : plan.monthlyPriceId
           const showAnnual = annual && plan.tier !== 'free'
 
@@ -79,11 +83,11 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.08, duration: 0.3 }}
               className={`relative group flex flex-col rounded-2xl overflow-hidden transition-all duration-300 ${
-                isPremier ? 'lg:col-span-1 h-full' : ''
+                isFeatured ? 'lg:col-span-1 h-full' : ''
               }`}
             >
-              {/* Premier card background gradient */}
-              {isPremier && (
+              {/* Featured card background gradient */}
+              {isFeatured && (
                 <>
                   <div
                     className="absolute -inset-0.5 -z-20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -97,13 +101,13 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
 
               <div
                 className={`relative flex flex-col flex-1 p-6 sm:p-8 rounded-2xl transition-all duration-300 ${
-                  isPremier
+                  isFeatured
                     ? 'bg-gradient-to-br from-foreground to-foreground/95 text-white'
                     : 'bg-white border border-brand-line'
                 }`}
               >
-                {/* Premier badge */}
-                {isPremier && (
+                {/* Featured badge */}
+                {isFeatured && (
                   <div className="absolute -top-3 right-6">
                     <div
                       className="px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-lg"
@@ -111,17 +115,17 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                         background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))',
                       }}
                     >
-                      Most Powerful
+                      {defaultFeaturedLabel}
                     </div>
                   </div>
                 )}
 
                 {/* Card header */}
-                <div className={`space-y-2 flex-1 ${isPremier ? 'pt-2' : ''}`}>
-                  <h3 className={`font-display text-2xl font-bold tracking-tight ${isPremier ? 'text-white' : 'text-foreground'}`}>
+                <div className={`space-y-2 flex-1 ${isFeatured ? 'pt-2' : ''}`}>
+                  <h3 className={`font-display text-2xl font-bold tracking-tight ${isFeatured ? 'text-white' : 'text-foreground'}`}>
                     {plan.name}
                   </h3>
-                  <p className={`text-sm font-medium ${isPremier ? 'text-white/70' : 'text-muted-foreground'}`}>
+                  <p className={`text-sm font-medium ${isFeatured ? 'text-white/70' : 'text-muted-foreground'}`}>
                     {plan.description}
                   </p>
 
@@ -134,18 +138,18 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.25 }}
                         className={`font-display text-5xl font-black tracking-tight tabular-nums ${
-                          isPremier ? 'text-white' : 'text-foreground'
+                          isFeatured ? 'text-white' : 'text-foreground'
                         }`}
                       >
                         {showAnnual ? plan.annualMonthly : plan.monthlyPrice}
                       </motion.span>
                       {plan.tier !== 'free' && (
-                        <span className={`text-sm font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}>
+                        <span className={`text-sm font-medium ${isFeatured ? 'text-white/60' : 'text-muted-foreground'}`}>
                           / mo
                         </span>
                       )}
                       {plan.tier === 'free' && (
-                        <span className={`text-sm font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}>
+                        <span className={`text-sm font-medium ${isFeatured ? 'text-white/60' : 'text-muted-foreground'}`}>
                           forever
                         </span>
                       )}
@@ -156,9 +160,9 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.25, delay: 0.05 }}
-                        className={`text-xs font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}
+                        className={`text-xs font-medium ${isFeatured ? 'text-white/60' : 'text-muted-foreground'}`}
                       >
-                        <span className={isPremier ? 'text-white/80' : 'text-foreground'}>
+                        <span className={isFeatured ? 'text-white/80' : 'text-foreground'}>
                           {plan.annualPrice}
                         </span>{' '}
                         billed annually
@@ -170,7 +174,7 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                   <div className="pt-3">
                     <div
                       className={`inline-block text-xs font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-lg ${
-                        isPremier
+                        isFeatured
                           ? 'bg-white/15 text-white'
                           : 'bg-brand/8 text-brand-deep'
                       }`}
@@ -181,15 +185,15 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                 </div>
 
                 {/* Features list */}
-                <ul className="space-y-3 py-6 border-t border-b flex-1" style={isPremier ? { borderColor: 'rgba(255, 255, 255, 0.1)' } : {}}>
+                <ul className="space-y-3 py-6 border-t border-b flex-1" style={isFeatured ? { borderColor: 'rgba(255, 255, 255, 0.1)' } : {}}>
                   {plan.features.map((f) => (
                     <li
                       key={f}
                       className={`flex items-start gap-2.5 text-sm leading-snug ${
-                        isPremier ? 'text-white/85' : 'text-foreground/80'
+                        isFeatured ? 'text-white/85' : 'text-foreground/80'
                       }`}
                     >
-                      <span className={`mt-0.5 shrink-0 ${isPremier ? 'text-brand-light' : 'text-brand'}`}>✓</span>
+                      <span className={`mt-0.5 shrink-0 ${isFeatured ? 'text-brand-light' : 'text-brand'}`}>✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -199,17 +203,17 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                 <div className="pt-6">
                   {isCurrent ? (
                     <Button
-                      variant={isPremier ? 'default' : 'outline'}
+                      variant={isFeatured ? 'default' : 'outline'}
                       disabled
-                      className={`w-full font-medium ${isPremier ? 'bg-white text-foreground hover:bg-white' : ''}`}
+                      className={`w-full font-medium ${isFeatured ? 'bg-white text-foreground hover:bg-white' : ''}`}
                     >
                       Current plan
                     </Button>
                   ) : plan.tier === 'free' ? (
                     <Link href={signedIn ? '/dashboard' : '/sign-up'} className="w-full">
                       <Button
-                        variant={isPremier ? 'default' : 'outline'}
-                        className={`w-full font-medium ${isPremier ? 'bg-white text-foreground hover:bg-white' : ''}`}
+                        variant={isFeatured ? 'default' : 'outline'}
+                        className={`w-full font-medium ${isFeatured ? 'bg-white text-foreground hover:bg-white' : ''}`}
                       >
                         {signedIn ? 'Go to dashboard' : 'Get started'}
                       </Button>
@@ -219,10 +223,10 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
                       priceId={priceId}
                       label={signedIn ? 'Upgrade' : 'Get started'}
                       signedIn={signedIn}
-                      highlighted={isPremier}
+                      highlighted={isFeatured}
                     />
                   ) : (
-                    <Button variant={isPremier ? 'default' : 'outline'} className="w-full" disabled>
+                    <Button variant={isFeatured ? 'default' : 'outline'} className="w-full" disabled>
                       Coming soon
                     </Button>
                   )}

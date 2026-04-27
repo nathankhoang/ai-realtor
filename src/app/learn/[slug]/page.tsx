@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { getAllLearnEntries, getLearnEntry } from '@/lib/learn'
 import { SITE_NAME, SITE_URL, breadcrumbJsonLd } from '@/lib/seo'
 import StructuredData from '@/components/StructuredData'
+import Header from '@/components/landing/Header'
+import Footer from '@/components/landing/Footer'
 
 export function generateStaticParams() {
   return getAllLearnEntries().map(e => ({ slug: e.slug }))
@@ -55,7 +57,7 @@ export default async function LearnEntryPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <StructuredData data={definedTermJsonLd} />
       <StructuredData
         data={breadcrumbJsonLd([
@@ -65,55 +67,38 @@ export default async function LearnEntryPage({
         ])}
       />
 
-      <header className="sticky top-0 z-10 border-b border-stone-900/8 bg-[#F1EEE7]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 h-14">
-          <Link href="/" className="text-[17px] font-medium tracking-tight">
-            Eifara
-          </Link>
-          <nav className="flex items-center gap-5 text-[14px] text-stone-600">
-            <Link href="/learn" className="hover:text-stone-950 transition-colors">
-              Learn
-            </Link>
-            <Link href="/blog" className="hover:text-stone-950 transition-colors">
-              Blog
-            </Link>
-            <Link href="/pricing" className="hover:text-stone-950 transition-colors">
-              Pricing
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
-      <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
         <Link
           href="/learn"
-          className="mb-5 inline-block text-[13px] text-stone-500 hover:text-stone-900 transition-colors"
+          className="mb-5 inline-block text-[13px] text-brand-slate hover:text-foreground transition-colors"
         >
           ← All terms
         </Link>
 
-        <article className="rounded-3xl border border-stone-900/8 bg-white px-6 py-10 shadow-[0_30px_80px_-40px_rgba(15,14,10,0.18)] sm:px-12 sm:py-14 md:px-16 md:py-16">
-          <header className="mb-8 sm:mb-10 border-b border-stone-900/8 pb-6 sm:pb-8">
-            <p className="mb-3 text-[11.5px] uppercase tracking-[0.2em] text-stone-500">
+        <article className="rounded-3xl border border-brand-line bg-card px-6 py-10 shadow-[0_30px_80px_-40px_rgba(122,148,121,0.15)] sm:px-12 sm:py-14 md:px-16 md:py-16">
+          <header className="mb-8 sm:mb-10 border-b border-brand-line pb-6 sm:pb-8">
+            <p className="mb-3 text-[11.5px] uppercase tracking-[0.14em] text-brand-slate-light">
               {entry.category}
             </p>
-            <h1 className="text-[28px] sm:text-[40px] md:text-[44px] font-medium leading-[1.12] tracking-[-0.025em] text-stone-950">
+            <h1 className="font-display text-[28px] sm:text-[40px] md:text-[44px] font-extrabold leading-[1.12] tracking-[-0.03em] text-foreground">
               {entry.term}
             </h1>
-            <p className="mt-4 text-[16px] sm:text-[17.5px] leading-relaxed text-stone-600">
+            <p className="mt-4 text-[16px] sm:text-[17.5px] leading-relaxed text-brand-slate">
               {entry.summary}
             </p>
           </header>
 
-          <div className="space-y-5 text-[16.5px] leading-[1.7] text-stone-700">
+          <div className="space-y-5 text-[16.5px] leading-[1.7] text-foreground/85">
             {entry.body.map((p, i) => (
               <p key={i}>{p}</p>
             ))}
           </div>
 
           {entry.related.length > 0 && (
-            <div className="mt-12 sm:mt-14 rounded-2xl border border-stone-900/10 bg-[#F8F6F1] p-6 sm:p-8">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            <div className="mt-12 sm:mt-14 rounded-2xl border border-brand-line bg-brand-pale/40 p-6 sm:p-8">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-slate-light">
                 Read more
               </p>
               <ul className="mt-3 space-y-2">
@@ -121,7 +106,7 @@ export default async function LearnEntryPage({
                   <li key={r.slug}>
                     <Link
                       href={`/blog/${r.slug}`}
-                      className="text-[15.5px] text-stone-800 underline-offset-4 hover:text-[#2952FF] hover:underline"
+                      className="text-[15.5px] text-brand-deep font-medium underline-offset-4 hover:text-brand hover:underline"
                     >
                       {r.label}
                     </Link>
@@ -132,24 +117,17 @@ export default async function LearnEntryPage({
           )}
         </article>
 
-        <div className="mt-10 flex items-center justify-between text-[13px] text-stone-500">
-          <Link href="/learn" className="hover:text-stone-900 transition-colors">
+        <div className="mt-10 flex items-center justify-between text-[13px] text-brand-slate">
+          <Link href="/learn" className="hover:text-foreground transition-colors">
             ← All terms
           </Link>
-          <Link href="/" className="hover:text-stone-900 transition-colors">
+          <Link href="/" className="hover:text-foreground transition-colors">
             eifara.com →
           </Link>
         </div>
       </main>
 
-      <footer className="border-t border-stone-900/8 bg-[#F1EEE7] px-4 sm:px-6 py-8 mt-12">
-        <div className="mx-auto flex max-w-5xl items-center justify-between text-[13px] text-stone-500">
-          <span>© {new Date().getFullYear()} Eifara</span>
-          <Link href="/" className="hover:text-stone-900 transition-colors">
-            ← Back to home
-          </Link>
-        </div>
-      </footer>
+      <Footer recentPosts={[]} />
     </div>
   )
 }

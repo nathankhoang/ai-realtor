@@ -51,10 +51,10 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/85 backdrop-blur-xl sticky top-0 z-10">
+      <header className="border-b border-brand-line bg-background/85 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <span className="text-[17px] font-medium tracking-tight">{agentName || 'Eifara'}</span>
-          <span className="text-[12.5px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full whitespace-nowrap">
+          <span className="text-[12.5px] font-medium text-brand-slate bg-brand-pale/60 px-3 py-1 rounded-full whitespace-nowrap">
             {agentName ? 'Your home shortlist' : 'Client report'}
           </span>
         </div>
@@ -63,7 +63,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12 space-y-8 sm:space-y-10">
         {/* Agent branding card — shows the agent as the deliverer of the report */}
         {(agentName || agent?.brokerage || agent?.phone || agent?.reportMessage) && (
-          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+          <div className="rounded-2xl border border-brand-line bg-card p-5 sm:p-6">
             <div className="flex items-start gap-4">
               {agent?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -80,9 +80,9 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
               <div className="min-w-0 flex-1">
                 {agentName && <p className="text-[15.5px] font-semibold tracking-tight">{agentName}</p>}
                 {agent?.brokerage && (
-                  <p className="text-[13.5px] text-muted-foreground">{agent.brokerage}</p>
+                  <p className="text-[13.5px] text-brand-slate">{agent.brokerage}</p>
                 )}
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[13.5px] text-muted-foreground">
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[13.5px] text-brand-slate">
                   {agent?.phone && <a href={`tel:${agent.phone}`} className="hover:text-foreground">{agent.phone}</a>}
                   {agent?.email && <a href={`mailto:${agent.email}`} className="hover:text-foreground">{agent.email}</a>}
                 </div>
@@ -96,30 +96,30 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
 
         {/* Client header */}
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 text-primary text-[20px] font-semibold flex items-center justify-center shrink-0">
+          <div className="w-14 h-14 rounded-full bg-brand-pale text-brand-deep text-[20px] font-semibold flex items-center justify-center shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-medium tracking-tight">{client.name}</h1>
-            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[14px] text-muted-foreground">
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-[-0.02em] text-foreground">{client.name}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-[14px] text-brand-slate">
               {client.email && <span>{client.email}</span>}
               {client.phone && <span>{client.phone}</span>}
             </div>
             {client.notes && (
-              <p className="mt-3 text-[15px] text-muted-foreground max-w-lg leading-relaxed">{client.notes}</p>
+              <p className="mt-3 text-[15px] text-brand-slate max-w-lg leading-relaxed">{client.notes}</p>
             )}
           </div>
         </div>
 
         {/* Summary */}
-        <div className="flex items-center gap-3 text-[15px] text-muted-foreground border-b border-border pb-7">
+        <div className="flex items-center gap-3 text-[15px] text-brand-slate border-b border-brand-line pb-7">
           <span className="font-semibold text-foreground text-2xl tabular-nums">{saved.length}</span>
           <span>home{saved.length !== 1 ? 's' : ''} selected by your agent</span>
         </div>
 
         {/* Listings */}
         {saved.length === 0 ? (
-          <p className="text-[15px] text-muted-foreground py-10 text-center">No saved homes yet — check back soon.</p>
+          <p className="text-[15px] text-brand-slate py-10 text-center">No saved homes yet — check back soon.</p>
         ) : (
           <div className="space-y-8">
             {saved.map(({ saved: s, listing, analysis }, index) => {
@@ -151,20 +151,20 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
         )}
 
         {/* Footer — show the agent's contact again as a soft CTA */}
-        <div className="border-t border-border pt-8 text-center space-y-1.5">
+        <div className="border-t border-brand-line pt-8 text-center space-y-1.5">
           {agentName ? (
             <>
               <p className="text-[14px] text-foreground">Ready to tour any of these?</p>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-brand-slate">
                 Reach out to <span className="font-medium text-foreground">{agentName}</span>
                 {agent?.phone && <> · <a href={`tel:${agent.phone}`} className="hover:text-foreground">{agent.phone}</a></>}
                 {agent?.email && <> · <a href={`mailto:${agent.email}`} className="hover:text-foreground">{agent.email}</a></>}
               </p>
             </>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Prepared by your agent using Eifara</p>
+            <p className="text-[13px] text-brand-slate">Prepared by your agent using Eifara</p>
           )}
-          <p className="text-[12.5px] text-muted-foreground/70">Powered by Eifara · AI photo analysis</p>
+          <p className="text-[12.5px] text-brand-slate/70">Powered by Eifara · AI photo analysis</p>
         </div>
       </main>
     </div>
@@ -194,7 +194,7 @@ function ReportListingCard({
   initialComment: string | null
 }) {
   return (
-    <div className="border border-border rounded-2xl overflow-hidden bg-card">
+    <div className="border border-brand-line rounded-2xl overflow-hidden bg-card">
       {/* Hero photo */}
       {photos[0] && (
         <div className="relative">

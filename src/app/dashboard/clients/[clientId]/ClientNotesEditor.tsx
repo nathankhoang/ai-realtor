@@ -39,12 +39,12 @@ export default function ClientNotesEditor({ clientId, initialNotes }: { clientId
     return (
       <button
         onClick={() => setEditing(true)}
-        className="text-sm text-left text-muted-foreground hover:text-foreground transition-colors group"
+        className="text-sm text-left text-brand-slate hover:text-foreground transition-colors group"
       >
         {saved ? (
-          <span>{saved} <span className="text-xs text-muted-foreground/50 group-hover:text-muted-foreground ml-1">Edit</span></span>
+          <span>{saved} <span className="text-xs text-brand-slate/50 group-hover:text-brand-slate ml-1">Edit</span></span>
         ) : (
-          <span className="text-muted-foreground/60 hover:text-muted-foreground text-sm">+ Add notes about this client…</span>
+          <span className="text-brand-slate/60 hover:text-brand-slate text-sm">+ Add notes about this client…</span>
         )}
       </button>
     )

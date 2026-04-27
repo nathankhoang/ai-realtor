@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { getAllLearnEntries } from '@/lib/learn'
 import { SITE_NAME, SITE_URL, breadcrumbJsonLd } from '@/lib/seo'
 import StructuredData from '@/components/StructuredData'
+import Header from '@/components/landing/Header'
+import Footer from '@/components/landing/Footer'
 
 export const metadata: Metadata = {
   title: 'Learn — Real-estate concepts and AI workflow terms',
@@ -40,7 +42,7 @@ export default function LearnIndexPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F1EEE7] text-stone-950">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <StructuredData data={collectionJsonLd} />
       <StructuredData
         data={breadcrumbJsonLd([
@@ -49,31 +51,18 @@ export default function LearnIndexPage() {
         ])}
       />
 
-      <header className="sticky top-0 z-10 border-b border-stone-900/8 bg-[#F1EEE7]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6 h-14">
-          <Link href="/" className="text-[17px] font-medium tracking-tight">
-            Eifara
-          </Link>
-          <nav className="flex items-center gap-5 text-[14px] text-stone-600">
-            <Link href="/blog" className="hover:text-stone-950 transition-colors">
-              Blog
-            </Link>
-            <Link href="/pricing" className="hover:text-stone-950 transition-colors">
-              Pricing
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
-      <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-12 sm:py-20">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-6 py-12 sm:py-20">
         <div className="mb-10 sm:mb-12">
-          <p className="mb-3 text-[12.5px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+          <p className="mb-3 eyebrow text-[12.5px] font-semibold uppercase tracking-[0.14em] text-brand-slate-light">
+            <span className="dot inline-block mr-2" />
             Learn
           </p>
-          <h1 className="text-[32px] sm:text-5xl font-medium tracking-[-0.025em] leading-[1.1]">
+          <h1 className="font-display text-[32px] sm:text-5xl font-extrabold tracking-[-0.03em] leading-[1.1] text-foreground">
             Real-estate concepts, in plain English.
           </h1>
-          <p className="mt-5 max-w-xl text-[16px] sm:text-[17px] leading-relaxed text-stone-600">
+          <p className="mt-5 max-w-xl text-[16px] sm:text-[17px] leading-relaxed text-brand-slate">
             Short definitions of the listing-analysis, market-intel, and buyer-workflow terms
             agents and buyers actually use. Each entry links to a deeper write-up.
           </p>
@@ -84,7 +73,7 @@ export default function LearnIndexPage() {
             <section key={cat} aria-labelledby={`cat-${cat.replace(/\s+/g, '-')}`}>
               <h2
                 id={`cat-${cat.replace(/\s+/g, '-')}`}
-                className="mb-4 text-[12px] font-semibold uppercase tracking-[0.18em] text-stone-500"
+                className="mb-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-brand-slate-light"
               >
                 {cat}
               </h2>
@@ -95,12 +84,12 @@ export default function LearnIndexPage() {
                     <li key={e.slug}>
                       <Link
                         href={`/learn/${e.slug}`}
-                        className="group block rounded-2xl border border-stone-900/8 bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-stone-900/15 hover:shadow-[0_18px_40px_-20px_rgba(15,14,10,0.20)]"
+                        className="group block rounded-2xl border border-brand-line bg-card p-5 sm:p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand hover:shadow-[0_18px_40px_-20px_rgba(122,148,121,0.22)]"
                       >
-                        <h3 className="text-[18px] sm:text-[19px] font-medium tracking-[-0.012em] text-stone-950 transition-colors group-hover:text-[#2952FF]">
+                        <h3 className="text-[18px] sm:text-[19px] font-semibold tracking-[-0.012em] text-foreground transition-colors group-hover:text-brand">
                           {e.term}
                         </h3>
-                        <p className="mt-1.5 text-[14.5px] leading-relaxed text-stone-600">
+                        <p className="mt-1.5 text-[14.5px] leading-relaxed text-brand-slate">
                           {e.summary}
                         </p>
                       </Link>
@@ -112,14 +101,7 @@ export default function LearnIndexPage() {
         </div>
       </main>
 
-      <footer className="border-t border-stone-900/8 bg-[#F1EEE7] px-4 sm:px-6 py-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between text-[13px] text-stone-500">
-          <span>© {new Date().getFullYear()} Eifara</span>
-          <Link href="/" className="hover:text-stone-900 transition-colors">
-            ← Back to home
-          </Link>
-        </div>
-      </footer>
+      <Footer recentPosts={[]} />
     </div>
   )
 }

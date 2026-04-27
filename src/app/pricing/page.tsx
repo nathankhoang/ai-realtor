@@ -14,6 +14,7 @@ import {
 import Header from '@/components/landing/Header'
 import Footer from '@/components/landing/Footer'
 import { getAllPosts } from '@/lib/blog'
+import { PLANS } from '@/lib/plans'
 
 export const metadata: Metadata = {
   title: 'Pricing — Free, Starter, Pro, and Premier plans',
@@ -28,70 +29,6 @@ export const metadata: Metadata = {
   },
 }
 
-const plans: PlanConfig[] = [
-  {
-    name: 'Free',
-    tier: 'free',
-    monthlyPrice: '$0',
-    annualPrice: '$0',
-    annualMonthly: '$0',
-    description: 'Try it out',
-    searches: '3 searches / month',
-    features: ['AI analysis', 'Photo match evidence', 'Client management'],
-    monthlyPriceId: null,
-    annualPriceId: null,
-  },
-  {
-    name: 'Starter',
-    tier: 'starter',
-    monthlyPrice: '$50',
-    annualPrice: '$480',
-    annualMonthly: '$40',
-    description: 'For growing agents',
-    searches: '20 searches / month',
-    features: [
-      'Everything in Free',
-      '30 listings analyzed per search',
-      'Reports',
-      'Email support',
-    ],
-    monthlyPriceId: process.env.STRIPE_PRICE_STARTER ?? null,
-    annualPriceId: process.env.STRIPE_PRICE_STARTER_ANNUAL ?? null,
-  },
-  {
-    name: 'Pro',
-    tier: 'pro',
-    monthlyPrice: '$150',
-    annualPrice: '$1,440',
-    annualMonthly: '$120',
-    description: 'For full-time agents',
-    searches: '60 searches / month',
-    features: [
-      'Everything in Starter',
-      '40 listings analyzed per search',
-      'Priority support',
-      'Early access to features',
-    ],
-    monthlyPriceId: process.env.STRIPE_PRICE_PRO ?? null,
-    annualPriceId: process.env.STRIPE_PRICE_PRO_ANNUAL ?? null,
-  },
-  {
-    name: 'Premier',
-    tier: 'premier',
-    monthlyPrice: '$400',
-    annualPrice: '$3,840',
-    annualMonthly: '$320',
-    description: 'For top producers & teams',
-    searches: '150 searches / month',
-    features: [
-      'Everything in Pro',
-      '50 listings analyzed per search',
-      'Highest-priority queue',
-    ],
-    monthlyPriceId: process.env.STRIPE_PRICE_PREMIER ?? null,
-    annualPriceId: process.env.STRIPE_PRICE_PREMIER_ANNUAL ?? null,
-  },
-]
 
 export default async function PricingPage() {
   const { userId } = await auth()
@@ -146,7 +83,7 @@ export default async function PricingPage() {
         {/* Pricing cards section */}
         <div className="px-4 sm:px-6 pb-16 sm:pb-24">
           <div className="max-w-7xl mx-auto">
-            <PricingCards plans={plans} currentTier={currentTier} signedIn={!!userId} />
+            <PricingCards plans={PLANS} currentTier={currentTier} signedIn={!!userId} />
           </div>
         </div>
 

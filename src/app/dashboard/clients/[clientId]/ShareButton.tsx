@@ -115,7 +115,7 @@ export default function ShareButton({
         </>
       )}
       {lastViewedText && (
-        <span className="text-[12px] text-muted-foreground">{lastViewedText}</span>
+        <span className="text-[12px] text-brand-slate">{lastViewedText}</span>
       )}
     </div>
   )

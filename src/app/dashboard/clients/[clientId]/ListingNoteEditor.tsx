@@ -19,7 +19,7 @@ export default function ListingNoteEditor({ savedId, initialNotes }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 mt-1"
+        className="text-xs text-brand-slate hover:text-foreground underline underline-offset-2 mt-1"
       >
         {notes ? 'Edit note' : 'Add note'}
       </button>
@@ -54,7 +54,7 @@ export default function ListingNoteEditor({ savedId, initialNotes }: Props) {
         <Button size="sm" variant="outline" onClick={handleSave} disabled={saving} className="h-7 text-xs">
           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}
         </Button>
-        <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">
+        <button onClick={() => setOpen(false)} className="text-xs text-brand-slate hover:text-foreground">
           Cancel
         </button>
       </div>

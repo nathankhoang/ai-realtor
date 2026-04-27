@@ -66,7 +66,7 @@ export default function ReactionControls({ token, savedListingId, initialReactio
   }
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+    <div className="rounded-xl border border-brand-line bg-brand-pale/30 p-4 space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[12.5px] font-medium text-foreground">What do you think?</span>
         <ReactionButton
@@ -92,7 +92,7 @@ export default function ReactionControls({ token, savedListingId, initialReactio
         placeholder="Optional: tell your agent what you liked or didn't"
         rows={2}
         maxLength={COMMENT_MAX}
-        className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-[13.5px] leading-relaxed placeholder:text-muted-foreground/70 focus:border-foreground/30 focus:outline-none transition-colors"
+        className="w-full resize-none rounded-lg border border-brand-line bg-background px-3 py-2 text-[13.5px] leading-relaxed placeholder:text-brand-slate/70 focus:border-foreground/30 focus:outline-none transition-colors"
       />
     </div>
   )
@@ -112,11 +112,11 @@ function ReactionButton({
   const base = 'inline-flex items-center rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors'
   if (active) {
     if (variant === 'love')
-      return <button onClick={onClick} className={`${base} border-primary bg-primary text-primary-foreground`}>{children}</button>
-    return <button onClick={onClick} className={`${base} border-stone-400 bg-stone-200 text-stone-700`}>{children}</button>
+      return <button onClick={onClick} className={`${base} border-brand bg-brand text-white`}>{children}</button>
+    return <button onClick={onClick} className={`${base} border-brand-pale bg-brand-pale text-brand-deep`}>{children}</button>
   }
   return (
-    <button onClick={onClick} className={`${base} border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground`}>
+    <button onClick={onClick} className={`${base} border-brand-line bg-card text-brand-slate hover:border-foreground/30 hover:text-foreground`}>
       {children}
     </button>
   )
