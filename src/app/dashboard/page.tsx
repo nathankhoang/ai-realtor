@@ -21,10 +21,14 @@ function mostRecent(dates: Array<Date | null>): Date | null {
 }
 
 export default async function DashboardPage() {
+  console.log('[Dashboard] Auth check started')
   const { userId } = await auth()
+  console.log('[Dashboard] Auth successful, userId:', userId)
   if (!userId) redirect('/')
 
+  console.log('[Dashboard] Getting or creating user')
   let dbUser = await getOrCreateUser(userId)
+  console.log('[Dashboard] User loaded:', dbUser?.id)
   if (!dbUser) redirect('/')
 
   const now = new Date()
@@ -46,6 +50,7 @@ export default async function DashboardPage() {
 
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
+  console.log('[Dashboard] Starting database queries for user:', dbUser.id)
   const [recentSearches, clientRowsRaw, totalSearchesRow, topMatchesWeekRow, clientLastSearchRows, savedTotalRow, weeklyAvgRow] = await Promise.all([
     db.query.searches.findMany({
       where: eq(searches.userId, dbUser.id),
