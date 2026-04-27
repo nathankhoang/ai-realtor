@@ -113,9 +113,11 @@ export default async function PricingPage() {
         ])}
       />
 
-      <header className="sticky top-0 z-10 border-b border-border bg-background/85 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-[17px] font-medium tracking-tight">Eifara</Link>
+      <header className="sticky top-0 z-10 border-b border-brand-line bg-background/95 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="text-[17px] font-display font-bold tracking-tight text-foreground">
+            Eifara
+          </Link>
           {userId ? <UserButton /> : (
             <Link href="/sign-in">
               <Button variant="outline" size="sm">Sign in</Button>
@@ -124,18 +126,78 @@ export default async function PricingPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-16 space-y-10 sm:space-y-12">
-        <div className="text-center space-y-4">
-          <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Pricing</p>
-          <h1 className="text-[32px] sm:text-4xl md:text-5xl font-medium tracking-[-0.02em] leading-[1.1]">
-            Simple, transparent pricing.
-          </h1>
-          <p className="text-[15px] sm:text-[16px] text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Find the right homes for your clients faster. Pay only for what you need.
-          </p>
+      <main className="flex-1 w-full">
+        {/* Hero section */}
+        <div className="px-4 sm:px-6 py-12 sm:py-20">
+          <div className="max-w-4xl mx-auto text-center space-y-6">
+            <div className="space-y-2">
+              <p className="text-[13px] font-medium uppercase tracking-[0.16em] text-brand-slate">
+                Pricing Plans
+              </p>
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.02em] text-foreground leading-[1.1]">
+                Choose your perfect fit
+              </h1>
+            </div>
+            <p className="text-[16px] sm:text-lg text-brand-slate max-w-2xl mx-auto leading-relaxed">
+              Start free, upgrade when you're ready. All plans include AI-powered listing analysis with detailed photo evidence. Scale your client base without scaling your costs.
+            </p>
+          </div>
         </div>
 
-        <PricingCards plans={plans} currentTier={currentTier} signedIn={!!userId} />
+        {/* Pricing cards section */}
+        <div className="px-4 sm:px-6 pb-16 sm:pb-24">
+          <div className="max-w-7xl mx-auto">
+            <PricingCards plans={plans} currentTier={currentTier} signedIn={!!userId} />
+          </div>
+        </div>
+
+        {/* FAQ section */}
+        <div className="px-4 sm:px-6 py-12 sm:py-16 bg-white border-t border-brand-line">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-3">
+                Common questions
+              </h2>
+              <p className="text-muted-foreground">
+                Can't find the answer you're looking for? Contact our support team.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {[
+                {
+                  q: 'Can I change plans anytime?',
+                  a: 'Yes, upgrade or downgrade at any time. Changes take effect at the start of your next billing cycle.',
+                },
+                {
+                  q: 'What happens to my searches if I downgrade?',
+                  a: 'Your monthly searches reset to your new plan limit. Complete any critical searches before downgrading.',
+                },
+                {
+                  q: 'Do you offer refunds?',
+                  a: 'We offer a 14-day money-back guarantee. If you\'re not satisfied, we\'ll refund your subscription.',
+                },
+                {
+                  q: 'Can I pay annually to save more?',
+                  a: 'Yes! Annual plans save you 20% compared to monthly billing. Switch to annual pricing anytime.',
+                },
+                {
+                  q: 'Is there a limit to the number of clients?',
+                  a: 'No limits on clients. Store and organize unlimited client profiles — organize by market, price range, or custom tags.',
+                },
+                {
+                  q: 'What about team accounts?',
+                  a: 'Team accounts are coming soon. Contact us if you need multi-user access for your brokerage.',
+                },
+              ].map((item) => (
+                <div key={item.q} className="border-b border-brand-line pb-6 last:border-0">
+                  <h3 className="font-semibold text-foreground mb-2">{item.q}</h3>
+                  <p className="text-brand-slate leading-relaxed">{item.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   )

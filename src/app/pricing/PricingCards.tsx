@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import PricingUpgradeButton from './PricingUpgradeButton'
 import type { Tier } from '@/types'
 
@@ -31,13 +30,13 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
   const [annual, setAnnual] = useState(false)
 
   return (
-    <div className="space-y-10">
-      {/* Sliding pill toggle — matches the landing */}
+    <div className="space-y-12">
+      {/* Billing toggle */}
       <div className="flex items-center justify-center gap-3">
         <div
           role="tablist"
           aria-label="Billing interval"
-          className="relative inline-flex items-center rounded-full border border-border bg-card p-1 shadow-[0_1px_0_rgba(15,14,10,0.04)]"
+          className="relative inline-flex items-center rounded-full border border-brand-line bg-white p-1 shadow-[0_1px_0_rgba(15,14,10,0.04)]"
         >
           <ToggleSegment active={!annual} onClick={() => setAnnual(false)} layoutId="pricing-page-pill">
             Monthly
@@ -54,102 +53,182 @@ export default function PricingCards({ plans, currentTier, signedIn }: Props) {
             scale: annual ? 1 : 0.95,
           }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-full bg-primary/10 text-primary font-medium px-3 py-1 text-[13px]"
-          style={annual ? {} : { pointerEvents: 'none' }}
+          className="rounded-full px-3 py-1 text-[13px] font-medium"
+          style={
+            annual
+              ? { backgroundColor: 'color-mix(in srgb, var(--brand) 14%, transparent)', color: 'var(--brand-deep)' }
+              : { backgroundColor: 'color-mix(in srgb, var(--brand) 14%, transparent)', color: 'var(--brand-deep)', pointerEvents: 'none' }
+          }
         >
           Save 20%
         </motion.span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3">
-        {plans.map((plan) => {
+      {/* 4-tier grid with Premier featured */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-3">
+        {plans.map((plan, idx) => {
           const isCurrent = currentTier === plan.tier
-          const isHighlighted = plan.tier === 'pro'
+          const isPremier = plan.tier === 'premier'
           const priceId = annual ? plan.annualPriceId : plan.monthlyPriceId
           const showAnnual = annual && plan.tier !== 'free'
 
           return (
-            <Card
+            <motion.div
               key={plan.tier}
-              className={`relative flex flex-col rounded-3xl overflow-visible ${
-                isHighlighted
-                  ? 'border-border shadow-[0_25px_60px_-20px_rgba(15,14,10,0.18)]'
-                  : 'border-border'
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.08, duration: 0.3 }}
+              className={`relative group flex flex-col rounded-2xl overflow-hidden transition-all duration-300 ${
+                isPremier ? 'lg:col-span-1 h-full' : ''
               }`}
             >
-              {isHighlighted && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-primary-foreground text-[12.5px] font-medium px-3 py-0.5 rounded-full">
-                    Most popular
-                  </span>
-                </div>
+              {/* Premier card background gradient */}
+              {isPremier && (
+                <>
+                  <div
+                    className="absolute -inset-0.5 -z-20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background: 'linear-gradient(135deg, var(--brand-deep), var(--brand), var(--brand-light))',
+                    }}
+                  />
+                  <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-brand-deep/20 to-brand/10" />
+                </>
               )}
-              <CardHeader className="pb-4 pt-7 gap-2">
-                <CardTitle className="text-[15px] font-medium">{plan.name}</CardTitle>
-                <CardDescription className="text-[14px]">{plan.description}</CardDescription>
-                <div className="pt-2 flex items-baseline gap-1.5">
-                  <motion.span
-                    key={`${plan.tier}-${annual}`}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="text-5xl font-medium tracking-[-0.025em] tabular-nums"
-                  >
-                    {showAnnual ? plan.annualMonthly : plan.monthlyPrice}
-                  </motion.span>
-                  {plan.tier !== 'free' && (
-                    <span className="text-muted-foreground text-[15px]">/ month</span>
-                  )}
-                  {plan.tier === 'free' && (
-                    <span className="text-muted-foreground text-[15px]">forever</span>
-                  )}
-                </div>
-                <div className="h-5 text-[13px]">
-                  {showAnnual && (
-                    <motion.p
-                      key={`${plan.tier}-annual-note`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.25, delay: 0.05 }}
-                      className="text-muted-foreground"
-                    >
-                      <span className="font-medium text-foreground/80 tabular-nums">{plan.annualPrice}</span>{' '}
-                      billed annually
-                    </motion.p>
-                  )}
-                </div>
-                <p className="text-[13px] text-primary font-medium mt-1">{plan.searches}</p>
-              </CardHeader>
 
-              <CardContent className="flex flex-col flex-1 gap-6 pb-7">
-                <ul className="space-y-3 flex-1">
+              <div
+                className={`relative flex flex-col flex-1 p-6 sm:p-8 rounded-2xl transition-all duration-300 ${
+                  isPremier
+                    ? 'bg-gradient-to-br from-foreground to-foreground/95 text-white'
+                    : 'bg-white border border-brand-line'
+                }`}
+              >
+                {/* Premier badge */}
+                {isPremier && (
+                  <div className="absolute -top-3 right-6">
+                    <div
+                      className="px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-lg"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))',
+                      }}
+                    >
+                      Most Powerful
+                    </div>
+                  </div>
+                )}
+
+                {/* Card header */}
+                <div className={`space-y-2 flex-1 ${isPremier ? 'pt-2' : ''}`}>
+                  <h3 className={`font-display text-2xl font-bold tracking-tight ${isPremier ? 'text-white' : 'text-foreground'}`}>
+                    {plan.name}
+                  </h3>
+                  <p className={`text-sm font-medium ${isPremier ? 'text-white/70' : 'text-muted-foreground'}`}>
+                    {plan.description}
+                  </p>
+
+                  {/* Price */}
+                  <div className="pt-4 space-y-1">
+                    <div className="flex items-baseline gap-1">
+                      <motion.span
+                        key={`${plan.tier}-${annual}`}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className={`font-display text-5xl font-black tracking-tight tabular-nums ${
+                          isPremier ? 'text-white' : 'text-foreground'
+                        }`}
+                      >
+                        {showAnnual ? plan.annualMonthly : plan.monthlyPrice}
+                      </motion.span>
+                      {plan.tier !== 'free' && (
+                        <span className={`text-sm font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}>
+                          / mo
+                        </span>
+                      )}
+                      {plan.tier === 'free' && (
+                        <span className={`text-sm font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}>
+                          forever
+                        </span>
+                      )}
+                    </div>
+                    {showAnnual && (
+                      <motion.p
+                        key={`${plan.tier}-annual-note`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.25, delay: 0.05 }}
+                        className={`text-xs font-medium ${isPremier ? 'text-white/60' : 'text-muted-foreground'}`}
+                      >
+                        <span className={isPremier ? 'text-white/80' : 'text-foreground'}>
+                          {plan.annualPrice}
+                        </span>{' '}
+                        billed annually
+                      </motion.p>
+                    )}
+                  </div>
+
+                  {/* Searches badge */}
+                  <div className="pt-3">
+                    <div
+                      className={`inline-block text-xs font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-lg ${
+                        isPremier
+                          ? 'bg-white/15 text-white'
+                          : 'bg-brand/8 text-brand-deep'
+                      }`}
+                    >
+                      {plan.searches}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Features list */}
+                <ul className="space-y-3 py-6 border-t border-b flex-1" style={isPremier ? { borderColor: 'rgba(255, 255, 255, 0.1)' } : {}}>
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-[15px] text-foreground/85 leading-snug">
-                      <span className="text-primary mt-[3px]">✓</span>
+                    <li
+                      key={f}
+                      className={`flex items-start gap-2.5 text-sm leading-snug ${
+                        isPremier ? 'text-white/85' : 'text-foreground/80'
+                      }`}
+                    >
+                      <span className={`mt-0.5 shrink-0 ${isPremier ? 'text-brand-light' : 'text-brand'}`}>✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
 
-                {isCurrent ? (
-                  <Button variant="outline" disabled className="w-full">Current plan</Button>
-                ) : plan.tier === 'free' ? (
-                  <Link href={signedIn ? '/dashboard' : '/sign-up'} className="w-full">
-                    <Button variant="outline" className="w-full">
-                      {signedIn ? 'Go to dashboard' : 'Get started'}
+                {/* CTA Button */}
+                <div className="pt-6">
+                  {isCurrent ? (
+                    <Button
+                      variant={isPremier ? 'default' : 'outline'}
+                      disabled
+                      className={`w-full font-medium ${isPremier ? 'bg-white text-foreground hover:bg-white' : ''}`}
+                    >
+                      Current plan
                     </Button>
-                  </Link>
-                ) : priceId ? (
-                  <PricingUpgradeButton
-                    priceId={priceId}
-                    label={signedIn ? 'Upgrade' : 'Get started'}
-                    signedIn={signedIn}
-                  />
-                ) : (
-                  <Button className="w-full" disabled>Coming soon</Button>
-                )}
-              </CardContent>
-            </Card>
+                  ) : plan.tier === 'free' ? (
+                    <Link href={signedIn ? '/dashboard' : '/sign-up'} className="w-full">
+                      <Button
+                        variant={isPremier ? 'default' : 'outline'}
+                        className={`w-full font-medium ${isPremier ? 'bg-white text-foreground hover:bg-white' : ''}`}
+                      >
+                        {signedIn ? 'Go to dashboard' : 'Get started'}
+                      </Button>
+                    </Link>
+                  ) : priceId ? (
+                    <PricingUpgradeButton
+                      priceId={priceId}
+                      label={signedIn ? 'Upgrade' : 'Get started'}
+                      signedIn={signedIn}
+                      highlighted={isPremier}
+                    />
+                  ) : (
+                    <Button variant={isPremier ? 'default' : 'outline'} className="w-full" disabled>
+                      Coming soon
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
           )
         })}
       </div>

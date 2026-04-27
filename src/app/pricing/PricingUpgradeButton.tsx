@@ -8,9 +8,10 @@ interface Props {
   priceId: string
   label: string
   signedIn: boolean
+  highlighted?: boolean
 }
 
-export default function PricingUpgradeButton({ priceId, label, signedIn }: Props) {
+export default function PricingUpgradeButton({ priceId, label, signedIn, highlighted }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -37,7 +38,12 @@ export default function PricingUpgradeButton({ priceId, label, signedIn }: Props
   }
 
   return (
-    <Button className="w-full" onClick={handleClick} disabled={loading}>
+    <Button
+      className={`w-full font-medium ${highlighted ? 'bg-white text-foreground hover:bg-white' : ''}`}
+      onClick={handleClick}
+      disabled={loading}
+      variant={highlighted ? 'default' : undefined}
+    >
       {loading ? 'Redirecting…' : label}
     </Button>
   )
