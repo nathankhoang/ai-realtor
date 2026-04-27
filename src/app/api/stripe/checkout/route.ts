@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { stripe } from '@/lib/stripe'
+import { getOrCreateUser } from '@/lib/user'
 
 export async function POST(req: Request) {
   const { userId } = await auth()
@@ -16,9 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing priceId' }, { status: 400 })
   }
 
-  const dbUser = await db.query.users.findFirst({
-    where: eq(users.clerkId, userId),
-  })
+  const dbUser = await getOrCreateUser(userId)
   if (!dbUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
@@ -36,6 +35,7 @@ export async function POST(req: Request) {
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
+    client_reference_id: userId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,

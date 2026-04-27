@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import type Stripe from 'stripe'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { stripe } from '@/lib/stripe'
@@ -20,6 +20,7 @@ function tierFromPriceId(priceId: string): Tier {
     priceId === process.env.STRIPE_PRICE_PREMIER ||
     priceId === process.env.STRIPE_PRICE_PREMIER_ANNUAL
   ) return 'premier'
+  console.error(`[stripe-webhook] Unknown price ID "${priceId}" — defaulting to free. Check STRIPE_PRICE_* env vars.`)
   return 'free'
 }
 
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
       if (session.mode !== 'subscription') break
 
       const customerId = session.customer as string
+      const clientRefId = session.client_reference_id
       const subscriptionId = session.subscription as string
 
       const subscription = await stripe.subscriptions.retrieve(subscriptionId)
@@ -60,10 +62,12 @@ export async function POST(req: Request) {
       await db
         .update(users)
         .set({ tier, stripeCustomerId: customerId })
-        .where(eq(users.stripeCustomerId, customerId))
-
-      // If customer was just linked (new checkout), match by stripeCustomerId.
-      // stripeCustomerId is already set during checkout session creation, so this covers it.
+        .where(
+          or(
+            eq(users.stripeCustomerId, customerId),
+            clientRefId ? eq(users.clerkId, clientRefId) : undefined
+          )
+        )
       break
     }
 

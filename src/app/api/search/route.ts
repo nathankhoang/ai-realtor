@@ -4,15 +4,16 @@ import * as Sentry from '@sentry/nextjs'
 import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
 import { users, searches, searchResults, clients } from '@/lib/db/schema'
-import { eq, and, desc, gte, count } from 'drizzle-orm'
+import { eq, and, desc, gte, count, sql, or } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
 import { parseRequirements, prescreenListings } from '@/lib/analyze'
-import { TIER_LIMITS, type Tier } from '@/types'
+import { TIER_LIMITS, LISTINGS_PER_SEARCH, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { softBudget } from '@/lib/budget'
 import { searchRatelimit } from '@/lib/ratelimit'
 import { upsertListings } from '@/lib/listings'
 import { logger } from '@/lib/logger'
+import { getOrCreateUser } from '@/lib/user'
 import { Redis } from '@upstash/redis'
 
 const DUPLICATE_LOOKBACK_MS = 60 * 60 * 1000 // 1 hour
@@ -105,7 +106,7 @@ async function handleSearch(req: Request) {
     )
   }
 
-  let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
+  let dbUser = await getOrCreateUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   // Monthly reset (UTC — server clock is UTC on Vercel)
@@ -119,12 +120,16 @@ async function handleSearch(req: Request) {
     dbUser = updated
   }
 
-  const tier = dbUser.tier as Tier
-  const limit = TIER_LIMITS[tier]
-  if (limit !== Infinity && dbUser.searchesUsedThisMonth >= limit) {
-    const msg = tier === 'starter'
-      ? "You've used all 20 searches this month. Upgrade to Pro for unlimited searches."
-      : "You've used all 3 free searches this month. Upgrade to Starter or Pro to continue."
+  const tier = (dbUser.tier as Tier | undefined) ?? 'free'
+  const limit = TIER_LIMITS[tier] ?? TIER_LIMITS.free
+  if (dbUser.searchesUsedThisMonth >= limit) {
+    const msg = tier === 'free'
+      ? "You've used all 3 free searches this month. Upgrade to Starter, Pro, or Premier to continue."
+      : tier === 'starter'
+        ? "You've used all 20 searches this month. Upgrade to Pro or Premier for more."
+        : tier === 'pro'
+          ? "You've used all 60 searches this month. Upgrade to Premier for more."
+          : "You've reached 150 searches this month. Contact us for higher limits."
     return NextResponse.json({ error: msg, tier }, { status: 403 })
   }
 
@@ -247,7 +252,7 @@ async function handleSearch(req: Request) {
   }).returning()
 
   await db.update(users)
-    .set({ searchesUsedThisMonth: dbUser.searchesUsedThisMonth + 1 })
+    .set({ searchesUsedThisMonth: sql`${users.searchesUsedThisMonth} + 1` })
     .where(eq(users.id, dbUser.id))
 
   // Zillow search — uses softMax so we get +10% over-budget candidates,
@@ -319,7 +324,9 @@ async function handleSearch(req: Request) {
   // The listings table is a shared cache by zillow_id, so this also
   // benefits other users searching the same area.
   const zpidToListingId = await upsertListings(zillowListings)
-  const firstBatchZpids = orderedZpids.slice(0, FIRST_BATCH_SIZE)
+  const tierForBatch = (dbUser.tier as Tier | undefined) ?? 'free'
+  const firstBatchSizeForTier = Math.min(FIRST_BATCH_SIZE, LISTINGS_PER_SEARCH[tierForBatch] ?? 5)
+  const firstBatchZpids = orderedZpids.slice(0, firstBatchSizeForTier)
   const listingIds = firstBatchZpids
     .map(z => zpidToListingId.get(z))
     .filter((v): v is string => !!v)

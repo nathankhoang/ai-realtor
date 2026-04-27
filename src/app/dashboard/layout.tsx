@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { users, searches, clients, savedListings } from '@/lib/db/schema'
 import { eq, count, and } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
+import { getOrCreateUser } from '@/lib/user'
 import Sidebar from './Sidebar'
 
 /**
@@ -19,21 +20,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { userId } = await auth()
   if (!userId) redirect('/')
 
-  // Bootstrap the user row if Clerk just signed someone up — same logic
-  // dashboard/page.tsx ran inline; centralised here so /dashboard/clients
-  // and /dashboard/settings get it too.
-  let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
-  if (!dbUser) {
-    const clerkUser = await currentUser()
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        clerkId: userId,
-        email: clerkUser?.emailAddresses[0]?.emailAddress ?? '',
-      })
-      .returning()
-    dbUser = newUser
-  }
+  let dbUser = await getOrCreateUser(userId)
+  if (!dbUser) redirect('/')
 
   // Counts driving the sidebar nav badges. Three lightweight aggregates.
   const [searchCountRow, clientCountRow, savedCountRow] = await Promise.all([
@@ -51,9 +39,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const nextReset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
   const daysUntilReset = Math.max(0, Math.ceil((nextReset.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
 
-  const tier = dbUser.tier as Tier
-  const limit = TIER_LIMITS[tier]
-  const searchesLimit = limit === Infinity ? null : limit
+  const tier = (dbUser.tier as Tier | undefined) ?? 'free'
+  const limit = TIER_LIMITS[tier] ?? TIER_LIMITS.free
+  const searchesLimit = limit
 
   // Pull a friendly greeting name + brokerage badge for the sidebar foot.
   const clerkUser = await currentUser()

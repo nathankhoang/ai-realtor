@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { users, searches, clients, savedListings, searchResults } from '@/lib/db/schema'
 import { eq, desc, count, max, inArray, and, gte, isNotNull } from 'drizzle-orm'
 import { TIER_LIMITS, type Tier } from '@/types'
+import { getOrCreateUser } from '@/lib/user'
 import ManageBillingButton from './ManageBillingButton'
 import UpgradeSuccessToast from './UpgradeSuccessToast'
 import OnboardingPanel from './OnboardingPanel'
@@ -23,19 +24,8 @@ export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect('/')
 
-  let dbUser = await db.query.users.findFirst({ where: eq(users.clerkId, userId) })
-
-  if (!dbUser) {
-    const clerkUser = await currentUser()
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        clerkId: userId,
-        email: clerkUser?.emailAddresses[0]?.emailAddress ?? '',
-      })
-      .returning()
-    dbUser = newUser
-  }
+  let dbUser = await getOrCreateUser(userId)
+  if (!dbUser) redirect('/')
 
   const now = new Date()
   const resetDate = new Date(dbUser.searchesResetAt)
