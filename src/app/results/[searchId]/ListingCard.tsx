@@ -85,10 +85,9 @@ export default function ListingCard({
       }`}
     >
       {/* ────── HERO PHOTO ────── */}
-      <div className="relative bg-stone-200">
+      <div className="relative bg-stone-200" style={{ aspectRatio: '16 / 9' }}>
         {photos[photoIdx] ? (
-          <div className="relative h-[clamp(220px,40vw,420px)] w-full overflow-hidden">
-            {/* Photo with subtle parallax-on-hover */}
+          <div className="relative h-full w-full overflow-hidden">
             <motion.img
               key={photoIdx}
               src={photos[photoIdx]}
@@ -99,120 +98,87 @@ export default function ListingCard({
               whileHover={{ scale: 1.04 }}
               transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             />
-            {/* Top + bottom gradient veils for legibility of overlays */}
-            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/55 via-black/20 to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/75 via-black/30 to-transparent pointer-events-none" />
           </div>
         ) : (
-          <div className="h-[clamp(220px,40vw,420px)] bg-gradient-to-br from-stone-300 to-stone-400" />
+          <div className="h-full w-full bg-gradient-to-br from-stone-300 to-stone-400" />
         )}
 
-        {/* Top-left: rank chip + bulk-select */}
-        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-          <button
-            onClick={onToggleSelect}
-            aria-label={isSelected ? 'Deselect' : 'Select for bulk save'}
-            className={`flex h-9 w-9 items-center justify-center rounded-md border-2 backdrop-blur-md transition-all sm:h-8 sm:w-8 ${
-              isSelected
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-white/70 bg-black/45 text-transparent opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 hover:bg-black/65'
-            }`}
-          >
-            {isSelected && (
-              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
-                <path
-                  d="M3.5 8.5l3 3 6-6.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+        {/* Top-left: rank chip "№ XX · top match" */}
+        <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-2">
+          <span className="rounded-full bg-card/95 backdrop-blur-md px-3 py-1.5 font-display text-[11px] font-extrabold tracking-[0.04em] text-foreground">
+            № {String(rank).padStart(2, '0')} {rank === 1 && <em className="not-italic font-bold text-brand-slate">· top match</em>}
+          </span>
+          {isSelected ? (
+            <button
+              onClick={onToggleSelect}
+              aria-label="Deselect"
+              className="grid h-8 w-8 place-items-center rounded-full text-white shadow-[0_4px_12px_-4px_rgba(74,98,73,0.5)]"
+              style={{ background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }}
+            >
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+                <path d="M3.5 8.5l3 3 6-6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            )}
-          </button>
-          <span className="rounded-md bg-black/55 px-2.5 py-1 font-mono text-[12px] font-medium text-white backdrop-blur-md">
-            #{rank}
+            </button>
+          ) : (
+            <button
+              onClick={onToggleSelect}
+              aria-label="Select for bulk action"
+              className="grid h-8 w-8 place-items-center rounded-full bg-card/85 backdrop-blur-md text-foreground/60 opacity-0 transition-all duration-300 group-hover/card:opacity-100 hover:bg-card hover:scale-105"
+            >
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
+                <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Top-right: save heart (design pattern) — visual indicator only */}
+        <div className="absolute top-3.5 right-3.5 z-10 pointer-events-none">
+          <span
+            className={`grid h-9 w-9 place-items-center rounded-full backdrop-blur-md transition-all ${
+              savedClientIds.length > 0
+                ? 'text-white shadow-[0_4px_12px_-4px_rgba(74,98,73,0.5)]'
+                : 'bg-card/92 text-foreground'
+            }`}
+            style={
+              savedClientIds.length > 0
+                ? { background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }
+                : undefined
+            }
+            aria-hidden
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={savedClientIds.length > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
           </span>
         </div>
 
-        {/* Top-right: editorial-italic score — the "magazine moment" */}
-        <div className="absolute top-4 right-4 z-10">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className={`relative rounded-2xl ${scoreSwatch.bg} ${scoreSwatch.fg} ${scoreSwatch.glow} backdrop-blur-md px-4 py-2.5 sm:px-5 sm:py-3`}
-          >
-            {isGreat && (
-              <motion.span
-                aria-hidden
-                className="absolute -inset-1 rounded-2xl bg-primary/30 blur-md"
-                animate={{ opacity: [0.4, 0.7, 0.4] }}
-                transition={{ duration: 2.6, repeat: Infinity }}
-              />
-            )}
-            <div className="relative flex items-baseline gap-1">
-              <span className="font-display font-black text-[36px] leading-none tabular-nums sm:text-[42px] tracking-[-0.025em]">
-                {score}
-              </span>
-              <span className="font-display text-[10.5px] font-bold uppercase tracking-[0.14em] opacity-80 -ml-0.5">
-                /100
-              </span>
-            </div>
-            <div className="relative mt-1 font-display text-[10.5px] font-bold uppercase tracking-[0.16em] opacity-85">
-              Match
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Bottom: address + price overlay (more editorial than before) */}
-        <div className="absolute inset-x-0 bottom-0 z-10 px-4 py-4 text-white sm:px-6 sm:py-5">
-          <div className="flex items-end justify-between gap-3 flex-wrap sm:gap-4">
-            <div className="min-w-0">
-              <h3 className="text-xl font-medium leading-tight tracking-tight sm:text-2xl">{address}</h3>
-              <p className="mt-1 text-[13px] text-white/80 sm:text-[14px]">
-                {[city, state].filter(Boolean).join(', ')}
-              </p>
-            </div>
-            {price && (
-              <div className="text-right shrink-0">
-                <p className="text-[10.5px] font-medium uppercase tracking-[0.18em] text-white/60">
-                  List price
-                </p>
-                <p className="mt-0.5 text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
-                  ${price.toLocaleString()}
-                </p>
-                {overBudgetBy > 0 && (
-                  <span
-                    className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-500/20 ring-1 ring-amber-300/40 px-2.5 py-0.5 text-[11.5px] font-medium text-amber-100 backdrop-blur-md"
-                    title="This home is over the strict budget you set, but within 10% — shown so you can decide if it's worth a stretch."
-                  >
-                    <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
-                      <path d="M6 2v4M6 8.5v.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
-                    </svg>
-                    {formatBudgetDelta(overBudgetBy)} budget
-                  </span>
-                )}
-              </div>
-            )}
+        {/* Bottom-right: photo-count overlay */}
+        {photos.length > 0 && (
+          <div className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-foreground/78 backdrop-blur-md text-white px-2.5 py-1 font-display text-[11px] font-bold pointer-events-none">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            {photos.length} {photos.length === 1 ? 'photo' : 'photos'} analyzed
           </div>
-        </div>
+        )}
 
-        {/* Photo nav arrows + counter — only on hover when multi-photo */}
+        {/* Photo nav arrows */}
         {photos.length > 1 && (
           <>
             <button
               onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
               aria-label="Previous photo"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-100 sm:opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 grid h-10 w-10 place-items-center rounded-full bg-foreground/45 text-white backdrop-blur-md text-xl opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-foreground/65"
             >
               ‹
             </button>
             <button
               onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
               aria-label="Next photo"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md text-xl opacity-100 sm:opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-black/60"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 grid h-10 w-10 place-items-center rounded-full bg-foreground/45 text-white backdrop-blur-md text-xl opacity-0 group-hover/card:opacity-100 transition-opacity hover:bg-foreground/65"
             >
               ›
             </button>
@@ -245,39 +211,74 @@ export default function ListingCard({
       )}
 
       {/* ────── BODY ────── */}
-      <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
-        {/* Specs + actions */}
-        <div className="flex items-center flex-wrap gap-x-6 gap-y-2 text-[14px]">
-          {beds != null && (
-            <SpecPair value={String(beds)} label="bed" />
-          )}
-          {baths != null && (
-            <SpecPair value={String(baths)} label="bath" />
-          )}
-          {sqft != null && (
-            <SpecPair value={sqft.toLocaleString()} label="sqft" />
-          )}
-          <div className="ml-auto flex items-center gap-3">
-            <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
-            <a
-              href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-full border border-border px-3.5 py-1.5 text-[13px] font-medium hover:border-foreground/30 transition-colors"
+      <div className="p-5 sm:px-6 sm:py-5 space-y-5 sm:space-y-6">
+        {/* Top row: price/addr/specs LEFT, score pill RIGHT */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0 flex-1 min-w-[200px]">
+            {price && (
+              <div className="font-display text-[24px] font-black tracking-[-0.02em] leading-none text-foreground tabular-nums">
+                ${price.toLocaleString()}
+              </div>
+            )}
+            <div className="mt-1 text-[13.5px] text-brand-slate leading-[1.4]">
+              {address}{[city, state].filter(Boolean).length > 0 && ` · ${[city, state].filter(Boolean).join(', ')}`}
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {beds != null && <SpecChip>{beds} bd</SpecChip>}
+              {baths != null && <SpecChip>{baths} ba</SpecChip>}
+              {sqft != null && <SpecChip>{sqft.toLocaleString()} sqft</SpecChip>}
+              {overBudgetBy > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-md bg-amber-50 ring-1 ring-amber-300/60 px-2 py-0.5 text-[11.5px] font-semibold text-amber-700"
+                  title="Within 10% of strict budget"
+                >
+                  <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
+                    <path d="M6 2v4M6 8.5v.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                  {formatBudgetDelta(overBudgetBy)}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div
+              className={`inline-flex items-baseline gap-1 rounded-xl px-3.5 py-2 ${scoreSwatch.fg} ${scoreSwatch.glow}`}
+              style={
+                isGreat
+                  ? { background: 'linear-gradient(135deg, var(--brand-deep), var(--brand))' }
+                  : isGood
+                    ? { background: 'linear-gradient(135deg, #A88B47, #7A6328)' }
+                    : { background: 'linear-gradient(135deg, #94886C, #5C4F39)' }
+              }
             >
-              Zillow
-              <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3">
-                <path
-                  d="M3 11L11 3M11 3H4.5M11 3V9.5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </a>
+              <span className="font-display text-[22px] font-black tabular-nums leading-none tracking-[-0.02em]">{score}</span>
+              <span className="font-display text-[11px] font-semibold opacity-85">/ 100</span>
+            </div>
+            <span className="font-display text-[10.5px] font-semibold uppercase tracking-[0.06em] text-brand-slate">Match</span>
           </div>
         </div>
+
+        {/* Action row: Save + Zillow */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <SaveButton listingId={listingId} initialSavedClientIds={savedClientIds} />
+          <a
+            href={`https://www.zillow.com/homedetails/${zillowId}_zpid/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-brand-line bg-card px-3.5 py-1.5 text-[13px] font-medium hover:border-brand hover:text-brand-deep transition-colors"
+          >
+            Zillow
+            <svg viewBox="0 0 14 14" fill="none" className="h-3 w-3">
+              <path d="M3 11L11 3M11 3H4.5M11 3V9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </div>
+
+        {/* Evidence quick-scan: top hits/misses from the requirements checklist */}
+        {checklist && checklist.evaluations.length > 0 && (
+          <EvidenceSection checklist={checklist} />
+        )}
 
         {/* "Why it matched" — readable sans-serif with primary-tinted left rule */}
         {explanation && (
@@ -385,6 +386,77 @@ function SpecPair({ value, label }: { value: string; label: string }) {
       <span className="font-semibold tabular-nums text-foreground">{value}</span>
       <span className="ml-1 text-muted-foreground">{label}</span>
     </span>
+  )
+}
+
+function SpecChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-md bg-background px-2 py-0.5 font-display text-[11.5px] font-semibold text-brand-slate">
+      {children}
+    </span>
+  )
+}
+
+function EvidenceSection({ checklist }: { checklist: Checklist }) {
+  const matched = checklist.evaluations.filter(e => e.verdict === 'matched')
+  const missed = checklist.evaluations.filter(e => e.verdict === 'missed')
+  const top = [...matched.slice(0, 4), ...missed.slice(0, 2)].slice(0, 6)
+  if (top.length === 0) return null
+  const total = matched.length + missed.length
+  return (
+    <div className="border-t border-dashed border-brand-line pt-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="font-display text-[11px] font-bold uppercase tracking-[0.08em] text-brand-slate">
+          Evidence · {Math.min(top.length, total)} of {total} features
+        </span>
+        <span className="font-display text-[11.5px] text-brand-slate">
+          <strong className="font-bold text-brand-deep">{matched.length} hit{matched.length === 1 ? '' : 's'}</strong>
+          {missed.length > 0 && (
+            <>
+              {' · '}
+              <em className="not-italic font-bold text-amber-700">{missed.length} miss{missed.length === 1 ? '' : 'es'}</em>
+            </>
+          )}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {top.map((e, i) => {
+          const photoRef = e.source === 'photo' && e.photoIndex != null ? `photo ${e.photoIndex + 1}` : e.source === 'mls' ? 'mls' : ''
+          const isHit = e.verdict === 'matched'
+          return (
+            <div
+              key={`${e.requirement}-${i}`}
+              className={`flex items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-[12px] ${
+                isHit ? 'bg-background text-foreground' : 'text-amber-900'
+              }`}
+              style={!isHit ? { background: '#FEF3C7' } : undefined}
+            >
+              <span
+                className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] text-white"
+                style={{ background: isHit ? 'var(--brand-deep)' : '#B45309' }}
+              >
+                {isHit ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                )}
+              </span>
+              <span className="flex-1 min-w-0 truncate" title={e.requirement}>{e.requirement}</span>
+              {photoRef && (
+                <span className="font-display text-[10px] font-semibold uppercase tracking-[0.04em] text-brand-slate shrink-0">
+                  {photoRef}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

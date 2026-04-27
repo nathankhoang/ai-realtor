@@ -23,6 +23,7 @@ export default function EifaraCursor() {
     if (!supportsHover || prefersReducedMotion) return
 
     document.documentElement.classList.add('eifara-cursor-enabled')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
 
     let mouseX = 0

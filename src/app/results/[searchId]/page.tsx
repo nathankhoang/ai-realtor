@@ -157,34 +157,47 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-3 sm:px-4 py-6 sm:py-10 space-y-6">
-        {/* Search summary */}
+      <main className="flex-1 max-w-5xl mx-auto w-full px-3 sm:px-5 py-6 sm:py-10 space-y-6">
+        {/* Page head — client tag, big title, meta strip */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <Link href="/dashboard" className="text-[13px] text-brand-slate hover:text-foreground transition-colors">← Dashboard</Link>
-            <h1 className="font-display text-[clamp(1.625rem,3.5vw,2.25rem)] font-extrabold tracking-[-0.02em] leading-[1.1] mt-2">
-              {hasStrongMatches ? displayed.length : '—'} ranked match{displayed.length !== 1 ? 'es' : ''} in <span className="text-brand-gradient">{search.location}</span>.
+            <h1 className="font-display text-[clamp(1.75rem,4vw,2.625rem)] font-extrabold tracking-[-0.025em] leading-[1.1] mt-2">
+              {displayed.length || '—'} ranked match{displayed.length !== 1 ? 'es' : ''} in <em className="not-italic text-brand-gradient">{search.location}</em>.
             </h1>
-            {search.requirementsText && (
-              <p className="text-[14px] text-brand-slate mt-2 max-w-lg line-clamp-1">{search.requirementsText}</p>
-            )}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2.5 text-[13px]">
-              {search.priceMax && <span className="text-muted-foreground">≤ ${search.priceMax.toLocaleString()}</span>}
-              {search.bedsMin && <span className="text-muted-foreground">{search.bedsMin}+ bd</span>}
-              {search.bathsMin && <span className="text-muted-foreground">{search.bathsMin}+ ba</span>}
-              {hasStrongMatches ? (
-                <span className="font-medium text-foreground">{displayed.length} strong match{displayed.length !== 1 ? 'es' : ''}</span>
-              ) : displayed.length > 0 ? (
-                <span className="font-medium text-foreground">no strong matches yet · showing top {displayed.length}</span>
-              ) : null}
-              <span className="text-muted-foreground">{analyzed} analyzed</span>
-              {hiddenRows.length > 0 && <span className="text-muted-foreground">{hiddenRows.length} filtered out</span>}
-              {total > analyzed && <span className="text-muted-foreground">{total - analyzed} more available</span>}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[13px]">
+              <span className="inline-flex items-center gap-1.5 text-brand-slate">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <strong className="font-semibold text-foreground tabular-nums">{total}</strong>&nbsp;listings scanned
+              </span>
+              <span className="text-brand-line">·</span>
+              <span className="inline-flex items-center gap-1.5 text-brand-slate">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <strong className="font-semibold text-foreground tabular-nums">{analyzed}</strong>&nbsp;analyzed
+              </span>
+              {hiddenRows.length > 0 && (
+                <>
+                  <span className="text-brand-line">·</span>
+                  <span className="text-brand-slate">{hiddenRows.length} filtered out</span>
+                </>
+              )}
+              {total > analyzed && (
+                <>
+                  <span className="text-brand-line">·</span>
+                  <span className="text-brand-slate">{total - analyzed} more available</span>
+                </>
+              )}
             </div>
-            {/* Edit & re-search link */}
             <Link
               href={`/search?from=${searchId}`}
-              className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors mt-2 inline-block"
+              className="text-[13px] font-semibold text-brand-deep hover:text-foreground transition-colors mt-3 inline-block"
             >
               Edit & re-search →
             </Link>
@@ -196,6 +209,26 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
             <NextBatchButton searchId={searchId} analyzedCount={analyzed} totalCandidates={total} />
           </div>
         </div>
+
+        {/* Brief card — surfaces the original wishlist with bold key terms */}
+        {search.requirementsText && (
+          <div className="rounded-[18px] border border-brand-line bg-card p-5 sm:p-6 flex items-start justify-between gap-5 flex-wrap shadow-[0_4px_24px_-8px_rgba(26,36,25,0.08)]">
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-brand-deep mb-1.5">Client brief</p>
+              <p className="text-[15px] leading-[1.55] text-foreground/90">&ldquo;{search.requirementsText}&rdquo;</p>
+            </div>
+            <Link
+              href={`/search?from=${searchId}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-card px-3.5 py-2 text-[12.5px] font-semibold text-foreground transition-all hover:border-brand hover:text-brand-deep shrink-0"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Edit brief & re-run
+            </Link>
+          </div>
+        )}
 
         {/* Failed listings banner — polls /status, auto-hides at 0 */}
         <FailedListingsBanner searchId={searchId} />
