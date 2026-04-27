@@ -1,5 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import { StatCounter } from '@/components/landing/StatCounter'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { BentoGrid } from '@/components/landing/BentoGrid'

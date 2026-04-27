@@ -231,7 +231,7 @@ export default function HeroSection() {
               iconBg="var(--brand-pale)"
               iconColor="var(--brand)"
             >
-              200 listings scanned
+              50 listings scanned
             </FloatCard>
 
             {/* Float card fc3 — middle-right, amber zap, "5 min · ranked" */}

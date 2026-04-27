@@ -169,7 +169,7 @@ export default function PreviewLanding({ scheme }: { scheme: Scheme }) {
         <div className="mx-auto grid max-w-6xl grid-cols-2 px-5 md:grid-cols-4">
           {[
             { v: '40+', label: 'Features detected per listing' },
-            { v: '200+', label: 'Listings scanned per search' },
+            { v: '50+', label: 'Listings scanned per search' },
             { v: '100%', label: 'Photo-cited evidence' },
             { v: '5 min', label: 'From brief to shortlist' },
           ].map((s, i) => (
