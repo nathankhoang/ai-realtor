@@ -90,18 +90,18 @@ const ANTHROPIC_MODELS: ModelSpec[] = [
 
 const GEMINI_MODELS: ModelSpec[] = [
   {
-    id: process.env.GEMINI_FLASH_MODEL ?? 'gemini-2.0-flash',
-    label: `Gemini Flash (${process.env.GEMINI_FLASH_MODEL ?? '2.0'})`,
+    id: process.env.GEMINI_FLASH_MODEL ?? 'gemini-3-flash-preview',
+    label: `Gemini 3 Flash`,
     provider: 'gemini',
-    inputPer1M: Number(process.env.GEMINI_FLASH_INPUT_PER_1M ?? '0.10'),
-    outputPer1M: Number(process.env.GEMINI_FLASH_OUTPUT_PER_1M ?? '0.40'),
+    inputPer1M: Number(process.env.GEMINI_FLASH_INPUT_PER_1M ?? '0.05'),
+    outputPer1M: Number(process.env.GEMINI_FLASH_OUTPUT_PER_1M ?? '0.20'),
   },
   {
     id: process.env.GEMINI_PRO_MODEL ?? 'gemini-3-pro-preview',
-    label: `Gemini Pro (${process.env.GEMINI_PRO_MODEL ?? '3'})`,
+    label: `Gemini 3 Pro`,
     provider: 'gemini',
-    inputPer1M: Number(process.env.GEMINI_PRO_INPUT_PER_1M ?? '1.25'),
-    outputPer1M: Number(process.env.GEMINI_PRO_OUTPUT_PER_1M ?? '5.00'),
+    inputPer1M: Number(process.env.GEMINI_PRO_INPUT_PER_1M ?? '2.00'),
+    outputPer1M: Number(process.env.GEMINI_PRO_OUTPUT_PER_1M ?? '8.00'),
   },
 ]
 

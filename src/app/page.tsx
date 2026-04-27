@@ -54,7 +54,7 @@ export default async function Home() {
 function Stats() {
   const items = [
     { value: 40, suffix: '+', label: 'Features Eifara detects per listing' },
-    { value: 200, suffix: '+', label: 'Listings analyzed per search' },
+    { value: 50, suffix: '+', label: 'Listings analyzed per search' },
     { value: 100, suffix: '%', label: 'Photo-cited evidence' },
     { value: 5, suffix: ' min', label: 'From brief to ranked shortlist' },
   ]

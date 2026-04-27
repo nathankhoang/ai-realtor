@@ -39,7 +39,7 @@ export const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: 'Free tier?',
-    a: '3 free searches per month, no credit card. Starter ($50/mo) = 20 searches + shareable reports. Pro ($150/mo) = unlimited.',
+    a: '3 free searches per month, no credit card. Starter ($50/mo) = 20 searches + shareable reports. Pro ($150/mo) = 60 searches/month + priority support.',
   },
   {
     q: 'Team accounts?',
@@ -76,7 +76,7 @@ export function softwareApplicationJsonLd() {
         name: 'Free',
         price: '0',
         priceCurrency: 'USD',
-        description: '3 searches per month, 5 listings per search. No credit card.',
+        description: '3 searches per month. AI photo analysis included. No credit card.',
       },
       {
         '@type': 'Offer',

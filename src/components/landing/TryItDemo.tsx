@@ -356,7 +356,7 @@ export default function TryItDemo() {
 
                   {/* Footer note */}
                   <div className="flex items-center justify-between gap-5 pt-4 border-t border-dashed border-brand-line flex-wrap">
-                    <span className="text-[13px] italic text-brand-slate">This is one of 8 ranked results · the full version returns up to 200 per search</span>
+                    <span className="text-[13px] italic text-brand-slate">This is one of 8 ranked results · the full version analyzes up to 50 per search</span>
                     <SecondaryButton href="/sign-up">Get the full shortlist</SecondaryButton>
                   </div>
                 </motion.div>

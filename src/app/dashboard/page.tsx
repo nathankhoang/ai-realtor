@@ -370,10 +370,10 @@ export default async function DashboardPage() {
                   {Math.max(0, (limit === Infinity ? 0 : limit) - used)} of {limit === Infinity ? '∞' : limit} free searches left
                 </span>
                 <h3 className="relative font-display text-[22px] font-extrabold tracking-[-0.02em] leading-[1.2] mb-2.5">
-                  Go unlimited. <span className="text-brand-light">Skip the math.</span>
+                  Upgrade to Pro. <span className="text-brand-light">Get more searches.</span>
                 </h3>
                 <p className="relative text-[13.5px] leading-[1.55] text-white/75 mb-5">
-                  Pro is unlimited searches, priority analysis, shareable reports, and early access to new vision capabilities — $150/mo, cancel anytime.
+                  Pro is 60 searches/month, priority analysis, shareable reports, and early access to new vision capabilities — $150/mo, cancel anytime.
                 </p>
                 <Link
                   href="/pricing"

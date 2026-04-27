@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null
 
 export interface DailySearchStats {
   totalSearches: number
@@ -14,6 +16,10 @@ export interface DailySearchStats {
 }
 
 export async function sendDailySummary(to: string, stats: DailySearchStats) {
+  if (!resend) {
+    throw new Error('Email service is not configured. Set RESEND_API_KEY in environment variables.')
+  }
+
   const completionRate = stats.totalSearches > 0
     ? Math.round((stats.completedSearches / stats.totalSearches) * 100)
     : 0
@@ -92,6 +98,10 @@ export async function sendAnalysisComplete(
   matchCount: number,
   searchId: string,
 ) {
+  if (!resend) {
+    throw new Error('Email service is not configured. Set RESEND_API_KEY in environment variables.')
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const resultsUrl = `${appUrl}/results/${searchId}`
 
@@ -177,6 +187,11 @@ export async function sendMonitorMatches(
   matches: MonitorMatch[],
 ) {
   if (matches.length === 0) return
+
+  if (!resend) {
+    throw new Error('Email service is not configured. Set RESEND_API_KEY in environment variables.')
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const top = matches[0]
   const matchesHtml = matches.slice(0, 5).map(m => {
@@ -231,6 +246,10 @@ export async function sendPriceChangeAlert(
   newPrice: number,
   zillowId: string,
 ) {
+  if (!resend) {
+    throw new Error('Email service is not configured. Set RESEND_API_KEY in environment variables.')
+  }
+
   const zillowUrl = `https://www.zillow.com/homedetails/${zillowId}_zpid/`
   const diff = newPrice - oldPrice
   const direction = diff > 0 ? 'increased' : 'decreased'
@@ -318,5 +337,63 @@ export async function sendPriceChangeAlert(
   </table>
 </body>
 </html>`,
+  })
+}
+
+export interface SupportTicket {
+  name: string
+  email: string
+  category: string
+  subject: string
+  message: string
+  submittedAt?: Date
+}
+
+export async function sendSupportTicket(ticket: SupportTicket) {
+  if (!resend) {
+    throw new Error('Email service is not configured. Set RESEND_API_KEY in environment variables.')
+  }
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'nathankhoang0@gmail.com'
+
+  await resend.emails.send({
+    from: 'Eifara <notifications@eifara.com>',
+    to: adminEmail,
+    subject: `[${ticket.category}] ${ticket.subject} — from ${ticket.name}`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background-color:#0e0d0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0e0d0a;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="padding-bottom:24px;"><span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Support Ticket</span></td></tr>
+        <tr><td style="background-color:#1a1a1a;border-radius:12px;padding:32px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#888;font-size:13px;">Name</td>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#ffffff;font-size:13px;text-align:right;font-weight:500;">${ticket.name}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#888;font-size:13px;">Email</td>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#ffffff;font-size:13px;text-align:right;font-weight:500;">${ticket.email}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#888;font-size:13px;">Category</td>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;color:#ffffff;font-size:13px;text-align:right;font-weight:500;">${ticket.category}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a;color:#888;font-size:13px;">Subject</td>
+              <td style="padding:12px 0;border-top:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a;color:#ffffff;font-size:13px;text-align:right;font-weight:500;">${ticket.subject}</td>
+            </tr>
+          </table>
+          <p style="margin:0 0 12px 0;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.16em;">Message</p>
+          <p style="margin:0;padding:16px;background-color:#0e0d0a;border-radius:8px;font-size:14px;color:#aaaaaa;line-height:1.6;white-space:pre-wrap;">${ticket.message}</p>
+        </td></tr>
+        <tr><td style="padding-top:20px;text-align:center;"><p style="margin:0;font-size:12px;color:#444;">Support ticket from Eifara website</p></td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
   })
 }
