@@ -81,7 +81,7 @@ function Stats() {
               }}
             />
             <p className="relative font-display font-black tracking-[-0.04em] text-[clamp(42px,6vw,64px)] leading-none text-brand-gradient">
-              <StatCounter value={s.value} suffix="" />
+              <StatCounter key={`stat-${s.value}`} value={s.value} suffix="" />
               <span className="text-[28px] sm:text-[32px] align-top ml-0.5">{s.suffix}</span>
             </p>
             <p className="relative mt-3 text-[14px] leading-snug text-brand-slate font-medium">{s.label}</p>

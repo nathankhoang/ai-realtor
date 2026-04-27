@@ -18,11 +18,13 @@ export function StatCounter({
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, { once: true, margin: '-20%' })
   const count = useMotionValue(0)
-  const display = useTransform(count, (latest) =>
-    decimals === 0
-      ? Math.round(latest).toLocaleString()
+  const display = useTransform(count, (latest) => {
+    const rounded = Math.round(latest)
+    if (rounded === 0 && value > 0) return value.toString()
+    return decimals === 0
+      ? rounded.toLocaleString()
       : latest.toFixed(decimals)
-  )
+  })
 
   useEffect(() => {
     if (!inView) return
