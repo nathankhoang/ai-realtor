@@ -11,18 +11,19 @@ import type { ListingContext } from '@/lib/zillow'
 const client = new Anthropic()
 
 /**
- * Vision model — Sonnet 4.6 by default; can be flipped to Haiku 4.5
- * via env var to run a cost/quality A/B. Haiku is ~5–10× cheaper for
- * vision; we want real-world score data before committing.
+ * Model routing strategy: Haiku for extraction (vision feature
+ * detection, prose parsing), Sonnet for judgment (listing ranking,
+ * per-requirement scoring + explanation).
  *
- * Set `VISION_MODEL=haiku` on Vercel to test Haiku, or leave unset for
- * the default Sonnet path.
+ * Vision is Haiku because the eval (scripts/vision-eval) showed it's
+ * within 5pp of Sonnet on extraction — well inside nondeterminism noise
+ * — at ~3× lower cost. Sonnet's quality lift is on prose specificity,
+ * which the user reads in the score explanation, not the per-feature
+ * extraction.
  */
-function visionModel(): string {
-  return process.env.VISION_MODEL === 'haiku'
-    ? 'claude-haiku-4-5-20251001'
-    : 'claude-sonnet-4-6'
-}
+const VISION_MODEL = 'claude-haiku-4-5-20251001'
+const EXTRACTION_MODEL = 'claude-haiku-4-5-20251001'
+const JUDGMENT_MODEL = 'claude-sonnet-4-6'
 
 function tokenCount(usage?: Anthropic.Messages.Usage): number {
   if (!usage) return 0
@@ -65,7 +66,7 @@ export async function analyzeListingPhotos(
   listingContext?: ListingContext,
 ): Promise<{ features: ListingFeatures; tokensUsed: number; model: string }> {
   if (photoUrls.length === 0) {
-    return { features: getUnknownFeatures(), tokensUsed: 0, model: visionModel() }
+    return { features: getUnknownFeatures(), tokensUsed: 0, model: VISION_MODEL }
   }
 
   // 8 photos balances coverage of kitchen/bath/floors against per-listing
@@ -96,7 +97,7 @@ Additional fields:
 
 Respond ONLY with valid JSON, no explanation:`
 
-  const model = visionModel()
+  const model = VISION_MODEL
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
@@ -167,8 +168,13 @@ ${rows}
 Return ONLY a JSON array of the top ${topN} zpids ordered best to worst. No explanation:
 ["zpid1", "zpid2", ...]`
 
+  // Judgment call — ranking 60 listings by buyer fit using only price
+  // and bed/bath signals. Sonnet's reasoning advantage matters most
+  // here because the model has to weigh fit-quality across many
+  // candidates with sparse data. Runs once per search, so the small
+  // cost increment buys better top-of-list quality.
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: JUDGMENT_MODEL,
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
   }, { timeout: 15_000, maxRetries: 1 })
@@ -215,8 +221,10 @@ export function dedupeRequirementsText(prose: string, checklistLabels: string[])
 }
 
 export async function parseRequirements(requirementsText: string): Promise<ParsedRequirements> {
+  // Pure extraction — Haiku. Buyer prose → structured wishlist. No
+  // judgment, deterministic categorization.
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: EXTRACTION_MODEL,
     max_tokens: 512,
     messages: [
       {
@@ -537,8 +545,13 @@ Respond ONLY with valid JSON:
   ]
 }`
 
+  // Judgment + prose call — Sonnet. Per-requirement verdicts plus the
+  // 2-sentence explanation rendered to the user. The eval showed
+  // Sonnet's specificity ("wood-plank soffit, designer hardware")
+  // shows up exactly here vs Haiku's generic ("premium materials
+  // throughout"). This is the bit users actually read.
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: JUDGMENT_MODEL,
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   }, { timeout: 18_000, maxRetries: 1 })

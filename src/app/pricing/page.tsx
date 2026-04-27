@@ -16,14 +16,14 @@ import {
 } from '@/lib/seo'
 
 export const metadata: Metadata = {
-  title: 'Pricing — Free, Starter, and Pro plans',
+  title: 'Pricing — Free, Starter, Pro, and Premier plans',
   description:
-    'Eifara pricing for real estate agents. Free with 3 searches/month, Starter at $50/mo for 20 searches, Pro at $150/mo unlimited. No credit card required to start.',
+    'Eifara pricing for real estate agents. Free (3 searches/mo), Starter $50/mo (20 searches), Pro $150/mo (60 searches), Premier $400/mo (150 searches). No credit card to start.',
   alternates: { canonical: '/pricing' },
   openGraph: {
-    title: 'Eifara Pricing — Free, Starter, Pro',
+    title: 'Eifara Pricing — Free, Starter, Pro, Premier',
     description:
-      'Three plans: Free (3 searches/mo), Starter ($50/mo, 20 searches), Pro ($150/mo unlimited). No card to start.',
+      'Four plans: Free (3 searches/mo), Starter ($50, 20 searches), Pro ($150, 60 searches), Premier ($400, 150 searches). No card to start.',
     url: '/pricing',
   },
 }
@@ -51,7 +51,7 @@ const plans: PlanConfig[] = [
     searches: '20 searches / month',
     features: [
       'Everything in Free',
-      'Priority analysis',
+      '30 listings analyzed per search',
       'Shareable client reports',
       'Email support',
     ],
@@ -64,16 +64,33 @@ const plans: PlanConfig[] = [
     monthlyPrice: '$150',
     annualPrice: '$1,440',
     annualMonthly: '$120',
-    description: 'For power users',
-    searches: 'Unlimited searches',
+    description: 'For full-time agents',
+    searches: '60 searches / month',
     features: [
       'Everything in Starter',
-      'Unlimited searches',
-      'Early access to new features',
+      '40 listings analyzed per search',
       'Priority support',
+      'Early access to new features',
     ],
     monthlyPriceId: process.env.STRIPE_PRICE_PRO ?? null,
     annualPriceId: process.env.STRIPE_PRICE_PRO_ANNUAL ?? null,
+  },
+  {
+    name: 'Premier',
+    tier: 'premier',
+    monthlyPrice: '$400',
+    annualPrice: '$3,840',
+    annualMonthly: '$320',
+    description: 'For top producers & teams',
+    searches: '150 searches / month',
+    features: [
+      'Everything in Pro',
+      '50 listings analyzed per search',
+      'Highest-priority queue',
+      'Direct line to the founder',
+    ],
+    monthlyPriceId: process.env.STRIPE_PRICE_PREMIER ?? null,
+    annualPriceId: process.env.STRIPE_PRICE_PREMIER_ANNUAL ?? null,
   },
 ]
 

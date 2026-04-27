@@ -1,10 +1,28 @@
-export type Tier = 'free' | 'starter' | 'pro' | 'team'
+export type Tier = 'free' | 'starter' | 'pro' | 'premier'
 
+/**
+ * Searches per calendar month, by tier. Resets monthly in the search
+ * route (UTC). Every tier has a concrete cap — no Infinity — because
+ * unbounded usage was destroying margin on the heaviest 5-10% of Pros.
+ */
 export const TIER_LIMITS: Record<Tier, number> = {
   free: 3,
   starter: 20,
-  pro: Infinity,
-  team: Infinity,
+  pro: 60,
+  premier: 150,
+}
+
+/**
+ * Per-search cap on listings analyzed (= vision calls). Each listing is
+ * one Anthropic vision call, so this is the per-search cost ceiling.
+ * Enforced in /api/search/[searchId]/next-batch — returns 403 with
+ * `capReached: true` when the user would exceed the cap.
+ */
+export const LISTINGS_PER_SEARCH: Record<Tier, number> = {
+  free: 5,
+  starter: 30,
+  pro: 40,
+  premier: 50,
 }
 
 export interface FeatureEvidence {

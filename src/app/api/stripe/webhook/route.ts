@@ -8,8 +8,18 @@ import { stripe } from '@/lib/stripe'
 import type { Tier } from '@/types'
 
 function tierFromPriceId(priceId: string): Tier {
-  if (priceId === process.env.STRIPE_PRICE_STARTER) return 'starter'
-  if (priceId === process.env.STRIPE_PRICE_PRO) return 'pro'
+  if (
+    priceId === process.env.STRIPE_PRICE_STARTER ||
+    priceId === process.env.STRIPE_PRICE_STARTER_ANNUAL
+  ) return 'starter'
+  if (
+    priceId === process.env.STRIPE_PRICE_PRO ||
+    priceId === process.env.STRIPE_PRICE_PRO_ANNUAL
+  ) return 'pro'
+  if (
+    priceId === process.env.STRIPE_PRICE_PREMIER ||
+    priceId === process.env.STRIPE_PRICE_PREMIER_ANNUAL
+  ) return 'premier'
   return 'free'
 }
 

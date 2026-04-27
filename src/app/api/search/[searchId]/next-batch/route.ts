@@ -10,7 +10,7 @@ import { prescreenListings } from '@/lib/analyze'
 import { enqueueAnalyzeListings } from '@/lib/queue'
 import { upsertListings } from '@/lib/listings'
 import { softBudget } from '@/lib/budget'
-import type { ParsedRequirements } from '@/types'
+import { LISTINGS_PER_SEARCH, type ParsedRequirements, type Tier } from '@/types'
 import { Redis } from '@upstash/redis'
 import { logger } from '@/lib/logger'
 
@@ -63,8 +63,29 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
     )
   }
 
+  const tier = (dbUser.tier as Tier) ?? 'free'
+
+  // Hard per-search cap by tier — prevents an unbounded "next batch"
+  // loop from running up Anthropic spend on a single search session.
+  // Returns 403 with capReached:true so the UI can render an upgrade
+  // upsell instead of a generic error.
+  const cap = LISTINGS_PER_SEARCH[tier]
+  const analyzed = search.analyzedCount ?? 0
+  if (analyzed >= cap) {
+    return NextResponse.json(
+      {
+        error: `You've analyzed ${cap} listings on this search — the cap for the ${tier} plan.`,
+        capReached: true,
+        tier,
+        cap,
+        analyzed,
+      },
+      { status: 403 },
+    )
+  }
+
   try {
-    return await handle(searchId, search)
+    return await handle(searchId, search, cap)
   } finally {
     await releaseBatchLock(searchId, lockToken)
   }
@@ -73,11 +94,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
 async function handle(
   searchId: string,
   search: NonNullable<Awaited<ReturnType<typeof db.query.searches.findFirst>>>,
+  cap: number,
 ) {
   const parsedRequirements: ParsedRequirements = search.requirementsJson ?? {
     required: [], niceToHave: [], dontCare: [], dealBreakers: [], priceCeiling: null,
   }
-  const nextBatchNumber = Math.floor((search.analyzedCount ?? 0) / NEXT_BATCH_SIZE) + 1
+  const analyzedCount = search.analyzedCount ?? 0
+  const nextBatchNumber = Math.floor(analyzedCount / NEXT_BATCH_SIZE) + 1
+  // If the user's remaining cap is smaller than NEXT_BATCH_SIZE, only
+  // enqueue what fits under the cap. Avoids overshooting on the last batch.
+  const batchSize = Math.min(NEXT_BATCH_SIZE, cap - analyzedCount)
 
   // Find which zpids have already been processed for this search.
   const doneRows = await db
@@ -88,13 +114,13 @@ async function handle(
   const doneZpids = new Set(doneRows.map(r => r.zillowId))
 
   let prescreened: string[] = (search.prescreenedZpids as string[] | null) ?? []
-  let pickedZpids = prescreened.filter(z => !doneZpids.has(z)).slice(0, NEXT_BATCH_SIZE)
+  let pickedZpids = prescreened.filter(z => !doneZpids.has(z)).slice(0, batchSize)
 
   // Pool exhausted? Either we're a legacy search (prescreenedZpids null —
   // start from page 1 to seed the pool) or we've genuinely worked through
   // it (fetch the next page IF the last one was full — otherwise Zillow
   // already returned everything for this query).
-  if (pickedZpids.length < NEXT_BATCH_SIZE) {
+  if (pickedZpids.length < batchSize) {
     const isInitialPool = prescreened.length === 0
     const knownTotal = search.totalCandidates ?? 0
     const lastPageWasFull = knownTotal > 0 && knownTotal % ZILLOW_PAGE_SIZE === 0
@@ -151,7 +177,7 @@ async function handle(
         })
         .where(eq(searches.id, searchId))
 
-      pickedZpids = prescreened.filter(z => !doneZpids.has(z)).slice(0, NEXT_BATCH_SIZE)
+      pickedZpids = prescreened.filter(z => !doneZpids.has(z)).slice(0, batchSize)
     }
   }
 

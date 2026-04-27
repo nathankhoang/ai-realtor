@@ -1,0 +1,47 @@
+{
+  "_doc": "Copy this file to labels.json and fill in real listings. zillowId must exist in your listings table; the script joins on listings.zillow_id and pulls photo_urls from that row. Each listing should have ground truth on as many fields as you can confidently judge from the photos. Leave a field out if you can't tell from the photos — the eval skips unlabeled fields. The judgmentCalls array is for the hard cases (renovation vs cosmetic, material confusion) — write what a human expert would say so we can score whether each model gets the nuance right.",
+
+  "listings": [
+    {
+      "zillowId": "12345678",
+      "addressNote": "Optional human reference like '123 Maple Ave, Austin' — not used by the script",
+      "groundTruth": {
+        "floorType": "hardwood",
+        "countertopType": "quartz",
+        "appliancePalette": "stainless",
+        "ceilingHeight": "high",
+        "naturalLight": "bright",
+        "overallAge": "updated"
+      },
+      "judgmentCalls": [
+        {
+          "description": "Kitchen description says 'fully renovated' but cabinets are clearly original raised-panel oak with new hardware",
+          "expected": "Should flag this as cosmetic-only update, not a real renovation"
+        },
+        {
+          "description": "Photo 4 shows what looks like hardwood but the grain pattern repeats — it's high-quality LVP",
+          "expected": "Should identify as vinyl/LVP, not hardwood"
+        }
+      ]
+    },
+    {
+      "zillowId": "87654321",
+      "groundTruth": {
+        "floorType": "carpet",
+        "countertopType": "granite",
+        "overallAge": "dated"
+      },
+      "judgmentCalls": []
+    }
+  ],
+
+  "_validValues": {
+    "_doc": "Reference for what to put in groundTruth fields. Models will use similar terminology.",
+    "floorType": ["hardwood", "engineered", "carpet", "tile", "vinyl", "laminate", "concrete", "bamboo"],
+    "countertopType": ["quartz", "granite", "marble", "laminate", "tile", "butcher-block", "concrete"],
+    "appliancePalette": ["stainless", "black", "white", "mixed"],
+    "ceilingHeight": ["high", "standard", "low"],
+    "naturalLight": ["bright", "moderate", "poor"],
+    "overallAge": ["new", "updated", "dated"]
+  }
+}
