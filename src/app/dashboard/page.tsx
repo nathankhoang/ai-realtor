@@ -210,27 +210,6 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative grid h-10 w-10 place-items-center rounded-[11px] border border-brand-line bg-card text-brand-slate transition-all hover:border-brand hover:text-brand-deep hover:bg-background"
-            >
-              <span aria-hidden className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-card" style={{ background: 'var(--warn)' }} />
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              aria-label="Search"
-              className="grid h-10 w-10 place-items-center rounded-[11px] border border-brand-line bg-card text-brand-slate transition-all hover:border-brand hover:text-brand-deep hover:bg-background"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.3-4.3" />
-              </svg>
-            </button>
             <Link
               href="/search"
               className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 font-display text-[13px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(74,98,73,0.5)] transition-all duration-300 hover:-translate-y-[1px]"
@@ -565,10 +544,6 @@ function QuickSearchPanel() {
               Entertainer · pool
             </Link>
           </div>
-          <span className="font-display text-[12px] text-brand-slate-light">
-            Press <kbd className="bg-background border border-brand-line rounded-md px-1.5 py-0.5 font-display text-[11px]">⌘</kbd>{' '}
-            <kbd className="bg-background border border-brand-line rounded-md px-1.5 py-0.5 font-display text-[11px]">K</kbd> from anywhere
-          </span>
         </div>
       </div>
       <style>{`
