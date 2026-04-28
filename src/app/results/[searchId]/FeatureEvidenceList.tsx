@@ -16,7 +16,20 @@ const FEATURE_ROWS: { label: string; key: keyof ListingFeatures }[] = [
   { label: 'Ceilings', key: 'ceilings' },
   { label: 'Windows', key: 'windows' },
   { label: 'Natural light', key: 'naturalLight' },
+  { label: 'Layout flow', key: 'layoutFlow' },
+  { label: 'Fixture quality', key: 'fixtureQuality' },
+  { label: 'Lighting fixtures', key: 'lightingFixtures' },
+  { label: 'Wall condition', key: 'wallCondition' },
+  { label: 'Exterior', key: 'exteriorCondition' },
+  { label: 'Yard', key: 'yard' },
 ]
+
+const AGE_LABEL: Record<NonNullable<ListingFeatures['overallAge']>, string> = {
+  new: 'Brand new',
+  updated: 'Modernized',
+  dated: 'Largely original',
+  unknown: '',
+}
 
 export function collectFeatureEvidence(features: ListingFeatures): EvidenceItem[] {
   return FEATURE_ROWS
@@ -39,18 +52,45 @@ interface Props {
  */
 export default function FeatureEvidenceList({ features, photos, onJumpToPhoto }: Props) {
   const items = collectFeatureEvidence(features)
-  if (items.length === 0) return null
+  const ageLabel = features.overallAge && features.overallAge !== 'unknown' ? AGE_LABEL[features.overallAge] : ''
+  const notes = (features.notes ?? '').trim()
+  const hasSummary = ageLabel.length > 0 || notes.length > 0
+
+  if (items.length === 0 && !hasSummary) return null
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden divide-y divide-border bg-card">
-      {items.map((item, i) => (
-        <FeatureRow
-          key={`${item.label}-${i}`}
-          item={item}
-          photos={photos}
-          onJumpToPhoto={onJumpToPhoto}
-        />
-      ))}
+    <div className="space-y-3">
+      {hasSummary && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+          {ageLabel && (
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Overall
+              </span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-[14px] font-medium text-foreground">{ageLabel}</span>
+            </div>
+          )}
+          {notes && (
+            <p className="text-[13.5px] leading-[1.6] text-muted-foreground">
+              <WithYears text={notes} />
+            </p>
+          )}
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border bg-card">
+          {items.map((item, i) => (
+            <FeatureRow
+              key={`${item.label}-${i}`}
+              item={item}
+              photos={photos}
+              onJumpToPhoto={onJumpToPhoto}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

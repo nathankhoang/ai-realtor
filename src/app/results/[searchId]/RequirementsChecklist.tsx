@@ -26,6 +26,7 @@ export default function RequirementsChecklist({ checklist, onJumpToPhoto }: Prop
   const matched = checklist.evaluations.filter(e => e.verdict === 'matched')
   const missed = checklist.evaluations.filter(e => e.verdict === 'missed')
   const unclear = checklist.evaluations.filter(e => e.verdict === 'unclear')
+  const skipped = checklist.evaluations.filter(e => e.verdict === 'skipped')
 
   return (
     <div className="space-y-5">
@@ -68,6 +69,32 @@ export default function RequirementsChecklist({ checklist, onJumpToPhoto }: Prop
       {unclear.length > 0 && (
         <UnclearGroup items={unclear} onJumpToPhoto={onJumpToPhoto} />
       )}
+
+      {/* Skipped — buyer's "don't care" list, doesn't affect score */}
+      {skipped.length > 0 && (
+        <SkippedFooter items={skipped} />
+      )}
+    </div>
+  )
+}
+
+function SkippedFooter({ items }: { items: RequirementEvaluation[] }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/60 bg-card/40 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+        Buyer doesn&rsquo;t care about
+      </p>
+      <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+        {items.map((e, i) => (
+          <span key={e.requirement}>
+            {i > 0 && <span className="text-muted-foreground/40"> · </span>}
+            {e.requirement}
+          </span>
+        ))}
+      </p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground/60">
+        Excluded from the score.
+      </p>
     </div>
   )
 }

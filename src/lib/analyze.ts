@@ -5,6 +5,7 @@ import type {
   RequirementsChecklist,
   RequirementEvaluation,
   RequirementVerdict,
+  Tier,
 } from '@/types'
 import type { ListingContext } from '@/lib/zillow'
 
@@ -34,7 +35,7 @@ function buildListingContextBlock(ctx: ListingContext): string {
   const parts: string[] = []
 
   if (ctx.description) {
-    parts.push(`Listing description: "${ctx.description.slice(0, 800)}"`)
+    parts.push(`Listing description: "${ctx.description.slice(0, 2000)}"`)
   }
   if (ctx.yearBuilt) {
     parts.push(`Year built: ${ctx.yearBuilt}`)
@@ -59,16 +60,32 @@ function buildListingContextBlock(ctx: ListingContext): string {
     : ''
 }
 
-const PHOTO_SAMPLE_LIMIT = 8
+/**
+ * Tier-aware photo budget for vision analysis. Free tier still gets
+ * meaningfully-better-than-8-photo coverage; paid tiers get progressively
+ * more. Each photo is ~1.5–2k input tokens on Haiku — at premier (24
+ * photos) the per-listing input cost is ~50K tokens, still well under
+ * Haiku's 200k window and worth a few cents for realtor-grade accuracy.
+ */
+const PHOTO_BUDGET_BY_TIER: Record<Tier, number> = {
+  free: 12,
+  starter: 15,
+  pro: 20,
+  premier: 24,
+}
+
+function photoBudgetFor(tier: Tier | undefined): number {
+  return PHOTO_BUDGET_BY_TIER[tier ?? 'free']
+}
 
 /**
- * Pick PHOTO_SAMPLE_LIMIT photos evenly spread across the listing's full
- * photo set. Zillow listings typically order photos exterior-first
- * (1–3), then living/kitchen (4–10), bedrooms/bathrooms (11–20),
- * outdoor/misc (20+). Slicing the first 8 misses bedrooms and bathrooms
- * — the rooms scoring cares about most. Returns the original index for
- * each picked URL so we can remap the model's photoIndex output back to
- * the original photo ordering for the UI.
+ * Pick `n` photos evenly spread across the listing's full photo set.
+ * Zillow lists exterior-first (1–3), then living/kitchen (4–10),
+ * bedrooms/bathrooms (11–20), outdoor/misc (20+). Slicing the first N
+ * misses bedrooms/bathrooms — the rooms scoring cares about most.
+ * Returns the original index for each picked URL so we can remap the
+ * model's photoIndex output back to the original photo ordering for
+ * the UI.
  */
 function sampleEvenlyAcross(urls: string[], n: number): Array<{ originalIndex: number; url: string }> {
   if (urls.length <= n) return urls.map((url, originalIndex) => ({ originalIndex, url }))
@@ -108,16 +125,17 @@ function remapFeaturePhotoIndices(
 export async function analyzeListingPhotos(
   photoUrls: string[],
   listingContext?: ListingContext,
+  tier?: Tier,
 ): Promise<{ features: ListingFeatures; tokensUsed: number; model: string }> {
   if (photoUrls.length === 0) {
     return { features: getUnknownFeatures(), tokensUsed: 0, model: VISION_MODEL }
   }
 
-  // Sample 8 photos evenly across the full set so kitchen/bath/floors
-  // get coverage even when Zillow lists 25+ photos. visionToOriginal
-  // maps the model's photoIndex (0..7) back to the original photo
-  // index for the UI to look up.
-  const sampled = sampleEvenlyAcross(photoUrls, PHOTO_SAMPLE_LIMIT)
+  // Sample N photos evenly across the full set so kitchen/bath/floors
+  // get coverage even when Zillow lists 25+ photos. N is tier-aware so
+  // paid tiers get richer coverage. visionToOriginal maps the model's
+  // photoIndex (0..N-1) back to the original photo index for the UI.
+  const sampled = sampleEvenlyAcross(photoUrls, photoBudgetFor(tier))
   const photoContent: Anthropic.ImageBlockParam[] = sampled.map(({ url }) => ({
     type: 'image',
     source: { type: 'url', url },
@@ -126,29 +144,49 @@ export async function analyzeListingPhotos(
 
   const contextBlock = listingContext ? buildListingContextBlock(listingContext) : ''
 
-  const prompt = `You are analyzing real estate listing photos to extract specific features.
+  const prompt = `You are an expert real estate appraiser analyzing listing photos for a buyer's agent. The agent will use your analysis on a real client call — accuracy and specificity matter more than brevity.
 ${contextBlock}
 Analyze these ${photoContent.length} listing photos and respond with a JSON object (no markdown, just raw JSON).
 
-For each feature, provide:
-- condition: "updated" | "original" | "poor" | "unknown"
-- detail: describe what you see AND embed any renovation year from the listing data directly in this field (e.g. "quartz countertops, renovated 2022 per listing" or "hardwood floors, installed 2019 per MLS"). Always include the year when available.
+For EVERY feature below, output:
+- condition: one of "updated" | "original" | "poor" | "unknown"
+  - "updated": built or replaced post-2015, OR the design language reads contemporary (shaker cabinets, quartz, recessed lighting, modern hardware)
+  - "original": looks like the era of construction (golden oak, formica, brass fixtures) but is intact and functional
+  - "poor": visibly damaged, worn through, water-stained, missing pieces, or in obvious disrepair
+  - "unknown": not visible in any of the photos provided
+- detail: 1–2 sentences describing exactly what you see. Be concrete: cite color/material/finish/era. If the listing data mentions a renovation year, embed it ("quartz countertops, renovated 2022 per listing"). If photo evidence contradicts the listing claim, say so.
 - photoIndex: which photo index (0-based) shows this most clearly, or null if not visible
 
-Additional fields:
-- floors.type: e.g. "hardwood", "carpet", "tile", "vinyl", "laminate", "unknown"
-- kitchenCountertops.type: e.g. "granite", "quartz", "marble", "laminate", "tile", "unknown"
-- kitchenAppliances.type: e.g. "stainless steel", "black", "white", "mixed", "unknown"
-- ceilings.height: "high" | "standard" | "low" | "unknown"
-- overallAge: "new" | "updated" | "dated" | "unknown"
-- notes: any notable features or observations including renovation evidence with dates if mentioned in listing data (max 2 sentences)
+Required feature fields:
+- floors.type: "hardwood" | "engineered hardwood" | "luxury vinyl plank" | "carpet" | "tile" | "vinyl" | "laminate" | "concrete" | "mixed" | "unknown"
+- kitchenCountertops.type: "granite" | "quartz" | "marble" | "butcher block" | "concrete" | "laminate" | "tile" | "mixed" | "unknown"
+- kitchenAppliances.type: "stainless steel" | "black" | "white" | "panel-ready" | "mixed" (2+ different finishes/eras visible) | "unknown"
+- kitchenCabinets — paint/stain, door style (shaker, raised panel, slab, glass-front), hardware quality
+- bathrooms — vanity material, tile pattern, shower/tub condition, fixture quality
+- ceilings.height: "high" (9'+ visible / coffered / vaulted) | "standard" (8' typical) | "low" (under 8' / dropped) | "unknown"
+- windows — type (double-hung, casement, picture), age signals (single-pane vs double, vinyl vs wood), trim
+- naturalLight — overall brightness across photographed rooms; window orientation/coverage if discernible
+
+Additional feature fields (output when at least one photo is informative; else condition="unknown" and detail=""):
+- exteriorCondition — front facade, siding material, roof if visible, paint, trim, curb appeal
+- yard — landscaping, fence, patio/deck, irrigation, outdoor living, hardscape
+- layoutFlow.type: "open" | "semi-open" | "closed" | "split" | "unknown" — flow between kitchen/dining/living when discernible
+- fixtureQuality — faucets, cabinet pulls, light fixtures, door hardware, trim profile. This is the tell for a deep renovation vs. cosmetic flip.
+- wallCondition — paint coverage, drywall flaws, baseboard condition, wear patterns, visible damage
+- lightingFixtures — recessed cans, statement chandelier, pendants, sconces; builder-grade vs. designer
+
+Top-level fields:
+- overallAge: "new" (post-2020 or feels brand-new) | "updated" (mostly modernized post-2015) | "dated" (largely original/older finishes) | "unknown"
+- notes: 2–4 sentences. Lead with what stands out — the most distinctive update, the biggest red flag, or the clearest dated element. Cite photo numbers ("Photo 4 shows a wood-soffit ceiling treatment that's a clear designer touch"). Reference any renovation dates from listing data.
+
+Be specific, not generic. "Quartz countertops with white cabinets and stainless appliances; clean modern look" beats "updated kitchen with modern finishes."
 
 Respond ONLY with valid JSON, no explanation:`
 
   const model = VISION_MODEL
   const response = await client.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: 3072,
     messages: [
       {
         role: 'user',
@@ -158,7 +196,7 @@ Respond ONLY with valid JSON, no explanation:`
         ],
       },
     ],
-  }, { timeout: 25_000, maxRetries: 1 })
+  }, { timeout: 30_000, maxRetries: 1 })
 
   const tokensUsed = tokenCount(response.usage)
   const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
@@ -276,14 +314,14 @@ export async function prescreenListingsWithDescriptions(
         ? ' [OVER BUDGET]'
         : ''
     const interior = l.interiorFeatures?.length
-      ? ` | MLS features: ${l.interiorFeatures.slice(0, 5).join(', ')}`
+      ? ` | MLS features: ${l.interiorFeatures.join(', ')}`
       : ''
     const yr = l.yearBuilt ? ` | built ${l.yearBuilt}` : ''
-    // Truncate description to keep prompt tractable. 600 chars covers the
-    // first 1-2 paragraphs which is where listing agents put feature
-    // callouts; later paragraphs are usually neighborhood/agent boilerplate.
+    // Description fed to the rerank model. 2000 chars covers the full
+    // remarks block on virtually every listing — para-2+ feature callouts
+    // ("renovated 2022", "new roof") drive verdicts and used to be cut off.
     const desc = l.description
-      ? `\n  description: "${l.description.slice(0, 600).replace(/\s+/g, ' ').trim()}"`
+      ? `\n  description: "${l.description.slice(0, 2000).replace(/\s+/g, ' ').trim()}"`
       : ''
     return `${l.zpid} | ${l.address} | ${l.price ? '$' + l.price.toLocaleString() : 'N/A'}${overBudget} | ${l.beds ?? '?'}bd | ${l.baths ?? '?'}ba | ${l.sqft ? l.sqft.toLocaleString() + ' sqft' : 'N/A'}${yr}${interior}${desc}`
   }).join('\n')
@@ -436,14 +474,196 @@ function normalizeForMatch(s: string): string {
 const FLOOR_KEYWORDS = ['hardwood', 'carpet', 'tile', 'vinyl', 'laminate', 'concrete', 'bamboo', 'engineered']
 
 type SeedVerdict = {
-  verdict: Exclude<RequirementVerdict, 'unclear'>
+  verdict: 'matched' | 'missed'
   evidence: string
-  source: 'mls'
+  source: 'mls' | 'description'
   photoIndex: null
 }
 
-function mlsVerdict(req: string, ctx: ListingContext): SeedVerdict | null {
+/** Numeric requirements the realtor types in prose. We parse them once
+ *  and resolve deterministically against listing facts when possible —
+ *  these are the categories where LLM-judged false-positives hurt
+ *  realtors the most ("model said 3+ beds but it's a 2BR"). */
+type NumericReq =
+  | { kind: 'beds'; min?: number; max?: number }
+  | { kind: 'baths'; min?: number; max?: number }
+  | { kind: 'sqft'; min?: number; max?: number }
+  | { kind: 'yearBuilt'; min?: number; max?: number }
+  | { kind: 'renovatedSince'; year: number }
+
+function parseNumericReq(req: string): NumericReq | null {
+  const lc = req.toLowerCase()
+
+  // ---- Bedrooms ----
+  // "3+ bedrooms", "3+ bed", "at least 3 beds", "minimum 3 bedrooms",
+  // "3 bedroom minimum", "4 bed home" — extract the number.
+  const bedMatch =
+    lc.match(/(\d+(?:\.\d+)?)\s*\+?\s*(?:bed|bedroom)s?/) ??
+    lc.match(/(?:at\s+least|minimum|min)\s+(\d+(?:\.\d+)?)\s*(?:bed|bedroom)/) ??
+    lc.match(/(\d+(?:\.\d+)?)\s*(?:bed|bedroom)s?\s+(?:minimum|min|or\s+more)/)
+  if (bedMatch && /\b(bed|bedroom)/.test(lc)) {
+    const n = parseFloat(bedMatch[1])
+    if (Number.isFinite(n) && n > 0 && n < 20) {
+      const isMax = /\b(under|less\s+than|fewer\s+than|max|maximum|at\s+most|no\s+more\s+than)\b/.test(lc)
+      return isMax ? { kind: 'beds', max: n } : { kind: 'beds', min: n }
+    }
+  }
+
+  // ---- Bathrooms ----
+  const bathMatch =
+    lc.match(/(\d+(?:\.\d+)?)\s*\+?\s*(?:bath|bathroom)s?/) ??
+    lc.match(/(?:at\s+least|minimum|min)\s+(\d+(?:\.\d+)?)\s*(?:bath|bathroom)/) ??
+    lc.match(/(\d+(?:\.\d+)?)\s*(?:bath|bathroom)s?\s+(?:minimum|min|or\s+more)/)
+  if (bathMatch && /\b(bath|bathroom)/.test(lc)) {
+    const n = parseFloat(bathMatch[1])
+    if (Number.isFinite(n) && n > 0 && n < 15) {
+      const isMax = /\b(under|less\s+than|fewer\s+than|max|maximum|at\s+most|no\s+more\s+than)\b/.test(lc)
+      return isMax ? { kind: 'baths', max: n } : { kind: 'baths', min: n }
+    }
+  }
+
+  // ---- Square footage ----
+  // "under 2000 sqft", "at least 2500 square feet", "1500+ sqft", "2000sf"
+  const sqftMatch = lc.match(/(\d{3,5})\s*(?:\+\s*)?(?:sq\s*ft|sqft|square\s+feet|sf)\b/)
+  if (sqftMatch) {
+    const n = parseInt(sqftMatch[1], 10)
+    if (Number.isFinite(n) && n >= 200 && n <= 50000) {
+      const isMax = /\b(under|less\s+than|max|maximum|below|no\s+more\s+than|up\s+to)\b/.test(lc)
+      const isMin = /\b(at\s+least|minimum|min|over|more\s+than|above|\+)\b/.test(lc) || /\d+\s*\+/.test(lc)
+      if (isMax) return { kind: 'sqft', max: n }
+      if (isMin) return { kind: 'sqft', min: n }
+      // Default: a bare "2000 sqft" with no direction word reads as "at least."
+      return { kind: 'sqft', min: n }
+    }
+  }
+
+  // ---- Year built ----
+  // "built after 1990", "newer than 2010", "post-2000", "after 2015"
+  const yearMatch =
+    lc.match(/\b(?:built|constructed|new(?:er)?(?:\s+than)?|post|after|since)[-\s]+((?:19|20)\d{2})\b/) ??
+    lc.match(/\b((?:19|20)\d{2})\s+(?:or\s+newer|or\s+later|or\s+after)\b/)
+  if (yearMatch && /\b(built|construction|new|year|post|after)/.test(lc)) {
+    const y = parseInt(yearMatch[1], 10)
+    const isMax = /\b(before|pre|older\s+than|prior\s+to|up\s+to)\b/.test(lc)
+    return isMax ? { kind: 'yearBuilt', max: y } : { kind: 'yearBuilt', min: y }
+  }
+
+  // ---- Renovated since YYYY ----
+  // "renovated since 2020", "remodeled after 2018", "updated since 2015"
+  const renoMatch = lc.match(/\b(?:renovat|remodel|updat|refresh)\w*\s+(?:since|after|in\s+or\s+after|post)\s+((?:19|20)\d{2})\b/)
+  if (renoMatch) {
+    const y = parseInt(renoMatch[1], 10)
+    return { kind: 'renovatedSince', year: y }
+  }
+
+  return null
+}
+
+interface ListingFacts {
+  beds?: number | null
+  baths?: number | null
+  sqft?: number | null
+}
+
+function numericVerdict(
+  numReq: NumericReq,
+  ctx: ListingContext,
+  facts: ListingFacts,
+): SeedVerdict | null {
+  const fmtBound = (req: NumericReq, label: string) =>
+    'min' in req && req.min != null
+      ? `${req.min}+ ${label}`
+      : 'max' in req && req.max != null
+        ? `≤${req.max} ${label}`
+        : label
+
+  switch (numReq.kind) {
+    case 'beds': {
+      const v = facts.beds
+      if (v == null) return null
+      if (numReq.min != null) {
+        return v >= numReq.min
+          ? { verdict: 'matched', evidence: `Listing has ${v} bedrooms (${fmtBound(numReq, 'bedrooms')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing has ${v} bedrooms; ${fmtBound(numReq, 'bedrooms')} requested`, source: 'mls', photoIndex: null }
+      }
+      if (numReq.max != null) {
+        return v <= numReq.max
+          ? { verdict: 'matched', evidence: `Listing has ${v} bedrooms (${fmtBound(numReq, 'bedrooms')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing has ${v} bedrooms; ${fmtBound(numReq, 'bedrooms')} requested`, source: 'mls', photoIndex: null }
+      }
+      return null
+    }
+    case 'baths': {
+      const v = facts.baths
+      if (v == null) return null
+      if (numReq.min != null) {
+        return v >= numReq.min
+          ? { verdict: 'matched', evidence: `Listing has ${v} baths (${fmtBound(numReq, 'baths')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing has ${v} baths; ${fmtBound(numReq, 'baths')} requested`, source: 'mls', photoIndex: null }
+      }
+      if (numReq.max != null) {
+        return v <= numReq.max
+          ? { verdict: 'matched', evidence: `Listing has ${v} baths (${fmtBound(numReq, 'baths')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing has ${v} baths; ${fmtBound(numReq, 'baths')} requested`, source: 'mls', photoIndex: null }
+      }
+      return null
+    }
+    case 'sqft': {
+      const v = facts.sqft
+      if (v == null) return null
+      if (numReq.min != null) {
+        return v >= numReq.min
+          ? { verdict: 'matched', evidence: `Listing is ${v.toLocaleString()} sqft (${fmtBound(numReq, 'sqft')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing is ${v.toLocaleString()} sqft; ${fmtBound(numReq, 'sqft')} requested`, source: 'mls', photoIndex: null }
+      }
+      if (numReq.max != null) {
+        return v <= numReq.max
+          ? { verdict: 'matched', evidence: `Listing is ${v.toLocaleString()} sqft (${fmtBound(numReq, 'sqft')} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Listing is ${v.toLocaleString()} sqft; ${fmtBound(numReq, 'sqft')} requested`, source: 'mls', photoIndex: null }
+      }
+      return null
+    }
+    case 'yearBuilt': {
+      const v = ctx.yearBuilt
+      if (v == null) return null
+      if (numReq.min != null) {
+        return v >= numReq.min
+          ? { verdict: 'matched', evidence: `Built ${v} (after ${numReq.min} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Built ${v}; after ${numReq.min} requested`, source: 'mls', photoIndex: null }
+      }
+      if (numReq.max != null) {
+        return v <= numReq.max
+          ? { verdict: 'matched', evidence: `Built ${v} (before ${numReq.max} requested)`, source: 'mls', photoIndex: null }
+          : { verdict: 'missed', evidence: `Built ${v}; before ${numReq.max} requested`, source: 'mls', photoIndex: null }
+      }
+      return null
+    }
+    case 'renovatedSince': {
+      // Look for renovation year in description. Conservative: only trust an
+      // explicit "renovated/remodeled/updated YYYY" pattern, not a bare year.
+      const desc = ctx.description ?? ''
+      const m = desc.match(/\b(?:renovat|remodel|updat|refresh)\w*[^.]{0,50}?\b((?:19|20)\d{2})\b/i)
+      if (!m) return null
+      const docYear = parseInt(m[1], 10)
+      return docYear >= numReq.year
+        ? { verdict: 'matched', evidence: `Listing description cites renovation in ${docYear} (since ${numReq.year} requested)`, source: 'description', photoIndex: null }
+        : { verdict: 'missed', evidence: `Last cited renovation in ${docYear}; since ${numReq.year} requested`, source: 'description', photoIndex: null }
+    }
+  }
+}
+
+function mlsVerdict(req: string, ctx: ListingContext, facts: ListingFacts): SeedVerdict | null {
   const negated = /\b(no|not|without|avoid)\b/i.test(req)
+
+  // Numeric verdicts run first — they're the highest-leverage deterministic
+  // wins ("3+ beds", "under 2000 sqft", "built after 2010").
+  const numReq = parseNumericReq(req)
+  if (numReq) {
+    const v = numericVerdict(numReq, ctx, facts)
+    if (v) return v
+    // If we parsed a numeric requirement but couldn't resolve it (missing
+    // listing data), fall through to other heuristics.
+  }
 
   // HOA — explicit hasHoa flag covers both directions.
   if (/\bhoa\b/i.test(req)) {
@@ -502,13 +722,25 @@ interface SeededEvaluation {
   category: 'required' | 'niceToHave' | 'dealBreaker'
   verdict: 'matched' | 'missed'
   evidence: string
-  source: 'mls'
+  source: 'mls' | 'description'
   photoIndex: null
+}
+
+/** Exported for the script in scripts/test-mls-verdict.ts. Not part of
+ *  the public surface — internal callers should use it via
+ *  `scoreListingAgainstRequirements`. */
+export function __test_seedChecklistFromMls(
+  reqs: ParsedRequirements,
+  ctx: ListingContext | undefined,
+  facts: ListingFacts = {},
+): SeededEvaluation[] {
+  return seedChecklistFromMls(reqs, ctx, facts)
 }
 
 function seedChecklistFromMls(
   reqs: ParsedRequirements,
   ctx: ListingContext | undefined,
+  facts: ListingFacts = {},
 ): SeededEvaluation[] {
   if (!ctx) return []
   const out: SeededEvaluation[] = []
@@ -519,14 +751,14 @@ function seedChecklistFromMls(
   ]
   for (const [items, category] of groups) {
     for (const item of items) {
-      const v = mlsVerdict(item, ctx)
+      const v = mlsVerdict(item, ctx, facts)
       if (v) {
         out.push({
           requirement: item,
           category,
           verdict: v.verdict,
           evidence: v.evidence,
-          source: 'mls',
+          source: v.source,
           photoIndex: null,
         })
       }
@@ -591,7 +823,7 @@ export function computeScoreFromChecklist(checklist: RequirementsChecklist): num
 export async function scoreListingAgainstRequirements(
   requirements: ParsedRequirements,
   features: ListingFeatures,
-  listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null },
+  listing: { address: string; price?: number | null; beds?: number | null; baths?: number | null; sqft?: number | null },
   listingContext?: ListingContext,
   /** Strict price ceiling for this search — used to decide whether to
    *  strip price-related dealBreakers from the prompt. */
@@ -645,7 +877,11 @@ export async function scoreListingAgainstRequirements(
 
   // Pre-compute MLS-derived deterministic verdicts. The LLM sees these as
   // hints; we override its evaluations with these after parsing.
-  const seeded = seedChecklistFromMls(requirementsForPrompt, listingContext)
+  const seeded = seedChecklistFromMls(requirementsForPrompt, listingContext, {
+    beds: listing.beds ?? null,
+    baths: listing.baths ?? null,
+    sqft: listing.sqft ?? null,
+  })
   const seededHints = seeded.length > 0
     ? '\nMLS-confirmed verdicts (these are authoritative — repeat them in your evaluations):\n' +
       seeded.map(s => `- "${s.requirement}" → ${s.verdict}: ${s.evidence}`).join('\n') + '\n'
@@ -653,7 +889,7 @@ export async function scoreListingAgainstRequirements(
 
   const contextLines: string[] = []
   if (listingContext?.description) {
-    contextLines.push(`- Listing description: "${listingContext.description.slice(0, 600)}"`)
+    contextLines.push(`- Listing description: "${listingContext.description.slice(0, 3000)}"`)
   }
   if (listingContext?.yearBuilt) {
     contextLines.push(`- Year built: ${listingContext.yearBuilt}`)
@@ -778,7 +1014,7 @@ Respond ONLY with valid JSON:
       category: s.category,
       verdict: s.verdict,
       evidence: s.evidence,
-      source: 'mls',
+      source: s.source,
       photoIndex: null,
     })
   }
@@ -805,12 +1041,31 @@ Respond ONLY with valid JSON:
     }
   }
 
+  // Buyer-opt-out: surface "skipped" rows so the realtor sees we listened.
+  // category='dontCare' is naturally excluded from all three counted
+  // buckets in computeScoreFromChecklist — no scoring weight, no LLM
+  // tokens spent evaluating these.
+  for (const req of requirements.dontCare) {
+    if (!llmByRequirement.has(req)) {
+      llmByRequirement.set(req, {
+        requirement: req,
+        category: 'dontCare',
+        verdict: 'skipped',
+        evidence: 'Buyer flagged as not important',
+        source: 'none',
+        photoIndex: null,
+      })
+    }
+  }
+
   const finalEvaluations = Array.from(llmByRequirement.values())
+  const scoredEvaluations = finalEvaluations.filter(e => e.verdict !== 'skipped')
   const summary = {
-    matched: finalEvaluations.filter(e => e.verdict === 'matched').length,
-    missed: finalEvaluations.filter(e => e.verdict === 'missed').length,
-    unclear: finalEvaluations.filter(e => e.verdict === 'unclear').length,
-    total: finalEvaluations.length,
+    matched: scoredEvaluations.filter(e => e.verdict === 'matched').length,
+    missed: scoredEvaluations.filter(e => e.verdict === 'missed').length,
+    unclear: scoredEvaluations.filter(e => e.verdict === 'unclear').length,
+    total: scoredEvaluations.length,
+    skipped: finalEvaluations.filter(e => e.verdict === 'skipped').length,
   }
   const checklist: RequirementsChecklist = { evaluations: finalEvaluations, summary }
   const score = computeScoreFromChecklist(checklist)

@@ -9,7 +9,7 @@ import { getListingDetails, type ListingContext } from '@/lib/zillow'
 import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
 import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
 import type { AnalyzeListingJob } from '@/lib/queue'
-import type { ParsedRequirements } from '@/types'
+import type { ParsedRequirements, Tier } from '@/types'
 import { logger } from '@/lib/logger'
 import { sendAnalysisComplete } from '@/lib/email'
 
@@ -212,6 +212,14 @@ async function processJob({
     return NextResponse.json({ skipped: true, reason: 'cancelled' })
   }
 
+  // Fetch tier so vision can scale photo coverage (free=12 photos,
+  // premier=24). One extra DB call per worker, cheap and uncached.
+  const owner = await db.query.users.findFirst({
+    where: eq(users.id, search.userId),
+    columns: { tier: true },
+  })
+  const tier = (owner?.tier as Tier | undefined) ?? 'free'
+
   const listing = await db.query.listings.findFirst({ where: eq(listings.id, listingId) })
   if (!listing) return NextResponse.json({ skipped: true, reason: 'listing_not_found' })
 
@@ -263,7 +271,7 @@ async function processJob({
   let visionTokens = 0
   let visionModelUsed: string | null = null
   if (!features) {
-    const visionResult = await analyzeListingPhotos(photoUrls, listingContext)
+    const visionResult = await analyzeListingPhotos(photoUrls, listingContext, tier)
     features = visionResult.features
     visionTokens = visionResult.tokensUsed
     visionModelUsed = visionResult.model
@@ -286,7 +294,7 @@ async function processJob({
   const { score, explanation, checklist, tokensUsed: scoreTokens } = await scoreListingAgainstRequirements(
     parsedRequirements,
     features,
-    { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths },
+    { address: listing.address, price: listing.price, beds: listing.beds, baths: listing.baths, sqft: listing.sqft },
     listingContext,
     search.priceMax,
   )

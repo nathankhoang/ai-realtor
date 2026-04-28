@@ -7,9 +7,10 @@ import { logger } from '@/lib/logger'
 const DETAIL_STALE_AFTER_DAYS = 7
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Cap on photos stored per listing. We only feed 5–8 to vision, but Zillow
- *  often returns 30+ — uncapped, this bloats the row to ~100KB. */
-const PHOTO_LIMIT = 30
+/** Cap on photos stored per listing. Vision samples 12–24 of these per
+ *  tier (`photoBudgetFor` in src/lib/analyze.ts), so the storage cap
+ *  needs headroom above the highest tier. Zillow often returns 40+. */
+const PHOTO_LIMIT = 60
 
 function toListingValues(zl: ZillowListing) {
   return {

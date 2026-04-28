@@ -40,6 +40,19 @@ export interface ListingFeatures {
   ceilings: FeatureEvidence & { height: string }
   windows: FeatureEvidence
   naturalLight: FeatureEvidence
+  /** Front of house, siding, roof if visible, paint, curb appeal. */
+  exteriorCondition?: FeatureEvidence
+  /** Yard / landscaping / fence / hardscape / outdoor living area. */
+  yard?: FeatureEvidence
+  /** Floor plan flow when discernible from photos: "open" | "closed" | "split" | "unknown". */
+  layoutFlow?: FeatureEvidence & { type: string }
+  /** Faucets, hardware, light fixtures, doors, trim — the small parts
+   *  that signal a true update vs. a quick flip. */
+  fixtureQuality?: FeatureEvidence
+  /** Paint, drywall condition, visible damage, wear patterns. */
+  wallCondition?: FeatureEvidence
+  /** Built-in lighting + statement fixtures (chandelier, recessed, sconces). */
+  lightingFixtures?: FeatureEvidence
   overallAge: 'new' | 'updated' | 'dated' | 'unknown'
   notes: string
 }
@@ -57,15 +70,18 @@ export interface ParsedRequirements {
   priceCeiling: number | null
 }
 
-export type RequirementVerdict = 'matched' | 'missed' | 'unclear'
+export type RequirementVerdict = 'matched' | 'missed' | 'unclear' | 'skipped'
 export type EvidenceSource = 'photo' | 'mls' | 'description' | 'none'
 
 export interface RequirementEvaluation {
   /** The original requirement phrase, e.g. "granite countertops" */
   requirement: string
-  /** Whether this is a hard requirement, nice-to-have, or deal-breaker */
-  category: 'required' | 'niceToHave' | 'dealBreaker'
-  /** Did the listing satisfy this requirement? */
+  /** Category — `dontCare` is the buyer explicitly opting out; we keep
+   *  it on the checklist so the realtor sees we listened, but it doesn't
+   *  affect the score. */
+  category: 'required' | 'niceToHave' | 'dealBreaker' | 'dontCare'
+  /** Did the listing satisfy this requirement? `skipped` means the buyer
+   *  said they don't care — no scoring weight, no LLM effort spent. */
   verdict: RequirementVerdict
   /** One-sentence evidence ("photo 2 shows quartz countertops") */
   evidence: string
@@ -83,6 +99,8 @@ export interface RequirementsChecklist {
     missed: number
     unclear: number
     total: number
+    /** Items the buyer said they don't care about — excluded from `total`. */
+    skipped?: number
   }
 }
 
