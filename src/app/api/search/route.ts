@@ -56,7 +56,16 @@ const REQUIREMENTS_TEXT_MAX = 5000
 // Setup phase only (Zillow query + parse + prescreen + insert listings + enqueue).
 // Vision analysis is now offloaded to per-listing workers — see
 // /api/jobs/analyze-listing.
-export const maxDuration = 30
+//
+// Budget breakdown under heavy Zillow latency:
+//   - parseRequirements (Haiku):                     ~3s
+//   - searchZillow (timeout 22s):                  up to 22s
+//   - prescreenListings (Sonnet):                    ~4s
+//   - prefetchListingDetails (Zillow ×30 parallel): up to 12s
+//   - prescreenListingsWithDescriptions (Sonnet):    ~5s
+//   - inserts + enqueue:                             ~2s
+// Total worst-case ≈ 48s, so 60s gives ~12s of safety margin.
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const csrf = requireSameOrigin(req)

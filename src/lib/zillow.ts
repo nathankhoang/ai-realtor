@@ -14,8 +14,12 @@ export interface ZillowListing {
   longitude: number | null
 }
 
-const SEARCH_TIMEOUT_MS = 12_000
-const DETAIL_TIMEOUT_MS = 8_000
+// 22s leaves ~8s of headroom under the search route's maxDuration: 30s
+// for the rest of the pipeline (parseRequirements + prescreen + insert).
+// Bumped from 12s after RapidAPI Zillow started timing out under load
+// in late-Apr 2026 — the API is reliably returning data, just slow.
+const SEARCH_TIMEOUT_MS = 22_000
+const DETAIL_TIMEOUT_MS = 12_000
 
 /**
  * fetch() with an AbortController-backed timeout. Throws a clearly-typed
