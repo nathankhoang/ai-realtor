@@ -7,6 +7,7 @@ import type { ListingFeatures, RequirementsChecklist as Checklist } from '@/type
 import type { ListingTag } from '@/lib/db/schema'
 import SaveButton from './SaveButton'
 import RequirementsChecklist from './RequirementsChecklist'
+import ScoreBreakdown from './ScoreBreakdown'
 import FeatureEvidenceList, { collectFeatureEvidence } from './FeatureEvidenceList'
 import ListingMetaControls from './ListingMetaControls'
 
@@ -283,10 +284,13 @@ export default function ListingCard({
 
         {/* ────── REQUIREMENTS CHECKLIST ────── */}
         {checklist && checklist.evaluations.length > 0 && (
-          <RequirementsChecklist
-            checklist={checklist}
-            onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, photos.length - 1))}
-          />
+          <>
+            <RequirementsChecklist
+              checklist={checklist}
+              onJumpToPhoto={(i) => setPhotoIdx(Math.min(i, photos.length - 1))}
+            />
+            <ScoreBreakdown checklist={checklist} />
+          </>
         )}
 
         {/* Feature evidence (kitchen/floors/etc.) — collapsible */}

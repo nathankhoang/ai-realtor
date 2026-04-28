@@ -2,6 +2,7 @@ export const maxDuration = 30
 
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
+import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
 import { searches, listings, listingAnalyses, searchResults, searchFailures, users } from '@/lib/db/schema'
 import { eq, and, sql, gte, count } from 'drizzle-orm'
@@ -256,15 +257,19 @@ async function processJob({
   }
 
   const photoUrls = (listing.photoUrls ?? []) as string[]
+  const photoUrlsHash = createHash('sha1').update(photoUrls.join('|')).digest('hex')
 
-  // Vision analysis — most expensive step. Re-uses cached analysis when
-  // it's less than ANALYSIS_STALE_AFTER_DAYS old; re-runs vision on stale
-  // ones in case the listing was re-photographed.
+  // Vision analysis — most expensive step. Cache key is (listingId,
+  // photoUrlsHash) so a re-photographed listing (different URLs) gets
+  // re-analyzed instead of returning the stale features. Rows written
+  // before the photo_urls_hash column existed have NULL hash and are
+  // treated as cache-miss exactly once.
   let analysis = await db.query.listingAnalyses.findFirst({
     where: eq(listingAnalyses.listingId, listing.id),
   })
   const analysisFresh =
     analysis != null
+    && analysis.photoUrlsHash === photoUrlsHash
     && Date.now() - new Date(analysis.analyzedAt).getTime() < ANALYSIS_STALE_AFTER_DAYS * DAY_MS
 
   let features = analysisFresh ? analysis?.featuresJson : undefined
@@ -277,12 +282,13 @@ async function processJob({
     visionModelUsed = visionResult.model
     if (analysis) {
       await db.update(listingAnalyses)
-        .set({ featuresJson: features, analyzedAt: new Date() })
+        .set({ featuresJson: features, analyzedAt: new Date(), photoUrlsHash })
         .where(eq(listingAnalyses.id, analysis.id))
     } else {
       const [created] = await db.insert(listingAnalyses).values({
         listingId: listing.id,
         featuresJson: features,
+        photoUrlsHash,
       }).returning()
       analysis = created
     }

@@ -768,57 +768,14 @@ function seedChecklistFromMls(
 }
 
 // ---------- Deterministic score from checklist ----------
+// Pure score math lives in `src/lib/score.ts` so client components can
+// import it without pulling in the Anthropic SDK that this module
+// instantiates at top level. Re-exported here for back-compat with
+// existing import paths.
+export { computeScoreFromChecklist, explainScoreFromChecklist } from '@/lib/score'
+export type { ScoreBreakdown } from '@/lib/score'
 
-/**
- * Compute a 0..1 score from the resolved checklist. Replaces the LLM's
- * free-form "score" field — explainable, monotonic, identical for the
- * same inputs.
- *
- * Verdict semantics:
- *   - matched  → full credit (1.0)
- *   - missed   → zero credit (0.0)
- *   - unclear  → half credit (0.5). "We couldn't tell" should rank
- *                 between "we know it's there" and "we know it's not."
- *                 The previous formula penalized unclear on top of
- *                 excluding it from the match rate, which inverted that
- *                 ordering — a listing where every requirement was
- *                 unclear ended up scoring below one where every
- *                 requirement was a confirmed miss.
- *
- * Bands (rough):
- *   - All required matched + niceToHaves matched: ~0.95
- *   - All required matched: ~0.85
- *   - All required unclear: ~0.53 (between matched and missed)
- *   - 75% required matched: ~0.69
- *   - 50% required matched: ~0.53
- *   - 1+ deal-breaker present: ≤0.20
- */
-export function computeScoreFromChecklist(checklist: RequirementsChecklist): number {
-  const evals = checklist.evaluations
-  const reqMatched = evals.filter(e => e.category === 'required' && e.verdict === 'matched').length
-  const reqMissed = evals.filter(e => e.category === 'required' && e.verdict === 'missed').length
-  const reqUnclear = evals.filter(e => e.category === 'required' && e.verdict === 'unclear').length
-  const reqTotal = reqMatched + reqMissed + reqUnclear
-
-  const niceMatched = evals.filter(e => e.category === 'niceToHave' && e.verdict === 'matched').length
-  const niceTotal = evals.filter(e => e.category === 'niceToHave').length
-
-  // dealBreaker "matched" = absent (good). "missed" = present (bad).
-  const dbHits = evals.filter(e => e.category === 'dealBreaker' && e.verdict === 'missed').length
-  if (dbHits > 0) {
-    return Math.max(0.05, 0.20 - 0.05 * dbHits)
-  }
-
-  if (reqTotal === 0) {
-    if (niceTotal === 0) return 0.55
-    return 0.55 + 0.30 * (niceMatched / niceTotal)
-  }
-
-  const reqRate = (reqMatched + 0.5 * reqUnclear) / reqTotal
-  let score = 0.20 + 0.65 * reqRate
-  if (niceTotal > 0) score += 0.10 * (niceMatched / niceTotal)
-  return Math.max(0, Math.min(1, score))
-}
+import { computeScoreFromChecklist as computeScoreFromChecklistImpl } from '@/lib/score'
 
 export async function scoreListingAgainstRequirements(
   requirements: ParsedRequirements,
@@ -872,6 +829,7 @@ export async function scoreListingAgainstRequirements(
             : `Listing price unknown but within search filters`,
           source: 'none',
           photoIndex: null,
+          confidence: 'high',
         }
       : null
 
@@ -948,12 +906,16 @@ Produce a per-requirement evaluation. For EACH item in the requirements lists ab
 - evidence: ONE sentence citing the source. Examples: "Photo 2 shows quartz countertops, not granite" / "MLS lists HOA fee of $120/month" / "Listing description mentions hardwood throughout"
 - source: "photo" | "mls" | "description" | "none"
 - photoIndex: integer 0-based when source="photo", else null
+- confidence: "high" | "medium" | "low" — your self-rating on the verdict. Use:
+  - high: clear visual or data evidence; you'd stake the verdict on this
+  - medium: probable but not certain (e.g. partial photo, ambiguous wording)
+  - low: weak signal — single small detail, indirect inference, or conflicting evidence between photo and listing data
 
 Respond ONLY with valid JSON:
 {
   "explanation": "...",
   "evaluations": [
-    {"requirement": "granite countertops", "category": "required", "verdict": "missed", "evidence": "Photo 2 shows quartz, not granite", "source": "photo", "photoIndex": 1}
+    {"requirement": "granite countertops", "category": "required", "verdict": "missed", "evidence": "Photo 2 shows quartz, not granite", "source": "photo", "photoIndex": 1, "confidence": "high"}
   ]
 }`
 
@@ -1000,6 +962,12 @@ Respond ONLY with valid JSON:
       evidence: String(e.evidence ?? ''),
       source: ['photo', 'mls', 'description', 'none'].includes(e.source) ? e.source : 'none',
       photoIndex: typeof e.photoIndex === 'number' ? e.photoIndex : null,
+      // Confidence is optional — model may omit it on older prompts or
+      // when the field roundtrips through validation. Default to medium
+      // when absent so the UI doesn't flag missing data as low-confidence.
+      confidence: ['high', 'medium', 'low'].includes((e as { confidence?: string }).confidence ?? '')
+        ? ((e as { confidence: 'high' | 'medium' | 'low' }).confidence)
+        : 'medium',
     }))
 
   // Override with deterministic MLS verdicts where we have one — they're
@@ -1016,6 +984,7 @@ Respond ONLY with valid JSON:
       evidence: s.evidence,
       source: s.source,
       photoIndex: null,
+      confidence: 'high',
     })
   }
 
@@ -1068,7 +1037,7 @@ Respond ONLY with valid JSON:
     skipped: finalEvaluations.filter(e => e.verdict === 'skipped').length,
   }
   const checklist: RequirementsChecklist = { evaluations: finalEvaluations, summary }
-  const score = computeScoreFromChecklist(checklist)
+  const score = computeScoreFromChecklistImpl(checklist)
 
   return {
     score,

@@ -103,6 +103,12 @@ export const listingAnalyses = pgTable('listing_analyses', {
   listingId: uuid('listing_id').references(() => listings.id).notNull(),
   featuresJson: jsonb('features_json').$type<ListingFeatures>().notNull(),
   analyzedAt: timestamp('analyzed_at').notNull().defaultNow(),
+  // SHA1 of the joined photoUrls when this analysis ran. Lets the
+  // worker invalidate cached vision when the listing is re-photographed
+  // — analyzedAt < 30d isn't enough on its own. Nullable for back-compat
+  // with rows written before this column existed; those are treated as
+  // cache-miss (re-analyzed on next worker run).
+  photoUrlsHash: text('photo_urls_hash'),
 }, (t) => [
   index('idx_listing_analyses_listing_id').on(t.listingId),
 ])

@@ -89,6 +89,11 @@ export interface RequirementEvaluation {
   source: EvidenceSource
   /** Photo index when source === 'photo', else null */
   photoIndex: number | null
+  /** Optional model self-rating: how sure is it about this verdict?
+   *  Surfaced in the UI as a small badge so realtors can spot which
+   *  rows to verify before showing a client. Deterministic verdicts
+   *  (MLS/budget) are always 'high'. Old rows have undefined. */
+  confidence?: 'high' | 'medium' | 'low'
 }
 
 export interface RequirementsChecklist {

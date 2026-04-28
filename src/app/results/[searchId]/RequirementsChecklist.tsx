@@ -251,6 +251,25 @@ function ChecklistRow({
           {evaluation.requirement}
         </span>
 
+        {/* Confidence: only flag low or medium so realtors notice the rows
+            that need a second look. High is the silent default. */}
+        {evaluation.confidence === 'low' && (
+          <span
+            title="Low confidence — verify before showing client"
+            className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-amber-700 ring-1 ring-amber-500/30 shrink-0"
+          >
+            Low confidence
+          </span>
+        )}
+        {evaluation.confidence === 'medium' && (
+          <span
+            title="Medium confidence — listing data is partial"
+            className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-foreground/55 shrink-0"
+          >
+            Medium
+          </span>
+        )}
+
         {evaluation.source !== 'none' && evaluation.evidence && (
           <span className="text-[11px] font-mono uppercase tracking-[0.12em] text-muted-foreground/70 shrink-0">
             {evaluation.source === 'photo' && evaluation.photoIndex != null
