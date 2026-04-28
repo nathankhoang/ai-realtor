@@ -14,6 +14,7 @@ import { searchRatelimit } from '@/lib/ratelimit'
 import { upsertListings, prefetchListingDetails } from '@/lib/listings'
 import { logger } from '@/lib/logger'
 import { getOrCreateUser } from '@/lib/user'
+import { requireSameOrigin } from '@/lib/csrf'
 import { Redis } from '@upstash/redis'
 
 const DUPLICATE_LOOKBACK_MS = 60 * 60 * 1000 // 1 hour
@@ -58,6 +59,9 @@ const REQUIREMENTS_TEXT_MAX = 5000
 export const maxDuration = 30
 
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
+
   try {
     return await handleSearch(req)
   } catch (err: unknown) {
@@ -270,15 +274,24 @@ async function handleSearch(req: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     logger.warn('api.search.zillowFailed', { searchId: search.id, err: msg })
+    // Distinguish RapidAPI quota exhaustion from a transient outage so
+    // users don't waste time retrying when the issue is on our side.
+    const isQuota =
+      /\b429\b/.test(msg)
+      || /quota/i.test(msg)
+      || /rate limit/i.test(msg)
+    const userMessage = isQuota
+      ? 'Listing data is temporarily unavailable while we upgrade capacity. We\'re aware and working on it — please try again later.'
+      : 'Zillow search failed. Try again in a moment, or contact support if it keeps happening.'
     await db.update(searches).set({
       totalCandidates: 0,
       status: 'completed',
       completedAt: new Date(),
-      errorMessage: 'Zillow search failed. Try again in a moment, or contact support if it keeps happening.',
+      errorMessage: userMessage,
     }).where(eq(searches.id, search.id))
     return NextResponse.json({
       searchId: search.id,
-      error: 'Zillow search failed.',
+      error: isQuota ? 'Listing data temporarily unavailable.' : 'Zillow search failed.',
     }, { status: 207 })
   }
 
