@@ -103,16 +103,21 @@ export async function searchZillow(params: {
     params.priceMax ? `max:${params.priceMax}` : '',
   ].filter(Boolean).join(', ')
 
-  const buildQuery = (location: string) =>
-    new URLSearchParams({
+  const buildQuery = (location: string) => {
+    // Drop homeType from the query: as of Apr 2026, including a multi-type
+    // homeType list from cloud-egress IPs routes RapidAPI's scraper to a
+    // fallback path (source: "9vrc_ws_frc_apt_3tr") that returns "404: No
+    // results" even when the API's own totalMatchingCount is 3000+. Omitting
+    // homeType uses the default "all types" which serves the curated path.
+    return new URLSearchParams({
       location,
       page: String(params.page ?? 1),
       listingStatus: 'For_Sale',
-      homeType: 'Houses, Townhomes, Multi-family, Condos/Co-ops, Lots-Land, Apartments, Manufactured',
       bed_min: params.bedsMin ? String(params.bedsMin) : 'No_Min',
       bathrooms: bathsEnum(params.bathsMin),
       ...(priceRange && { listPriceRange: priceRange }),
     })
+  }
 
   const callZillow = async (location: string) => {
     const res = await fetchWithTimeout(
