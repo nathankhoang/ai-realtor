@@ -113,6 +113,35 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
 
   const displayedData = displayed.map((row, index) => {
     const overBudgetBy = budget.overBudgetBy(row.listing.price)
+
+    // Parse JSONB fields if they come back as strings from the database
+    let photos = row.listing.photoUrls ?? []
+    if (typeof photos === 'string') {
+      try {
+        photos = JSON.parse(photos)
+      } catch {
+        photos = []
+      }
+    }
+
+    let features = row.analysis?.featuresJson ?? null
+    if (typeof features === 'string') {
+      try {
+        features = JSON.parse(features)
+      } catch {
+        features = null
+      }
+    }
+
+    let checklist = row.result.requirementsChecklist ?? null
+    if (typeof checklist === 'string') {
+      try {
+        checklist = JSON.parse(checklist)
+      } catch {
+        checklist = null
+      }
+    }
+
     return {
       resultId: row.result.id,
       listingId: row.listing.id,
@@ -125,10 +154,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
       beds: row.listing.beds,
       baths: row.listing.baths,
       sqft: row.listing.sqft,
-      photos: (row.listing.photoUrls ?? []) as string[],
+      photos: (photos ?? []) as string[],
       explanation: row.result.matchExplanation ?? '',
-      features: row.analysis?.featuresJson as ListingFeatures | null,
-      checklist: (row.result.requirementsChecklist ?? null) as RequirementsChecklist | null,
+      features: features as ListingFeatures | null,
+      checklist: checklist as RequirementsChecklist | null,
       zillowId: row.listing.zillowId,
       savedClientIds: row.savedClientIds,
       overBudgetBy,
@@ -139,14 +168,24 @@ export default async function ResultsPage({ params }: { params: Promise<{ search
     }
   })
 
-  const hiddenData = hiddenRows.map(row => ({
-    score: row.result.matchScore,
-    address: row.listing.address,
-    city: row.listing.city ?? '',
-    state: row.listing.state ?? '',
-    price: row.listing.price,
-    explanation: row.result.matchExplanation ?? '',
-  }))
+  const hiddenData = hiddenRows.map(row => {
+    let explanation = row.result.matchExplanation ?? ''
+    if (typeof explanation === 'string' && explanation.startsWith('{')) {
+      try {
+        explanation = JSON.parse(explanation)?.explanation ?? explanation
+      } catch {
+        // Keep original string if parse fails
+      }
+    }
+    return {
+      score: row.result.matchScore,
+      address: row.listing.address,
+      city: row.listing.city ?? '',
+      state: row.listing.state ?? '',
+      price: row.listing.price,
+      explanation,
+    }
+  })
 
   // Lookup linked client for breadcrumb / header tag
   const linkedClient = search.clientId
