@@ -36,10 +36,10 @@ export async function upsertListing(zl: ZillowListing): Promise<string> {
       target: listings.zillowId,
       set: {
         updatedAt: sql`now()`,
-        price: sql.raw(`excluded."price"`),
-        photoUrls: sql.raw(`excluded."photo_urls"`),
-        latitude: sql`coalesce(${listings.latitude}, excluded."latitude")`,
-        longitude: sql`coalesce(${listings.longitude}, excluded."longitude")`,
+        price: sql.raw(`COALESCE("listings"."price", excluded."price")`),
+        photoUrls: sql.raw(`COALESCE("listings"."photo_urls", excluded."photo_urls")`),
+        latitude: sql.raw(`COALESCE("listings"."latitude", excluded."latitude")`),
+        longitude: sql.raw(`COALESCE("listings"."longitude", excluded."longitude")`),
       },
     })
     .returning({ id: listings.id })
@@ -70,10 +70,10 @@ export async function upsertListings(zls: ZillowListing[]): Promise<Map<string, 
       target: listings.zillowId,
       set: {
         updatedAt: sql`now()`,
-        price: sql.raw(`excluded."price"`),
-        photoUrls: sql.raw(`excluded."photo_urls"`),
-        latitude: sql`coalesce(${listings.latitude}, excluded."latitude")`,
-        longitude: sql`coalesce(${listings.longitude}, excluded."longitude")`,
+        price: sql.raw(`COALESCE("listings"."price", excluded."price")`),
+        photoUrls: sql.raw(`COALESCE("listings"."photo_urls", excluded."photo_urls")`),
+        latitude: sql.raw(`COALESCE("listings"."latitude", excluded."latitude")`),
+        longitude: sql.raw(`COALESCE("listings"."longitude", excluded."longitude")`),
       },
     })
 
