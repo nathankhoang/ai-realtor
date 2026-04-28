@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 export interface ZillowListing {
   zpid: string
   address: string
@@ -129,7 +131,24 @@ export async function searchZillow(params: {
       throw new Error(`Zillow API error ${res.status}: ${text.slice(0, 200)}`)
     }
     const data = await res.json()
-    return (data.searchResults ?? []) as Record<string, unknown>[]
+    const arr = (data.searchResults ?? []) as Record<string, unknown>[]
+    // Diagnostic: when we get an empty array but Zillow reports a non-zero
+    // totalMatchingCount, something about the request shape is filtering
+    // results downstream. Log enough to triage without leaking PII.
+    if (arr.length === 0) {
+      const rc = data.resultsCount as Record<string, unknown> | undefined
+      logger.warn('zillow.search.emptyResults', {
+        location,
+        resultsCount: {
+          totalMatchingCount: rc?.totalMatchingCount,
+          ungroupedResultCount: rc?.ungroupedResultCount,
+          scrapeable_count: rc?.scrapeable_count,
+        },
+        source: data.source,
+        message: data.message,
+      })
+    }
+    return arr
   }
 
   let rawResults = await callZillow(params.location)
