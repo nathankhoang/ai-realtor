@@ -616,6 +616,33 @@ export async function scoreListingAgainstRequirements(
     dealBreakers: filteredDealBreakers,
   }
 
+  // Synthetic budget requirement: when a strict ceiling is set AND the
+  // listing comes in at-or-under that ceiling, inject "Under $X" as a
+  // matched required item so the score reflects it. Without this, a
+  // search whose only criterion is a budget falls into the no-criteria
+  // branch of computeScoreFromChecklist and returns the 0.55 baseline.
+  //
+  // We deliberately skip the synthetic item for over-budget listings —
+  // the "Over budget" badge already communicates that, and a missed
+  // budget here would double-penalize the soft-budget +10% band.
+  //
+  // Kept out of `requirementsForPrompt` on purpose: the LLM doesn't
+  // need to evaluate something we already know deterministically, and
+  // it would clutter the model's explanation prose.
+  const budgetEvaluation: RequirementEvaluation | null =
+    strictPriceMax != null && (listing.price == null || listing.price <= strictPriceMax)
+      ? {
+          requirement: `Under $${strictPriceMax.toLocaleString()}`,
+          category: 'required',
+          verdict: 'matched',
+          evidence: listing.price != null
+            ? `Listed at $${listing.price.toLocaleString()}, under your $${strictPriceMax.toLocaleString()} ceiling`
+            : `Listing price unknown but within search filters`,
+          source: 'none',
+          photoIndex: null,
+        }
+      : null
+
   // Pre-compute MLS-derived deterministic verdicts. The LLM sees these as
   // hints; we override its evaluations with these after parsing.
   const seeded = seedChecklistFromMls(requirementsForPrompt, listingContext)
@@ -754,6 +781,10 @@ Respond ONLY with valid JSON:
       source: 'mls',
       photoIndex: null,
     })
+  }
+
+  if (budgetEvaluation) {
+    llmByRequirement.set(budgetEvaluation.requirement, budgetEvaluation)
   }
 
   // Ensure every original requirement has an evaluation row, even if the
