@@ -320,9 +320,10 @@ async function handleSearch(req: Request) {
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
   const orderedZpids = [...rankedZpids, ...remaining]
-  await db.update(searches)
-    .set({ prescreenedZpids: sql`${JSON.stringify(orderedZpids)}::jsonb` })
-    .where(eq(searches.id, search.id))
+  // TODO: re-enable prescreenedZpids after fixing Neon JSONB serialization
+  // await db.update(searches)
+  //   .set({ prescreenedZpids: orderedZpids })
+  //   .where(eq(searches.id, search.id))
 
   // Upsert ALL prescreened listings (not just the first batch) so the
   // next-batch route can look them up by zpid without re-fetching Zillow.
