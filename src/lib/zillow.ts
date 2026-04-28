@@ -121,6 +121,11 @@ export async function searchZillow(params: {
         headers: {
           'x-rapidapi-key': apiKey,
           'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+          // Without an explicit User-Agent, Node's default ("node") triggers
+          // RapidAPI's real-time-scraper fallback path which often returns
+          // empty results from Vercel's egress IPs. Sending a normal browser
+          // UA lets the cached/curated path run instead.
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         },
       },
       SEARCH_TIMEOUT_MS,
@@ -215,6 +220,10 @@ async function fetchDetailWithRetry(zpid: string, label: string): Promise<Respon
     headers: {
       'x-rapidapi-key': apiKey,
       'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
+      // See note on the search call above — Node's default "node" UA
+      // triggers a fallback path that returns empty data from Vercel's
+      // egress IPs.
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     },
   }
 
