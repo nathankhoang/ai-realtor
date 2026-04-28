@@ -3,7 +3,7 @@ export const maxDuration = 30
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
-import { searches, listings, listingAnalyses, searchResults, searchFailures } from '@/lib/db/schema'
+import { searches, listings, listingAnalyses, searchResults, searchFailures, users } from '@/lib/db/schema'
 import { eq, and, sql, gte, count } from 'drizzle-orm'
 import { getListingDetails, type ListingContext } from '@/lib/zillow'
 import { analyzeListingPhotos, scoreListingAgainstRequirements } from '@/lib/analyze'
@@ -11,6 +11,7 @@ import { verifySignatureAppRouter } from '@upstash/qstash/nextjs'
 import type { AnalyzeListingJob } from '@/lib/queue'
 import type { ParsedRequirements } from '@/types'
 import { logger } from '@/lib/logger'
+import { sendAnalysisComplete } from '@/lib/email'
 
 const DETAIL_STALE_AFTER_DAYS = 7
 const ANALYSIS_STALE_AFTER_DAYS = 30
@@ -123,10 +124,53 @@ async function tryFinalizeSearch(searchId: string): Promise<void> {
   const floor = Math.min(FIRST_BATCH, total)
   if (analyzed + Number(failed) < floor) return
 
-  await db
+  // Race-safe completion: the eq(status, 'running') guard means only one
+  // caller's UPDATE returns a row. That caller owns the "search just
+  // completed" notification.
+  const finalized = await db
     .update(searches)
     .set({ status: 'completed', completedAt: new Date() })
     .where(and(eq(searches.id, searchId), eq(searches.status, 'running')))
+    .returning({
+      id: searches.id,
+      userId: searches.userId,
+      location: searches.location,
+      notifyEmailOnComplete: searches.notifyEmailOnComplete,
+    })
+
+  if (finalized.length === 0) return
+  const finalizedSearch = finalized[0]
+
+  await sendCompletionEmail(finalizedSearch).catch(err =>
+    logger.warn('notify.email.failed', {
+      searchId: finalizedSearch.id,
+      err: err instanceof Error ? err.message : String(err),
+    }),
+  )
+}
+
+async function sendCompletionEmail(search: {
+  id: string
+  userId: string
+  location: string
+  notifyEmailOnComplete: boolean | null
+}) {
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, search.userId),
+    columns: { email: true, emailAnalysisDone: true },
+  })
+  if (!user) return
+
+  // Per-search choice wins; null means follow the user's global pref.
+  const shouldEmail = search.notifyEmailOnComplete ?? user.emailAnalysisDone
+  if (!shouldEmail) return
+
+  const [{ resultCount }] = await db
+    .select({ resultCount: count() })
+    .from(searchResults)
+    .where(eq(searchResults.searchId, search.id))
+
+  await sendAnalysisComplete(user.email, search.location, Number(resultCount), search.id)
 }
 
 function classifyError(msg: string): string {

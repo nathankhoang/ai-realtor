@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { consumeSearchOptIn, fireSearchCompleteNotification } from '@/lib/notify-client'
 
 interface Props {
   searchId: string
@@ -13,6 +14,8 @@ export default function AnalysisPoller({ searchId, initialAnalyzed, initialTotal
   const router = useRouter()
   const [analyzed, setAnalyzed] = useState(initialAnalyzed)
   const [total, setTotal] = useState(initialTotal)
+  const prevStatusRef = useRef<string | null>(null)
+  const notifiedRef = useRef(false)
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -22,6 +25,27 @@ export default function AnalysisPoller({ searchId, initialAnalyzed, initialTotal
           const data = await res.json()
           setAnalyzed(data.analyzedCount)
           setTotal(data.totalCandidates)
+
+          const prev = prevStatusRef.current
+          if (
+            !notifiedRef.current
+            && data.status === 'completed'
+            && prev !== 'completed'
+          ) {
+            // Consume the opt-in flag set by the search form. If the user
+            // didn't tick "Notify this device", consume returns false and
+            // we skip firing.
+            if (consumeSearchOptIn(searchId)) {
+              fireSearchCompleteNotification({
+                searchId,
+                location: typeof data.location === 'string' ? data.location : 'your search',
+                matchCount: Number(data.resultCount ?? 0),
+              })
+            }
+            notifiedRef.current = true
+          }
+          prevStatusRef.current = data.status
+
           if (data.resultCount > 0) {
             router.refresh()
           }

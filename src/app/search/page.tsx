@@ -12,6 +12,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
+import {
+  currentPermission,
+  requestPermissionIfNeeded,
+  markSearchOptedIn,
+} from '@/lib/notify-client'
 
 const FEATURE_GROUPS = [
   {
@@ -141,12 +146,51 @@ function SearchPageContent() {
   // overwhelming on first sight. Users open just the categories they care about.
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
+  // Per-search notification opt-in. notifyEmail's initial value is overwritten
+  // by the user's global emailAnalysisDone pref once it loads.
+  const [notifyEmail, setNotifyEmail] = useState(true)
+  const [notifyDesktop, setNotifyDesktop] = useState(false)
+
   useEffect(() => {
     fetch('/api/clients')
       .then(r => r.json())
       .then(d => setClientList(d.clients ?? []))
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    fetch('/api/user/preferences')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (d && typeof d.emailAnalysisDone === 'boolean') {
+          setNotifyEmail(d.emailAnalysisDone)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleDesktopToggle(checked: boolean) {
+    if (!checked) {
+      setNotifyDesktop(false)
+      return
+    }
+    const result = await requestPermissionIfNeeded()
+    if (result === 'unsupported') {
+      toast.info("This browser doesn't support desktop notifications. We'll still email you.")
+      return
+    }
+    if (result === 'denied') {
+      toast.info("Desktop notifications are blocked in your browser settings. We'll still email you.")
+      return
+    }
+    if (result === 'granted') {
+      setNotifyDesktop(true)
+      return
+    }
+    // 'default' shouldn't happen because requestPermissionIfNeeded resolves to
+    // granted/denied — but be defensive.
+    toast.info('Permission not granted; sticking with email only.')
+  }
 
   // Pre-fill from an existing search
   useEffect(() => {
@@ -251,6 +295,7 @@ function SearchPageContent() {
           bedsMin: bedsMinNum ?? undefined,
           bathsMin: bathsMinNum ?? undefined,
           clientId: clientId || undefined,
+          notifyEmailOnComplete: notifyEmail,
         }),
       })
 
@@ -279,6 +324,12 @@ function SearchPageContent() {
           `Your description mentions $${proseMax.toLocaleString()} but the Max price field is $${formMax.toLocaleString()} — using $${using.toLocaleString()}.`,
           { duration: 7000 },
         )
+      }
+      // Hand off the desktop opt-in to the results page via localStorage so
+      // the AnalysisPoller knows whether to fire a Notification when the
+      // search completes.
+      if (notifyDesktop && data.searchId && currentPermission() === 'granted') {
+        markSearchOptedIn(data.searchId)
       }
       router.push(`/results/${data.searchId}`)
     } catch (err) {
@@ -444,6 +495,36 @@ function SearchPageContent() {
                 })}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Notify when complete */}
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div>
+              <h3 className="font-display text-[15px] font-semibold text-foreground">Notify me when it&apos;s done</h3>
+              <p className="text-[13px] text-muted-foreground mt-0.5">
+                Searches take about 30 seconds. We&apos;ll let you know so you don&apos;t have to wait.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="notify-email"
+                checked={notifyEmail}
+                onCheckedChange={(v) => setNotifyEmail(v === true)}
+              />
+              <Label htmlFor="notify-email" className="text-[14px] font-normal cursor-pointer leading-snug">
+                Email me when complete
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="notify-desktop"
+                checked={notifyDesktop}
+                onCheckedChange={(v) => handleDesktopToggle(v === true)}
+              />
+              <Label htmlFor="notify-desktop" className="text-[14px] font-normal cursor-pointer leading-snug">
+                Notify this device when complete
+              </Label>
+            </div>
           </div>
 
           {/* Submit */}

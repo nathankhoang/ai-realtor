@@ -134,7 +134,7 @@ async function handleSearch(req: Request) {
   }
 
   const body = await req.json()
-  const { location, requirementsText, priceMin, priceMax, bedsMin, bathsMin, clientId } = body
+  const { location, requirementsText, priceMin, priceMax, bedsMin, bathsMin, clientId, notifyEmailOnComplete } = body
 
   if (!location) return NextResponse.json({ error: 'Location is required' }, { status: 400 })
   if (!requirementsText) return NextResponse.json({ error: 'Requirements are required' }, { status: 400 })
@@ -249,6 +249,7 @@ async function handleSearch(req: Request) {
     bedsMin: bedsMin ?? null,
     bathsMin: bathsMin ?? null,
     inputHash: hash,
+    notifyEmailOnComplete: typeof notifyEmailOnComplete === 'boolean' ? notifyEmailOnComplete : null,
   }).returning()
 
   await db.update(users)

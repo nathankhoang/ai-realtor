@@ -59,6 +59,9 @@ export const searches = pgTable('searches', {
   // query, score any *new* listings, and email the agent on strong matches.
   isMonitored: boolean('is_monitored').notNull().default(false),
   monitorLastRunAt: timestamp('monitor_last_run_at'),
+  // Per-search override of the user's global emailAnalysisDone preference.
+  // null = fall back to the user pref at completion time; true/false = force.
+  notifyEmailOnComplete: boolean('notify_email_on_complete'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (t) => [

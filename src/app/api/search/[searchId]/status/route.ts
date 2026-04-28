@@ -36,5 +36,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ searchI
     errorMessage: search.errorMessage,
     cancelledAt: search.cancelledAt,
     completedAt: search.completedAt,
+    location: search.location,
   })
 }
