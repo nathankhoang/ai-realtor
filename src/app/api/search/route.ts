@@ -67,6 +67,12 @@ const REQUIREMENTS_TEXT_MAX = 5000
 // Total worst-case ≈ 48s, so 60s gives ~12s of safety margin.
 export const maxDuration = 60
 
+// Pin function to sfo1 (US West). Default iad1 (Virginia) IPs were
+// being routed to the RapidAPI Zillow scraper's broken fallback path,
+// returning 0 results despite the API reporting 3000+ matches. sfo1
+// gives us a different egress IP range — diagnostic experiment.
+export const preferredRegion = 'sfo1'
+
 export async function POST(req: Request) {
   const csrf = requireSameOrigin(req)
   if (csrf) return csrf

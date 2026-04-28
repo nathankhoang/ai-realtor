@@ -126,11 +126,16 @@ export async function searchZillow(params: {
         headers: {
           'x-rapidapi-key': apiKey,
           'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
-          // Without an explicit User-Agent, Node's default ("node") triggers
-          // RapidAPI's real-time-scraper fallback path which often returns
-          // empty results from Vercel's egress IPs. Sending a normal browser
-          // UA lets the cached/curated path run instead.
+          // Full browser fingerprint. The provider's scraper picks a
+          // backend based on caller signature; minimal node fetch headers
+          // route us to a broken fallback path. Match what a real Chrome
+          // request to the playground sends.
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://rapidapi.com/',
+          'Origin': 'https://rapidapi.com',
         },
       },
       SEARCH_TIMEOUT_MS,
@@ -225,10 +230,14 @@ async function fetchDetailWithRetry(zpid: string, label: string): Promise<Respon
     headers: {
       'x-rapidapi-key': apiKey,
       'x-rapidapi-host': 'private-zillow.p.rapidapi.com',
-      // See note on the search call above — Node's default "node" UA
-      // triggers a fallback path that returns empty data from Vercel's
-      // egress IPs.
+      // See note on the search call above — Node's default headers route
+      // requests to a broken fallback path on the provider's scraper.
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Referer': 'https://rapidapi.com/',
+      'Origin': 'https://rapidapi.com',
     },
   }
 
