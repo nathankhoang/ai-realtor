@@ -1,7 +1,11 @@
 import { db } from '@/lib/db'
 import { listings } from '@/lib/db/schema'
-import { sql, inArray } from 'drizzle-orm'
-import type { ZillowListing } from '@/lib/zillow'
+import { sql, eq, inArray } from 'drizzle-orm'
+import { getListingDetails, type ListingContext, type ZillowListing } from '@/lib/zillow'
+import { logger } from '@/lib/logger'
+
+const DETAIL_STALE_AFTER_DAYS = 7
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /** Cap on photos stored per listing. We only feed 5–8 to vision, but Zillow
  *  often returns 30+ — uncapped, this bloats the row to ~100KB. */
@@ -87,5 +91,78 @@ export async function upsertListings(zls: ZillowListing[]): Promise<Map<string, 
     result.set(row.zillowId, row.id)
   }
   return result
+}
+
+/**
+ * Pre-fetch listing details (description + MLS facts) for the given zpids
+ * in parallel, hitting the listings cache when fresh and Zillow's detail
+ * endpoint otherwise. Cache writes are best-effort — failed updates don't
+ * abort the call. Failed detail fetches are silently dropped from the
+ * returned map; callers should treat absence as "no description available"
+ * and fall back to whatever ranking they had pre-fetch.
+ *
+ * Caller MUST upsert the listings row first (we look up by zillowId).
+ */
+export async function prefetchListingDetails(
+  zpids: string[],
+): Promise<Map<string, ListingContext>> {
+  const out = new Map<string, ListingContext>()
+  if (zpids.length === 0) return out
+
+  const cached = await db
+    .select({
+      zillowId: listings.zillowId,
+      detailJson: listings.detailJson,
+      detailFetchedAt: listings.detailFetchedAt,
+    })
+    .from(listings)
+    .where(inArray(listings.zillowId, zpids))
+
+  const cacheByZpid = new Map(cached.map(c => [c.zillowId, c]))
+  const staleZpids: string[] = []
+  const cutoff = Date.now() - DETAIL_STALE_AFTER_DAYS * DAY_MS
+  for (const zpid of zpids) {
+    const c = cacheByZpid.get(zpid)
+    const fresh =
+      c?.detailJson != null
+      && c.detailFetchedAt != null
+      && new Date(c.detailFetchedAt).getTime() >= cutoff
+    if (fresh) {
+      out.set(zpid, c!.detailJson as ListingContext)
+    } else {
+      staleZpids.push(zpid)
+    }
+  }
+
+  if (staleZpids.length === 0) return out
+
+  // Parallel fetch. getListingDetails has its own per-call timeout (8s) +
+  // one retry on 5xx, so a slow upstream can't hang us indefinitely.
+  const settled = await Promise.allSettled(
+    staleZpids.map(async zpid => ({ zpid, ctx: await getListingDetails(zpid) })),
+  )
+
+  const successes: Array<{ zpid: string; ctx: ListingContext }> = []
+  for (const r of settled) {
+    if (r.status === 'fulfilled') {
+      out.set(r.value.zpid, r.value.ctx)
+      successes.push(r.value)
+    } else {
+      logger.warn('prefetchListingDetails.failed', {
+        err: r.reason instanceof Error ? r.reason.message : String(r.reason),
+      })
+    }
+  }
+
+  // Best-effort cache writes — fire and (effectively) forget.
+  await Promise.allSettled(
+    successes.map(({ zpid, ctx }) =>
+      db.update(listings)
+        .set({ detailJson: ctx, detailFetchedAt: new Date() })
+        .where(eq(listings.zillowId, zpid)),
+    ),
+  )
+
+  return out
 }
 

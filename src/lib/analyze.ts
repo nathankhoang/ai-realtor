@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
 import type {
   ListingFeatures,
   ParsedRequirements,
@@ -8,26 +8,15 @@ import type {
 } from '@/types'
 import type { ListingContext } from '@/lib/zillow'
 
-const client = new Anthropic()
+const client = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY ?? '' })
 
-/**
- * Model routing strategy: Haiku for extraction (vision feature
- * detection, prose parsing), Sonnet for judgment (listing ranking,
- * per-requirement scoring + explanation).
- *
- * Vision is Haiku because the eval (scripts/vision-eval) showed it's
- * within 5pp of Sonnet on extraction — well inside nondeterminism noise
- * — at ~3× lower cost. Sonnet's quality lift is on prose specificity,
- * which the user reads in the score explanation, not the per-feature
- * extraction.
- */
-const VISION_MODEL = 'claude-haiku-4-5-20251001'
-const EXTRACTION_MODEL = 'claude-haiku-4-5-20251001'
-const JUDGMENT_MODEL = 'claude-sonnet-4-6'
+const VISION_MODEL = process.env.GEMINI_FLASH_MODEL ?? 'gemini-3-flash-preview'
+const EXTRACTION_MODEL = process.env.GEMINI_FLASH_MODEL ?? 'gemini-3-flash-preview'
+const JUDGMENT_MODEL = process.env.GEMINI_PRO_MODEL ?? 'gemini-3.1-pro-preview'
 
-function tokenCount(usage?: Anthropic.Messages.Usage): number {
-  if (!usage) return 0
-  return (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0)
+function tokenCount(meta?: { promptTokenCount?: number; candidatesTokenCount?: number }): number {
+  if (!meta) return 0
+  return (meta.promptTokenCount ?? 0) + (meta.candidatesTokenCount ?? 0)
 }
 
 function buildListingContextBlock(ctx: ListingContext): string {
@@ -61,6 +50,50 @@ function buildListingContextBlock(ctx: ListingContext): string {
 
 const PHOTO_SAMPLE_LIMIT = 8
 
+/**
+ * Pick PHOTO_SAMPLE_LIMIT photos evenly spread across the listing's full
+ * photo set. Zillow listings typically order photos exterior-first
+ * (1–3), then living/kitchen (4–10), bedrooms/bathrooms (11–20),
+ * outdoor/misc (20+). Slicing the first 8 misses bedrooms and bathrooms
+ * — the rooms scoring cares about most. Returns the original index for
+ * each picked URL so we can remap the model's photoIndex output back to
+ * the original photo ordering for the UI.
+ */
+function sampleEvenlyAcross(urls: string[], n: number): Array<{ originalIndex: number; url: string }> {
+  if (urls.length <= n) return urls.map((url, originalIndex) => ({ originalIndex, url }))
+  const out: Array<{ originalIndex: number; url: string }> = []
+  const stride = urls.length / n
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(i * stride)
+    out.push({ originalIndex: idx, url: urls[idx] })
+  }
+  return out
+}
+
+/**
+ * The model sees N photos as inputs 0..N-1. After parsing, translate any
+ * `photoIndex` field back to the index in the original photoUrls array
+ * (which is what the UI uses to look up the photo). Idempotent: nulls
+ * stay null, out-of-range indices clamp to null.
+ */
+function remapFeaturePhotoIndices(
+  features: ListingFeatures,
+  visionToOriginal: number[],
+): ListingFeatures {
+  const result: ListingFeatures = { ...features }
+  for (const key of Object.keys(result) as Array<keyof ListingFeatures>) {
+    const v = result[key] as { photoIndex?: number | null } | undefined
+    if (v && typeof v === 'object' && 'photoIndex' in v) {
+      const idx = v.photoIndex
+      const mapped = typeof idx === 'number' && idx >= 0 && idx < visionToOriginal.length
+        ? visionToOriginal[idx]
+        : null
+      ;(result[key] as { photoIndex: number | null }).photoIndex = mapped
+    }
+  }
+  return result
+}
+
 export async function analyzeListingPhotos(
   photoUrls: string[],
   listingContext?: ListingContext,
@@ -69,18 +102,39 @@ export async function analyzeListingPhotos(
     return { features: getUnknownFeatures(), tokensUsed: 0, model: VISION_MODEL }
   }
 
-  // 8 photos balances coverage of kitchen/bath/floors against per-listing
-  // cost; each photo is ~1.5–2k input tokens.
-  const photoContent: Anthropic.ImageBlockParam[] = photoUrls.slice(0, PHOTO_SAMPLE_LIMIT).map((url) => ({
-    type: 'image',
-    source: { type: 'url', url },
-  }))
+  // Fetch and base64-encode photos — Gemini requires inline image data.
+  // Failed fetches are dropped, but we keep visionToOriginal aligned with
+  // photoParts so the photoIndex remap below stays correct even when some
+  // photos fail to load.
+  const sampled = sampleEvenlyAcross(photoUrls, PHOTO_SAMPLE_LIMIT)
+  const photoParts: { inlineData: { mimeType: string; data: string } }[] = []
+  const visionToOriginal: number[] = []
+  for (const { originalIndex, url } of sampled) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8_000) })
+      if (!resp.ok) continue
+      const buf = Buffer.from(await resp.arrayBuffer())
+      photoParts.push({
+        inlineData: {
+          mimeType: resp.headers.get('content-type') ?? 'image/jpeg',
+          data: buf.toString('base64'),
+        },
+      })
+      visionToOriginal.push(originalIndex)
+    } catch {
+      // skip failed photo
+    }
+  }
+
+  if (photoParts.length === 0) {
+    return { features: getUnknownFeatures(), tokensUsed: 0, model: VISION_MODEL }
+  }
 
   const contextBlock = listingContext ? buildListingContextBlock(listingContext) : ''
 
   const prompt = `You are analyzing real estate listing photos to extract specific features.
 ${contextBlock}
-Analyze these ${Math.min(photoUrls.length, PHOTO_SAMPLE_LIMIT)} listing photos and respond with a JSON object (no markdown, just raw JSON).
+Analyze these ${photoParts.length} listing photos and respond with a JSON object (no markdown, just raw JSON).
 
 For each feature, provide:
 - condition: "updated" | "original" | "poor" | "unknown"
@@ -98,26 +152,20 @@ Additional fields:
 Respond ONLY with valid JSON, no explanation:`
 
   const model = VISION_MODEL
-  const response = await client.messages.create({
+  const response = await client.models.generateContent({
     model,
-    max_tokens: 1024,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          ...photoContent,
-          { type: 'text', text: prompt },
-        ],
-      },
-    ],
-  }, { timeout: 25_000, maxRetries: 1 })
+    contents: [{ role: 'user', parts: [...photoParts, { text: prompt }] }],
+    config: { maxOutputTokens: 1024, responseMimeType: 'application/json' },
+  })
 
-  const tokensUsed = tokenCount(response.usage)
-  const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
+  const tokensUsed = tokenCount(response.usageMetadata)
+  const text = response.text ?? '{}'
 
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    return { features: JSON.parse(cleaned) as ListingFeatures, tokensUsed, model }
+    const parsed = JSON.parse(cleaned) as ListingFeatures
+    const remapped = remapFeaturePhotoIndices(parsed, visionToOriginal)
+    return { features: remapped, tokensUsed, model }
   } catch {
     return { features: getUnknownFeatures(), tokensUsed, model }
   }
@@ -168,23 +216,107 @@ ${rows}
 Return ONLY a JSON array of the top ${topN} zpids ordered best to worst. No explanation:
 ["zpid1", "zpid2", ...]`
 
-  // Judgment call — ranking 60 listings by buyer fit using only price
-  // and bed/bath signals. Sonnet's reasoning advantage matters most
-  // here because the model has to weigh fit-quality across many
-  // candidates with sparse data. Runs once per search, so the small
-  // cost increment buys better top-of-list quality.
-  const response = await client.messages.create({
+  const response = await client.models.generateContent({
     model: JUDGMENT_MODEL,
-    max_tokens: 1024,
-    messages: [{ role: 'user', content: prompt }],
-  }, { timeout: 15_000, maxRetries: 1 })
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 1024 },
+  })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '[]'
+  const text = response.text ?? '[]'
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const ranked = JSON.parse(cleaned) as string[]
     const validZpids = new Set(listings.map(l => l.zpid))
     return ranked.filter(z => validZpids.has(z))
+  } catch {
+    return listings.map(l => l.zpid)
+  }
+}
+
+/**
+ * Second-pass ranking that reads listing descriptions + MLS facts. The
+ * basic prescreen above only sees price/beds/baths/sqft, which is too
+ * thin a signal for feature-driven requirements (hardwood floors, recent
+ * reno, granite counters). Run this on the top ~30 from the basic
+ * prescreen so the first batch we analyze is the actual best matches,
+ * not whatever the price/bed/bath ranking guessed at.
+ *
+ * Returns the input zpids in re-ranked order. Falls back to input order
+ * on any parse failure — caller should pass listings that already have
+ * description text (otherwise just use prescreenListings).
+ */
+export async function prescreenListingsWithDescriptions(
+  listings: Array<{
+    zpid: string
+    address: string
+    price: number | null
+    beds: number | null
+    baths: number | null
+    sqft: number | null
+    description: string
+    yearBuilt?: number | null
+    interiorFeatures?: string[]
+  }>,
+  requirements: ParsedRequirements,
+  strictPriceMax?: number | null,
+): Promise<string[]> {
+  if (listings.length === 0) return []
+  if (listings.length === 1) return [listings[0].zpid]
+
+  const rows = listings.map(l => {
+    const overBudget =
+      strictPriceMax != null && l.price != null && l.price > strictPriceMax
+        ? ' [OVER BUDGET]'
+        : ''
+    const interior = l.interiorFeatures?.length
+      ? ` | MLS features: ${l.interiorFeatures.slice(0, 5).join(', ')}`
+      : ''
+    const yr = l.yearBuilt ? ` | built ${l.yearBuilt}` : ''
+    // Truncate description to keep prompt tractable. 600 chars covers the
+    // first 1-2 paragraphs which is where listing agents put feature
+    // callouts; later paragraphs are usually neighborhood/agent boilerplate.
+    const desc = l.description
+      ? `\n  description: "${l.description.slice(0, 600).replace(/\s+/g, ' ').trim()}"`
+      : ''
+    return `${l.zpid} | ${l.address} | ${l.price ? '$' + l.price.toLocaleString() : 'N/A'}${overBudget} | ${l.beds ?? '?'}bd | ${l.baths ?? '?'}ba | ${l.sqft ? l.sqft.toLocaleString() + ' sqft' : 'N/A'}${yr}${interior}${desc}`
+  }).join('\n')
+
+  const budgetLine = strictPriceMax != null
+    ? `\n- Strict budget ceiling: $${strictPriceMax.toLocaleString()}. [OVER BUDGET] listings should rank lower than equivalent in-budget options.`
+    : ''
+
+  const prompt = `Rank these real estate listings by how well they match the buyer's requirements. Use ALL the data provided — descriptions, year built, MLS features, basic facts.
+
+Requirements:
+- Must have: ${requirements.required.join(', ') || 'none'}
+- Nice to have: ${requirements.niceToHave.join(', ') || 'none'}
+- Deal breakers: ${requirements.dealBreakers.join(', ') || 'none'}${budgetLine}
+
+Pay close attention to listing descriptions — they often mention renovations, finishes, and features that the basic facts don't capture. Listings whose descriptions explicitly confirm "must have" requirements should rank above those that are silent on them. Listings that mention "deal breaker" features should rank lowest. Treat MLS features the same way — confirmed match > silent > confirmed miss.
+
+Listings:
+${rows}
+
+Return ONLY a JSON array of all ${listings.length} zpids ordered best to worst. No explanation:
+["zpid1", "zpid2", ...]`
+
+  const response = await client.models.generateContent({
+    model: JUDGMENT_MODEL,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 2048 },
+  })
+
+  const text = response.text ?? '[]'
+  try {
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const ranked = JSON.parse(cleaned) as string[]
+    const validZpids = new Set(listings.map(l => l.zpid))
+    const filtered = ranked.filter(z => validZpids.has(z))
+    // Append any zpid the model dropped from the response so the caller
+    // never loses listings it sent in.
+    const inResponse = new Set(filtered)
+    const dropped = listings.map(l => l.zpid).filter(z => !inResponse.has(z))
+    return [...filtered, ...dropped]
   } catch {
     return listings.map(l => l.zpid)
   }
@@ -221,15 +353,12 @@ export function dedupeRequirementsText(prose: string, checklistLabels: string[])
 }
 
 export async function parseRequirements(requirementsText: string): Promise<ParsedRequirements> {
-  // Pure extraction — Haiku. Buyer prose → structured wishlist. No
-  // judgment, deterministic categorization.
-  const response = await client.messages.create({
+  const response = await client.models.generateContent({
     model: EXTRACTION_MODEL,
-    max_tokens: 512,
-    messages: [
+    contents: [
       {
         role: 'user',
-        content: `Parse these home-buyer requirements into categories. Respond ONLY with valid JSON, no markdown:
+        parts: [{ text: `Parse these home-buyer requirements into categories. Respond ONLY with valid JSON, no markdown:
 
 Requirements: "${requirementsText}"
 
@@ -249,12 +378,13 @@ priceCeiling rules:
 - If they say "around 400K" or "approx 400" treat 400000 as the ceiling — strict by default.
 - Do NOT also list "price over X" in dealBreakers; the priceCeiling field replaces that.
 
-Deduplicate semantically — if the same feature is mentioned twice (e.g. "hardwood floors" in prose and again in a checklist), include it only once.`,
+Deduplicate semantically — if the same feature is mentioned twice (e.g. "hardwood floors" in prose and again in a checklist), include it only once.` }],
       },
     ],
-  }, { timeout: 12_000, maxRetries: 1 })
+    config: { maxOutputTokens: 512, responseMimeType: 'application/json' },
+  })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
+  const text = response.text ?? '{}'
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     const raw = JSON.parse(cleaned) as Partial<ParsedRequirements> & { priceCeiling?: unknown }
@@ -403,9 +533,21 @@ function seedChecklistFromMls(
  * free-form "score" field — explainable, monotonic, identical for the
  * same inputs.
  *
+ * Verdict semantics:
+ *   - matched  → full credit (1.0)
+ *   - missed   → zero credit (0.0)
+ *   - unclear  → half credit (0.5). "We couldn't tell" should rank
+ *                 between "we know it's there" and "we know it's not."
+ *                 The previous formula penalized unclear on top of
+ *                 excluding it from the match rate, which inverted that
+ *                 ordering — a listing where every requirement was
+ *                 unclear ended up scoring below one where every
+ *                 requirement was a confirmed miss.
+ *
  * Bands (rough):
  *   - All required matched + niceToHaves matched: ~0.95
  *   - All required matched: ~0.85
+ *   - All required unclear: ~0.53 (between matched and missed)
  *   - 75% required matched: ~0.69
  *   - 50% required matched: ~0.53
  *   - 1+ deal-breaker present: ≤0.20
@@ -431,10 +573,8 @@ export function computeScoreFromChecklist(checklist: RequirementsChecklist): num
     return 0.55 + 0.30 * (niceMatched / niceTotal)
   }
 
-  const reqRate = reqMatched / reqTotal
-  const unclearRate = reqUnclear / reqTotal
+  const reqRate = (reqMatched + 0.5 * reqUnclear) / reqTotal
   let score = 0.20 + 0.65 * reqRate
-  score -= 0.05 * unclearRate
   if (niceTotal > 0) score += 0.10 * (niceMatched / niceTotal)
   return Math.max(0, Math.min(1, score))
 }
@@ -496,8 +636,6 @@ export async function scoreListingAgainstRequirements(
     ? `\nListing data from MLS:\n${contextLines.join('\n')}\n`
     : ''
 
-  // We compute the numeric score ourselves from the checklist, so the
-  // prompt only needs the explanation + per-requirement evaluations.
   const prompt = `You are a real estate AI assistant evaluating how well a home matches client requirements.
 
 CRITICAL RULES:
@@ -545,19 +683,14 @@ Respond ONLY with valid JSON:
   ]
 }`
 
-  // Judgment + prose call — Sonnet. Per-requirement verdicts plus the
-  // 2-sentence explanation rendered to the user. The eval showed
-  // Sonnet's specificity ("wood-plank soffit, designer hardware")
-  // shows up exactly here vs Haiku's generic ("premium materials
-  // throughout"). This is the bit users actually read.
-  const response = await client.messages.create({
+  const response = await client.models.generateContent({
     model: JUDGMENT_MODEL,
-    max_tokens: 1500,
-    messages: [{ role: 'user', content: prompt }],
-  }, { timeout: 18_000, maxRetries: 1 })
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 1500, responseMimeType: 'application/json' },
+  })
 
-  const tokensUsed = tokenCount(response.usage)
-  const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
+  const tokensUsed = tokenCount(response.usageMetadata)
+  const text = response.text ?? '{}'
 
   // Throw on parse failure so the worker writes a searchFailures row
   // instead of inserting a misleading 0.5 "low match" result.

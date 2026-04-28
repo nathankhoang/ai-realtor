@@ -6,10 +6,10 @@ import { db } from '@/lib/db'
 import { users, searches, searchResults } from '@/lib/db/schema'
 import { eq, and, desc, gte, count, sql } from 'drizzle-orm'
 import { searchZillow } from '@/lib/zillow'
-import { parseRequirements, prescreenListings } from '@/lib/analyze'
+import { parseRequirements, prescreenListings, prescreenListingsWithDescriptions } from '@/lib/analyze'
 import { TIER_LIMITS, type Tier } from '@/types'
 import { enqueueAnalyzeListings } from '@/lib/queue'
-import { upsertListings } from '@/lib/listings'
+import { upsertListings, prefetchListingDetails } from '@/lib/listings'
 import { softBudget } from '@/lib/budget'
 import type { ParsedRequirements } from '@/types'
 import { logger } from '@/lib/logger'
@@ -147,14 +147,61 @@ export async function POST(_req: Request, { params }: { params: Promise<{ search
 
   const allZpids = zillowListings.map(zl => zl.zpid)
   const remaining = allZpids.filter(z => !rankedZpids.includes(z))
-  const orderedZpids = [...rankedZpids, ...remaining]
+
+  // Upsert all prescreened listings up front so:
+  //   1. The detail prefetch below has rows to attach detailJson to.
+  //   2. next-batch can pop without refetching Zillow.
+  const zpidToListingId = await upsertListings(zillowListings)
+
+  // Second-pass description-aware re-rank of the top RERANK_POOL_SIZE.
+  // See src/app/api/search/route.ts for the rationale — same pattern.
+  const RERANK_POOL_SIZE = 30
+  const top = rankedZpids.slice(0, RERANK_POOL_SIZE)
+  let rerankedTop: string[] = top
+  if (top.length > 1) {
+    try {
+      const detailsByZpid = await prefetchListingDetails(top)
+      const zillowByZpid = new Map(zillowListings.map(zl => [zl.zpid, zl]))
+      const enriched = top.flatMap(zpid => {
+        const zl = zillowByZpid.get(zpid)
+        const ctx = detailsByZpid.get(zpid)
+        if (!zl || !ctx || !ctx.description) return []
+        return [{
+          zpid,
+          address: zl.address,
+          price: zl.price,
+          beds: zl.bedrooms,
+          baths: zl.bathrooms,
+          sqft: zl.livingArea,
+          description: ctx.description,
+          yearBuilt: ctx.yearBuilt,
+          interiorFeatures: ctx.resoFacts.interiorFeatures,
+        }]
+      })
+      if (enriched.length >= 2) {
+        const reranked = await prescreenListingsWithDescriptions(
+          enriched,
+          parsedRequirements,
+          original.priceMax,
+        )
+        const rerankedSet = new Set(reranked)
+        const noDescTail = top.filter(z => !rerankedSet.has(z))
+        rerankedTop = [...reranked, ...noDescTail]
+      }
+    } catch (err) {
+      logger.warn('rerun.descPrescreenFailed', {
+        searchId: newSearch.id,
+        err: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  const restOfPrescreen = rankedZpids.filter(z => !rerankedTop.includes(z))
+  const orderedZpids = [...rerankedTop, ...restOfPrescreen, ...remaining]
   await db.update(searches)
     .set({ prescreenedZpids: orderedZpids })
     .where(eq(searches.id, newSearch.id))
 
-  // Upsert all prescreened listings up front so next-batch can pop without
-  // refetching Zillow.
-  const zpidToListingId = await upsertListings(zillowListings)
   const firstBatchZpids = orderedZpids.slice(0, FIRST_BATCH_SIZE)
   const listingIds = firstBatchZpids
     .map(z => zpidToListingId.get(z))
