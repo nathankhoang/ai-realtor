@@ -67,7 +67,7 @@ export default function NextBatchButton({
 
   return (
     <Button variant="default" size="sm" onClick={loadNextBatch} disabled={loading}>
-      {loading ? 'Analyzing…' : `Get 10 more matches`}
+      {loading ? 'Analyzing…' : `Analyze 10 more listings`}
     </Button>
   )
 }
